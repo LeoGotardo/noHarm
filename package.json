@@ -1,7 +1,7 @@
 {
   "name": "noharm",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "index.jsx",
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
@@ -9,10 +9,10 @@
     "web": "expo start --web"
   },
   "dependencies": {
-    "expo": "~54.0.30",
+    "expo": "^54.0.30",
     "expo-status-bar": "~3.0.9",
-    "react": "19.1.0",
-    "react-native": "0.81.5"
+    "react": "^19.2.3",
+    "react-native": "^0.81.5"
   },
   "private": true,
   "devDependencies": {
