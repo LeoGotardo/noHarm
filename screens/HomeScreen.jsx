@@ -1,4 +1,13 @@
-export default function App() {
+import { useState } from 'react';
+import FriendsScreen  from './FrendsScreen';
+import ChatScreen  from './ChatScreen';
+import ProgressScreen  from './ProgressScreen';
+import Header  from '../components/Header';
+import SideMenu  from '../components/SideMenu';
+import ButtonNavigation  from '../components/ButtonNavigation';
+import ResetModal  from '../components/ResetModal';
+
+export default function HomeScreen() {
   const [currentScreen, setCurrentScreen] = useState('home');
   const [menuOpen, setMenuOpen] = useState(false);
   const [resetModalOpen, setResetModalOpen] = useState(false);
@@ -20,7 +29,6 @@ export default function App() {
     home: <HomeScreen cleanDays={cleanDays} onResetClick={() => setResetModalOpen(true)} onEmergencyClick={() => handleNavigation('emergency')} />,
     friends: <FriendsScreen />,
     chat: <ChatScreen />,
-    emergency: <EmergencyScreen />,
     progress: <ProgressScreen cleanDays={cleanDays} />
   };
   
