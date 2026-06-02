@@ -3,6 +3,7 @@ import AppLayout from "@/components/AppLayout";
 import { BarChart, Bar, XAxis, ResponsiveContainer, LineChart, Line, Tooltip } from "recharts";
 import { Trophy, Flame, Target, Calendar, TrendingUp } from "lucide-react";
 import { useCurrentStreak, useRecordStreak, useStreakHistory } from "@/hooks/api/useStreak";
+import { useTranslation } from "react-i18next";
 
 type StreakShape = { start?: string | null; end?: string | null };
 
@@ -23,20 +24,20 @@ function wasCleanOnDay(streaks: StreakShape[], date: Date): boolean {
   });
 }
 
-const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-const milestoneConfig = [
-  { icon: Flame, label: "1 Week", days: 7 },
-  { icon: Target, label: "1 Month", days: 30 },
-  { icon: Trophy, label: "3 Months", days: 90 },
-  { icon: Calendar, label: "1 Year", days: 365 },
-];
-
 const ProgressScreen = () => {
+  const { t } = useTranslation();
   const [view, setView] = useState<"weekly" | "monthly">("weekly");
   const { data: current } = useCurrentStreak();
   const { data: record } = useRecordStreak();
   const { data: historyData } = useStreakHistory();
+
+  const dayLabels = t("progress.dayLabels", { returnObjects: true }) as string[];
+  const milestoneConfig = [
+    { icon: Flame, label: t("progress.milestones.week1"), days: 7 },
+    { icon: Target, label: t("progress.milestones.month1"), days: 30 },
+    { icon: Trophy, label: t("progress.milestones.months3"), days: 90 },
+    { icon: Calendar, label: t("progress.milestones.year1"), days: 365 },
+  ];
 
   const currentDays = daysClean(current);
   const recordDays = daysClean(record);
@@ -45,7 +46,7 @@ const ProgressScreen = () => {
   const weeklyData = Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - (6 - i));
-    return { day: DAY_LABELS[d.getDay()], value: wasCleanOnDay(allStreaks, d) ? 1 : 0 };
+    return { day: dayLabels[d.getDay()], value: wasCleanOnDay(allStreaks, d) ? 1 : 0 };
   });
 
   const monthlyData = Array.from({ length: 4 }, (_, weekIdx) => {
@@ -59,19 +60,19 @@ const ProgressScreen = () => {
   });
 
   return (
-    <AppLayout title="Progress">
+    <AppLayout title={t("nav.progress")}>
       <div className="space-y-5">
         <div className="grid grid-cols-2 gap-3">
           <div className="glass-card rounded-2xl p-4 text-center">
             <p className="text-3xl font-black gradient-text">{currentDays}</p>
-            <p className="text-[10px] text-muted-foreground mt-1 font-semibold uppercase tracking-wider">Current Streak</p>
+            <p className="text-[10px] text-muted-foreground mt-1 font-semibold uppercase tracking-wider">{t("progress.currentStreak")}</p>
           </div>
           <div className="glass-card rounded-2xl p-4 text-center">
             <div className="flex items-center justify-center gap-1.5">
               <TrendingUp size={14} className="text-success" />
               <p className="text-3xl font-black text-success">{recordDays}</p>
             </div>
-            <p className="text-[10px] text-muted-foreground mt-1 font-semibold uppercase tracking-wider">Best Streak</p>
+            <p className="text-[10px] text-muted-foreground mt-1 font-semibold uppercase tracking-wider">{t("progress.bestStreak")}</p>
           </div>
         </div>
 
@@ -86,7 +87,7 @@ const ProgressScreen = () => {
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              {v === "weekly" ? "Weekly" : "Monthly"}
+              {v === "weekly" ? t("progress.weekly") : t("progress.monthly")}
             </button>
           ))}
         </div>
@@ -109,7 +110,7 @@ const ProgressScreen = () => {
         </div>
 
         <div>
-          <h3 className="section-title mb-3">Achievements</h3>
+          <h3 className="section-title mb-3">{t("progress.achievements")}</h3>
           <div className="grid grid-cols-4 gap-2">
             {milestoneConfig.map((m) => {
               const achieved = currentDays >= m.days;

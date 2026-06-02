@@ -1,0 +1,102 @@
+{
+  "nav": {
+    "home": "Início",
+    "friends": "Amigos",
+    "progress": "Progresso",
+    "chat": "Chat",
+    "help": "Ajuda"
+  },
+  "greeting": {
+    "morning": "Bom dia",
+    "afternoon": "Boa tarde",
+    "evening": "Boa noite"
+  },
+  "home": {
+    "protected": "Protegido",
+    "notStarted": "Não iniciado",
+    "noActiveStreak": "Nenhuma sequência ativa ainda.",
+    "starting": "Iniciando…",
+    "startJourney": "Comece sua jornada",
+    "loading": "Carregando…",
+    "weeks": "Semanas",
+    "months": "Meses"
+  },
+  "streak": {
+    "daysClean": "Dias Limpos",
+    "years": "Anos",
+    "months": "Meses",
+    "days": "Dias",
+    "hrs": "Hrs",
+    "min": "Min",
+    "sec": "Seg",
+    "reset": "Reiniciar contador",
+    "confirm": "Confirmar",
+    "cancel": "Cancelar"
+  },
+  "quotes": [
+    { "text": "Cada dia limpo é uma vitória.", "author": "Anônimo" },
+    { "text": "Coragem não é ausência de medo, mas a decisão de que algo é mais importante.", "author": "Ambrose Redmoon" },
+    { "text": "Você é mais forte do que pensa.", "author": "Anônimo" },
+    { "text": "Um passo de cada vez.", "author": "Provérbio" },
+    { "text": "Recuperação é uma jornada, não um destino.", "author": "Anônimo" }
+  ],
+  "login": {
+    "tagline": "Sua jornada de recuperação começa aqui.",
+    "signingIn": "Entrando…",
+    "signInGoogle": "Entrar com Google"
+  },
+  "friends": {
+    "friendsCount": "{{count}} amigos",
+    "placeholder": "ID do amigo…",
+    "send": "Enviar",
+    "cancel": "Cancelar",
+    "addFriend": "Adicionar amigo"
+  },
+  "progress": {
+    "currentStreak": "Sequência Atual",
+    "bestStreak": "Melhor Sequência",
+    "weekly": "Semanal",
+    "monthly": "Mensal",
+    "achievements": "Conquistas",
+    "milestones": {
+      "week1": "1 Semana",
+      "month1": "1 Mês",
+      "months3": "3 Meses",
+      "year1": "1 Ano"
+    },
+    "dayLabels": ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
+  },
+  "chat": {
+    "noChat": "Nenhum chat selecionado.",
+    "placeholder": "Digite uma mensagem..."
+  },
+  "help": {
+    "crisis": "Se você está em crise, não hesite em pedir ajuda. Apoio disponível 24/7.",
+    "notAlone": "Você não está sozinho. Cada passo importa.",
+    "contacts": [
+      { "label": "CVV", "number": "188", "description": "Valorização da vida — gratuito 24h" },
+      { "label": "CAPS", "number": "156", "description": "Centro de Atenção Psicossocial" },
+      { "label": "Disque 100", "number": "100", "description": "Direitos Humanos" }
+    ]
+  },
+  "profile": {
+    "personalInfo": "Informações Pessoais",
+    "aboutYou": "Sobre Você",
+    "settings": "Configurações",
+    "username": "Nome de usuário",
+    "email": "E-mail",
+    "bio": "Bio",
+    "myReason": "Meu motivo para ficar limpo",
+    "bioPlaceholder": "Algumas palavras sobre você...",
+    "reasonPlaceholder": "O que te motiva...",
+    "privacy": "Privacidade",
+    "controlData": "Controle seus dados",
+    "saved": "Salvo!",
+    "saving": "Salvando…",
+    "saveChanges": "Salvar Alterações",
+    "days": "Dias",
+    "weeks": "Semanas",
+    "months": "Meses",
+    "yourName": "Seu Nome"
+  }
+}

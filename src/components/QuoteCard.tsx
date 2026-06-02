@@ -1,14 +1,9 @@
 import { Quote } from "lucide-react";
-
-const quotes = [
-  { text: "Every clean day is a victory.", author: "Anonymous" },
-  { text: "Courage is not the absence of fear, but the decision that something is more important.", author: "Ambrose Redmoon" },
-  { text: "You are stronger than you think.", author: "Anonymous" },
-  { text: "One step at a time.", author: "Proverb" },
-  { text: "Recovery is a journey, not a destination.", author: "Anonymous" },
-];
+import { useTranslation } from "react-i18next";
 
 const QuoteCard = () => {
+  const { t } = useTranslation();
+  const quotes = t("quotes", { returnObjects: true }) as { text: string; author: string }[];
   const today = new Date().getDay();
   const quote = quotes[today % quotes.length];
 

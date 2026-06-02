@@ -4,8 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Check, User, Mail, Shield, ChevronRight, Camera, Heart } from "lucide-react";
 import { useMe, useUpdateMe } from "@/hooks/api/useUser";
 import { useCurrentStreak } from "@/hooks/api/useStreak";
+import { useTranslation } from "react-i18next";
 
 const ProfileScreen = () => {
+  const { t } = useTranslation();
   const { data: me } = useMe();
   const updateMe = useUpdateMe();
   const { data: streak } = useCurrentStreak();
@@ -50,7 +52,6 @@ const ProfileScreen = () => {
   return (
     <AppLayout title="Profile">
       <div className="flex flex-col gap-5 pb-4">
-        {/* Avatar & header */}
         <div className="glass-card rounded-3xl p-6 flex flex-col items-center gap-4 relative overflow-hidden">
           <div className="absolute -top-20 -right-20 w-44 h-44 rounded-full bg-primary/[0.04] blur-[60px]" />
 
@@ -64,31 +65,30 @@ const ProfileScreen = () => {
           </div>
 
           <div className="text-center">
-            <h2 className="text-base font-bold text-foreground">{name || "Your Name"}</h2>
+            <h2 className="text-base font-bold text-foreground">{name || t("profile.yourName")}</h2>
             {bio && <p className="text-[11px] text-muted-foreground mt-1 max-w-[200px]">{bio}</p>}
           </div>
 
           <div className="flex gap-6 mt-1">
             <div className="text-center">
               <p className="text-lg font-black gradient-text">{totalDays}</p>
-              <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider">Days</p>
+              <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider">{t("profile.days")}</p>
             </div>
             <div className="w-px bg-border/30" />
             <div className="text-center">
               <p className="text-lg font-black text-success">{Math.floor(totalDays / 7)}</p>
-              <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider">Weeks</p>
+              <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider">{t("profile.weeks")}</p>
             </div>
             <div className="w-px bg-border/30" />
             <div className="text-center">
               <p className="text-lg font-black text-warning">{Math.floor(totalDays / 30)}</p>
-              <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider">Months</p>
+              <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider">{t("profile.months")}</p>
             </div>
           </div>
         </div>
 
-        {/* Personal Info */}
         <div className="glass-card rounded-3xl p-5 space-y-4">
-          <h3 className="section-title">Personal Info</h3>
+          <h3 className="section-title">{t("profile.personalInfo")}</h3>
           <div className="space-y-3">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-primary/8 flex items-center justify-center shrink-0">
@@ -96,7 +96,7 @@ const ProfileScreen = () => {
               </div>
               <input
                 type="text" value={name} onChange={(e) => setName(e.target.value)}
-                placeholder="Username" maxLength={50}
+                placeholder={t("profile.username")} maxLength={50}
                 className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/40 outline-none border-b border-border/20 pb-2 focus:border-primary/30 transition-colors"
               />
             </div>
@@ -106,22 +106,21 @@ const ProfileScreen = () => {
               </div>
               <input
                 type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                placeholder="Email" maxLength={255}
+                placeholder={t("profile.email")} maxLength={255}
                 className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/40 outline-none border-b border-border/20 pb-2 focus:border-primary/30 transition-colors"
               />
             </div>
           </div>
         </div>
 
-        {/* About */}
         <div className="glass-card rounded-3xl p-5 space-y-4">
-          <h3 className="section-title">About You</h3>
+          <h3 className="section-title">{t("profile.aboutYou")}</h3>
           <div className="space-y-3">
             <div>
-              <label className="text-[10px] text-muted-foreground font-semibold mb-1.5 block uppercase tracking-wider">Bio</label>
+              <label className="text-[10px] text-muted-foreground font-semibold mb-1.5 block uppercase tracking-wider">{t("profile.bio")}</label>
               <textarea
                 value={bio} onChange={(e) => setBio(e.target.value)}
-                placeholder="A few words about yourself..." maxLength={200} rows={2}
+                placeholder={t("profile.bioPlaceholder")} maxLength={200} rows={2}
                 className="w-full bg-card text-sm text-foreground placeholder:text-muted-foreground/40 outline-none rounded-xl px-3.5 py-2.5 focus:ring-1 focus:ring-primary/20 transition-all resize-none border border-border/30"
               />
               <p className="text-[9px] text-muted-foreground/40 text-right mt-0.5">{bio.length}/200</p>
@@ -129,11 +128,11 @@ const ProfileScreen = () => {
             <div>
               <label className="flex items-center gap-1.5 text-[10px] text-muted-foreground font-semibold mb-1.5 uppercase tracking-wider">
                 <Heart size={10} className="text-destructive" />
-                My reason to stay clean
+                {t("profile.myReason")}
               </label>
               <textarea
                 value={reason} onChange={(e) => setReason(e.target.value)}
-                placeholder="What motivates you..." maxLength={300} rows={3}
+                placeholder={t("profile.reasonPlaceholder")} maxLength={300} rows={3}
                 className="w-full bg-card text-sm text-foreground placeholder:text-muted-foreground/40 outline-none rounded-xl px-3.5 py-2.5 focus:ring-1 focus:ring-primary/20 transition-all resize-none border border-border/30"
               />
               <p className="text-[9px] text-muted-foreground/40 text-right mt-0.5">{reason.length}/300</p>
@@ -141,16 +140,15 @@ const ProfileScreen = () => {
           </div>
         </div>
 
-        {/* Settings */}
         <div className="glass-card rounded-3xl overflow-hidden">
-          <h3 className="section-title px-5 pt-4 pb-2">Settings</h3>
+          <h3 className="section-title px-5 pt-4 pb-2">{t("profile.settings")}</h3>
           <button className="w-full flex items-center gap-3 px-5 py-3 hover:bg-secondary/20 transition-colors">
             <div className="w-8 h-8 rounded-lg bg-primary/8 flex items-center justify-center shrink-0">
               <Shield size={14} className="text-primary/70" />
             </div>
             <div className="flex-1 text-left">
-              <p className="text-sm font-medium text-foreground">Privacy</p>
-              <p className="text-[10px] text-muted-foreground">Control your data</p>
+              <p className="text-sm font-medium text-foreground">{t("profile.privacy")}</p>
+              <p className="text-[10px] text-muted-foreground">{t("profile.controlData")}</p>
             </div>
             <ChevronRight size={14} className="text-muted-foreground/30" />
           </button>
@@ -162,8 +160,8 @@ const ProfileScreen = () => {
           className="w-full rounded-2xl h-11 text-sm font-semibold"
         >
           {saved ? (
-            <span className="flex items-center gap-2"><Check size={14} /> Saved!</span>
-          ) : updateMe.isPending ? "Saving…" : "Save Changes"}
+            <span className="flex items-center gap-2"><Check size={14} /> {t("profile.saved")}</span>
+          ) : updateMe.isPending ? t("profile.saving") : t("profile.saveChanges")}
         </Button>
       </div>
     </AppLayout>
