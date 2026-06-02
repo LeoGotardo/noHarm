@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 
 interface StreakCounterProps {
   startDate: string;
@@ -57,6 +58,7 @@ const Separator = () => (
 );
 
 const StreakCounter = ({ startDate, onReset }: StreakCounterProps) => {
+  const { t } = useTranslation();
   const [showConfirm, setShowConfirm] = useState(false);
   const [time, setTime] = useState(() => getTimeBreakdown(startDate));
 
@@ -75,7 +77,7 @@ const StreakCounter = ({ startDate, onReset }: StreakCounterProps) => {
       {/* Big number */}
       <div className="text-center space-y-1">
         <span className="text-6xl font-black gradient-text tracking-tight">{totalDays}</span>
-        <p className="text-[10px] font-bold text-muted-foreground tracking-[0.25em] uppercase">Days Clean</p>
+        <p className="text-[10px] font-bold text-muted-foreground tracking-[0.25em] uppercase">{t("streak.daysClean")}</p>
       </div>
 
       {/* Timer grid */}
@@ -83,23 +85,23 @@ const StreakCounter = ({ startDate, onReset }: StreakCounterProps) => {
         <div className="flex items-center justify-center gap-2">
           {time.years > 0 && (
             <>
-              <TimeUnit value={time.years} label="Years" />
+              <TimeUnit value={time.years} label={t("streak.years")} />
               <Separator />
             </>
           )}
           {(time.years > 0 || time.months > 0) && (
             <>
-              <TimeUnit value={time.months} label="Months" />
+              <TimeUnit value={time.months} label={t("streak.months")} />
               <Separator />
             </>
           )}
-          <TimeUnit value={time.days} label="Days" />
+          <TimeUnit value={time.days} label={t("streak.days")} />
           <Separator />
-          <TimeUnit value={time.hours} label="Hrs" />
+          <TimeUnit value={time.hours} label={t("streak.hrs")} />
           <Separator />
-          <TimeUnit value={time.minutes} label="Min" />
+          <TimeUnit value={time.minutes} label={t("streak.min")} />
           <Separator />
-          <TimeUnit value={time.seconds} label="Sec" />
+          <TimeUnit value={time.seconds} label={t("streak.sec")} />
         </div>
       </div>
 
@@ -109,7 +111,7 @@ const StreakCounter = ({ startDate, onReset }: StreakCounterProps) => {
           onClick={() => setShowConfirm(true)}
           className="text-muted-foreground/40 hover:text-destructive transition-colors text-[11px] font-medium"
         >
-          Reset counter
+          {t("streak.reset")}
         </button>
       ) : (
         <div className="flex items-center gap-3">
@@ -117,13 +119,13 @@ const StreakCounter = ({ startDate, onReset }: StreakCounterProps) => {
             onClick={() => { onReset(); setShowConfirm(false); }}
             className="px-5 py-2 bg-destructive text-destructive-foreground rounded-xl text-xs font-semibold"
           >
-            Confirm
+            {t("streak.confirm")}
           </button>
           <button
             onClick={() => setShowConfirm(false)}
             className="px-5 py-2 bg-secondary text-secondary-foreground rounded-xl text-xs font-semibold"
           >
-            Cancel
+            {t("streak.cancel")}
           </button>
         </div>
       )}

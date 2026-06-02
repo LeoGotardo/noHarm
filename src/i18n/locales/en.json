@@ -1,0 +1,102 @@
+{
+  "nav": {
+    "home": "Home",
+    "friends": "Friends",
+    "progress": "Progress",
+    "chat": "Chat",
+    "help": "Help"
+  },
+  "greeting": {
+    "morning": "Good morning",
+    "afternoon": "Good afternoon",
+    "evening": "Good evening"
+  },
+  "home": {
+    "protected": "Protected",
+    "notStarted": "Not Started",
+    "noActiveStreak": "No active streak yet.",
+    "starting": "Starting…",
+    "startJourney": "Start your journey",
+    "loading": "Loading…",
+    "weeks": "Weeks",
+    "months": "Months"
+  },
+  "streak": {
+    "daysClean": "Days Clean",
+    "years": "Years",
+    "months": "Months",
+    "days": "Days",
+    "hrs": "Hrs",
+    "min": "Min",
+    "sec": "Sec",
+    "reset": "Reset counter",
+    "confirm": "Confirm",
+    "cancel": "Cancel"
+  },
+  "quotes": [
+    { "text": "Every clean day is a victory.", "author": "Anonymous" },
+    { "text": "Courage is not the absence of fear, but the decision that something is more important.", "author": "Ambrose Redmoon" },
+    { "text": "You are stronger than you think.", "author": "Anonymous" },
+    { "text": "One step at a time.", "author": "Proverb" },
+    { "text": "Recovery is a journey, not a destination.", "author": "Anonymous" }
+  ],
+  "login": {
+    "tagline": "Your recovery journey starts here.",
+    "signingIn": "Signing in…",
+    "signInGoogle": "Sign in with Google"
+  },
+  "friends": {
+    "friendsCount": "{{count}} friends",
+    "placeholder": "Friend's user ID…",
+    "send": "Send",
+    "cancel": "Cancel",
+    "addFriend": "Add friend"
+  },
+  "progress": {
+    "currentStreak": "Current Streak",
+    "bestStreak": "Best Streak",
+    "weekly": "Weekly",
+    "monthly": "Monthly",
+    "achievements": "Achievements",
+    "milestones": {
+      "week1": "1 Week",
+      "month1": "1 Month",
+      "months3": "3 Months",
+      "year1": "1 Year"
+    },
+    "dayLabels": ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+  },
+  "chat": {
+    "noChat": "No chat selected.",
+    "placeholder": "Type a message..."
+  },
+  "help": {
+    "crisis": "If you're in crisis, don't hesitate to reach out. Help is available 24/7.",
+    "notAlone": "You're not alone. Every step forward matters.",
+    "contacts": [
+      { "label": "SAMHSA Helpline", "number": "1-800-662-4357", "description": "Free, 24/7 treatment referral" },
+      { "label": "Crisis Lifeline", "number": "988", "description": "Suicide & crisis support" },
+      { "label": "Crisis Text Line", "number": "741741", "description": "Text HOME to connect" }
+    ]
+  },
+  "profile": {
+    "personalInfo": "Personal Info",
+    "aboutYou": "About You",
+    "settings": "Settings",
+    "username": "Username",
+    "email": "Email",
+    "bio": "Bio",
+    "myReason": "My reason to stay clean",
+    "bioPlaceholder": "A few words about yourself...",
+    "reasonPlaceholder": "What motivates you...",
+    "privacy": "Privacy",
+    "controlData": "Control your data",
+    "saved": "Saved!",
+    "saving": "Saving…",
+    "saveChanges": "Save Changes",
+    "days": "Days",
+    "weeks": "Weeks",
+    "months": "Months",
+    "yourName": "Your Name"
+  }
+}

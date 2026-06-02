@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import AppLayout from "@/components/AppLayout";
 import { Send } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useMessages } from "@/hooks/api/useChats";
 import { useChats } from "@/hooks/api/useChats";
 import { useMe } from "@/hooks/api/useUser";
@@ -21,6 +22,7 @@ interface Message {
 }
 
 const ChatScreen = () => {
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const friendId = searchParams.get("friend") ?? "";
   const qc = useQueryClient();
@@ -75,16 +77,16 @@ const ChatScreen = () => {
 
   if (!friendId) {
     return (
-      <AppLayout title="Chat">
+      <AppLayout title={t("nav.chat")}>
         <div className="flex items-center justify-center h-40 text-muted-foreground text-sm">
-          No chat selected.
+          {t("chat.noChat")}
         </div>
       </AppLayout>
     );
   }
 
   return (
-    <AppLayout title="Chat">
+    <AppLayout title={t("nav.chat")}>
       <div className="flex flex-col h-[calc(100vh-11rem)]">
         <div className="flex-1 overflow-y-auto space-y-2.5 pb-4 pr-1">
           {messages.map((msg) => {
@@ -114,7 +116,7 @@ const ChatScreen = () => {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && send()}
-            placeholder="Type a message..."
+            placeholder={t("chat.placeholder")}
             className="flex-1 bg-card text-foreground placeholder:text-muted-foreground/50 rounded-2xl px-4 py-2.5 text-sm outline-none border border-border/30 focus:border-primary/30 transition-all"
           />
           <button
