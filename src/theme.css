@@ -1,0 +1,172 @@
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; }
+body {
+  font-family: 'Figtree', system-ui, sans-serif;
+  min-height: 100vh; overflow: hidden;
+  background: var(--bg, oklch(0.972 0.008 140));
+}
+#root { width: 100%; height: 100vh; display: flex; justify-content: center; }
+img { -webkit-user-drag: none; }
+button { font-family: inherit; }
+
+/* ── Theme tokens ─────────────────────────────────────── */
+.nh-root {
+  --font-body: 'Figtree', system-ui, sans-serif;
+  --font-display: 'Figtree', system-ui, sans-serif;
+  --display-weight: 800;
+  width: 100%;
+  max-width: 480px;
+  height: 100vh;
+  position: relative;
+  overflow: hidden;
+}
+
+/* SAGE — light */
+.nh-root[data-dir="sage"][data-mode="light"] {
+  --bg: oklch(0.972 0.008 140);
+  --surface: oklch(0.995 0.004 140);
+  --surface-2: oklch(0.955 0.012 140);
+  --ink: oklch(0.30 0.022 155);
+  --ink-2: oklch(0.47 0.022 155);
+  --ink-3: oklch(0.63 0.018 155);
+  --primary: oklch(0.585 0.075 156);
+  --primary-soft: oklch(0.93 0.032 150);
+  --on-primary: oklch(0.99 0.006 150);
+  --accent: oklch(0.70 0.115 55);
+  --accent-soft: oklch(0.93 0.04 60);
+  --accent-ink: oklch(0.52 0.12 50);
+  --border: oklch(0.91 0.01 150);
+  --ring-track: oklch(0.92 0.018 150);
+  --geo: oklch(0.585 0.075 156);
+  --tabbar-bg: oklch(0.99 0.004 140 / 0.82);
+  --tabbar-solid: oklch(0.985 0.005 140);
+  --banner-bg: oklch(0.99 0.004 140 / 0.86);
+  --toast-bg: oklch(0.30 0.022 155); --toast-ink: oklch(0.97 0.01 150);
+  --font-body: 'Figtree', system-ui, sans-serif;
+  --font-display: 'Figtree', system-ui, sans-serif;
+  --display-weight: 800;
+}
+/* SAGE — dark */
+.nh-root[data-dir="sage"][data-mode="dark"] {
+  --bg: oklch(0.215 0.016 158);
+  --surface: oklch(0.262 0.018 158);
+  --surface-2: oklch(0.31 0.02 158);
+  --ink: oklch(0.95 0.012 140);
+  --ink-2: oklch(0.78 0.016 145);
+  --ink-3: oklch(0.62 0.016 150);
+  --primary: oklch(0.74 0.09 157);
+  --primary-soft: oklch(0.33 0.04 157);
+  --on-primary: oklch(0.18 0.02 158);
+  --accent: oklch(0.76 0.10 60);
+  --accent-soft: oklch(0.34 0.05 55);
+  --accent-ink: oklch(0.82 0.10 65);
+  --border: oklch(0.34 0.016 158);
+  --ring-track: oklch(0.33 0.018 158);
+  --geo: oklch(0.74 0.09 157);
+  --tabbar-bg: oklch(0.235 0.016 158 / 0.82);
+  --tabbar-solid: oklch(0.235 0.016 158);
+  --banner-bg: oklch(0.27 0.018 158 / 0.88);
+  --toast-bg: oklch(0.95 0.012 140); --toast-ink: oklch(0.22 0.02 158);
+  --font-body: 'Figtree', system-ui, sans-serif;
+  --font-display: 'Figtree', system-ui, sans-serif;
+  --display-weight: 800;
+}
+/* DAWN — light */
+.nh-root[data-dir="dawn"][data-mode="light"] {
+  --bg: oklch(0.968 0.014 68);
+  --surface: oklch(0.995 0.006 68);
+  --surface-2: oklch(0.948 0.018 64);
+  --ink: oklch(0.305 0.026 42);
+  --ink-2: oklch(0.47 0.03 44);
+  --ink-3: oklch(0.63 0.026 48);
+  --primary: oklch(0.625 0.115 46);
+  --primary-soft: oklch(0.93 0.038 56);
+  --on-primary: oklch(0.99 0.01 60);
+  --accent: oklch(0.66 0.10 30);
+  --accent-soft: oklch(0.93 0.04 36);
+  --accent-ink: oklch(0.54 0.12 32);
+  --border: oklch(0.905 0.018 58);
+  --ring-track: oklch(0.92 0.022 58);
+  --geo: oklch(0.625 0.115 46);
+  --tabbar-bg: oklch(0.99 0.006 68 / 0.82);
+  --tabbar-solid: oklch(0.985 0.008 68);
+  --banner-bg: oklch(0.99 0.006 68 / 0.86);
+  --toast-bg: oklch(0.305 0.026 42); --toast-ink: oklch(0.97 0.012 60);
+  --font-body: 'Manrope', system-ui, sans-serif;
+  --font-display: 'Spectral', Georgia, serif;
+  --display-weight: 700;
+}
+/* DAWN — dark */
+.nh-root[data-dir="dawn"][data-mode="dark"] {
+  --bg: oklch(0.205 0.018 40);
+  --surface: oklch(0.252 0.022 40);
+  --surface-2: oklch(0.30 0.024 40);
+  --ink: oklch(0.95 0.014 60);
+  --ink-2: oklch(0.78 0.022 54);
+  --ink-3: oklch(0.63 0.024 50);
+  --primary: oklch(0.71 0.12 50);
+  --primary-soft: oklch(0.33 0.05 46);
+  --on-primary: oklch(0.18 0.02 40);
+  --accent: oklch(0.70 0.11 34);
+  --accent-soft: oklch(0.34 0.05 36);
+  --accent-ink: oklch(0.80 0.11 38);
+  --border: oklch(0.34 0.018 44);
+  --ring-track: oklch(0.33 0.02 44);
+  --geo: oklch(0.71 0.12 50);
+  --tabbar-bg: oklch(0.23 0.018 40 / 0.82);
+  --tabbar-solid: oklch(0.23 0.018 40);
+  --banner-bg: oklch(0.265 0.022 40 / 0.88);
+  --toast-bg: oklch(0.95 0.014 60); --toast-ink: oklch(0.21 0.02 40);
+  --font-body: 'Manrope', system-ui, sans-serif;
+  --font-display: 'Spectral', Georgia, serif;
+  --display-weight: 700;
+}
+
+/* ── Shared animations ────────────────────────────────── */
+@keyframes nhFade { from { opacity: 0 } to { opacity: 1 } }
+@keyframes nhSheetIn { from { transform: translateY(100%) } to { transform: translateY(0) } }
+@keyframes nhBannerIn { from { transform: translateY(-130%); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+@keyframes nhToastIn { from { transform: translate(-50%, 16px); opacity: 0 } to { transform: translate(-50%, 0); opacity: 1 } }
+@keyframes nhSpin { to { transform: rotate(360deg) } }
+@keyframes nhPop { 0% { transform: scale(0.6); opacity: 0 } 60% { transform: scale(1.12) } 100% { transform: scale(1); opacity: 1 } }
+@keyframes nhRise { from { transform: translateY(14px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+@keyframes nhCheckRipple { from { transform: scale(0.3); opacity: 0.5 } to { transform: scale(2.4); opacity: 0 } }
+@keyframes nhScreenIn { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: translateY(0) } }
+@keyframes nhTypeDot { 0%,60%,100% { transform: translateY(0); opacity: .4 } 30% { transform: translateY(-5px); opacity: 1 } }
+.nh-spin { animation: nhSpin .7s linear infinite; }
+.nh-shimmer {
+  background: linear-gradient(100deg, var(--surface-2) 30%, var(--border) 50%, var(--surface-2) 70%);
+  background-size: 220% 100%; animation: nhShimmer 1.3s ease-in-out infinite;
+}
+@keyframes nhShimmer { from { background-position: 180% 0 } to { background-position: -40% 0 } }
+.nh-rise { animation: nhRise .5s cubic-bezier(.2,.8,.3,1) both; }
+
+/* ── Geo background ───────────────────────────────────── */
+.geo-layer { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+.geo-shape { position: absolute; will-change: transform, opacity; }
+@keyframes geoBloom { from { transform: scale(.82); opacity: 0 } to { transform: scale(1); opacity: 1 } }
+@keyframes geoDriftA { 0%,100% { transform: translate(0,0) } 50% { transform: translate(7px,-9px) } }
+@keyframes geoDriftB { 0%,100% { transform: translate(0,0) } 50% { transform: translate(-8px,6px) } }
+@keyframes geoDriftC { 0%,100% { transform: translate(0,0) } 50% { transform: translate(5px,7px) } }
+@keyframes geoBreathe { 0%,100% { opacity: var(--bo,.4) } 50% { opacity: calc(var(--bo,.4) * 1.35) } }
+@keyframes geoSpin { to { transform: rotate(360deg) } }
+@keyframes geoPulseK { 0% { transform: scale(1) } 38% { transform: scale(1.06) } 100% { transform: scale(1) } }
+.geo-bloom { animation: geoBloom 700ms cubic-bezier(.2,.7,.3,1) both; }
+.geo-driftA { animation: geoDriftA 26s ease-in-out infinite; }
+.geo-driftB { animation: geoDriftB 32s ease-in-out infinite; }
+.geo-driftC { animation: geoDriftC 38s ease-in-out infinite; }
+.geo-breathe { animation: geoBreathe 8s ease-in-out infinite; }
+.geo-spin { animation: geoSpin 120s linear infinite; transform-origin: center; }
+.geo-pulse { animation: geoPulseK 900ms cubic-bezier(.2,.7,.3,1); }
+@media (prefers-reduced-motion: reduce) {
+  .geo-driftA,.geo-driftB,.geo-driftC,.geo-breathe,.geo-spin { animation: none !important; }
+}
+.nh-root[data-reduce-motion="yes"] .geo-driftA,
+.nh-root[data-reduce-motion="yes"] .geo-driftB,
+.nh-root[data-reduce-motion="yes"] .geo-driftC,
+.nh-root[data-reduce-motion="yes"] .geo-breathe,
+.nh-root[data-reduce-motion="yes"] .geo-spin { animation: none !important; }
+
+/* hide scrollbars inside the phone */
+.nh-scroll::-webkit-scrollbar { width: 0; height: 0; }
+.nh-scroll { scrollbar-width: none; }
