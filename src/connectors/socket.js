@@ -1,8 +1,21 @@
-// Socket.IO singleton. Call connect() after auth, disconnect() on sign-out.
+import { io } from 'socket.io-client'
+
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL ?? import.meta.env.VITE_API_URL ?? ''
+
 let _socket = null
 
 export function connect(accessToken) {
-  throw new Error('not implemented')
+  if (_socket?.connected) return _socket
+
+  _socket = io(SOCKET_URL, {
+    auth: { token: accessToken },
+    transports: ['websocket'],
+    reconnection: true,
+    reconnectionAttempts: 5,
+    reconnectionDelay: 2000,
+  })
+
+  return _socket
 }
 
 export function disconnect() {
@@ -17,11 +30,11 @@ export function getSocket() {
 
 // Typed event emitters
 export const chat = {
-  join:      (chatId)              => getSocket().emit('chat:join',       { chatId }),
-  leave:     (chatId)              => getSocket().emit('chat:leave',      { chatId }),
-  send:      (chatId, text)        => getSocket().emit('chat:send',       { chatId, text }),
-  markRead:  (chatId, messageId)   => getSocket().emit('chat:mark_read',  { chatId, messageId }),
-  typing:    (chatId, isTyping)    => getSocket().emit('chat:typing',     { chatId, isTyping }),
+  join:      (chatId)            => getSocket().emit('chat:join',      { chatId }),
+  leave:     (chatId)            => getSocket().emit('chat:leave',     { chatId }),
+  send:      (chatId, text)      => getSocket().emit('chat:send',      { chatId, text }),
+  markRead:  (chatId, messageId) => getSocket().emit('chat:mark_read', { chatId, messageId }),
+  typing:    (chatId, isTyping)  => getSocket().emit('chat:typing',    { chatId, isTyping }),
 }
 
 export const presence = {
