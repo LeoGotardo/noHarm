@@ -195,9 +195,7 @@ export function TweaksPanel({ title = 'Tweaks', children }) {
                   onMouseDown={(e) => e.stopPropagation()}
                   onClick={dismiss}>✕</button>
         </div>
-        <div className="twk-body">
-          {children}
-        </div>
+        <div className="twk-body">{children}</div>
       </div>
     </>
   );
@@ -408,9 +406,7 @@ export function TweakColor({ label, value, options, onChange }) {
                     style={{ background: hero }}
                     onClick={() => onChange(o)}>
               {sup.length > 0 && (
-                <span>
-                  {sup.map((c, j) => <i key={j} style={{ background: c }} />)}
-                </span>
+                <span>{sup.map((c, j) => <i key={j} style={{ background: c }} />)}</span>
               )}
               {on && <__TwkCheck light={__twkIsLight(hero)} />}
             </button>

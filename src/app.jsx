@@ -3,15 +3,25 @@ import {
   ME, BADGES, FRIENDS, REQUESTS_RECEIVED, REQUESTS_SENT,
   CHATS, PEOPLE, STREAK_HISTORY, STREAK_START_LABEL,
   PERSONAL_RECORD, TOTAL_STREAKS,
-} from './data.jsx'
-import { Banner, Toast, BottomSheet, TabBar, Icon, Btn, Screen } from './ui.jsx'
-import { SplashScreen, RegisterScreen, LoginScreen } from './screens_auth.jsx'
-import { Dashboard, StreakHistory } from './screens_home.jsx'
-import { FriendsScreen, FriendRequests, FriendSearch, PublicProfile } from './screens_friends.jsx'
-import { ChatList, ChatThread } from './screens_chat.jsx'
-import { BadgesScreen, BadgeDetail } from './screens_badges.jsx'
-import { MyProfile, EditProfile, Settings } from './screens_profile.jsx'
-import { useTweaks, TweaksPanel, TweakSection, TweakRadio, TweakToggle } from './tweaks-panel.jsx'
+} from './data/mock.js'
+import { Banner, Toast, BottomSheet, TabBar, Icon, Btn, Screen } from './ui/index.js'
+import { SplashScreen } from './screens/auth/SplashScreen.jsx'
+import { RegisterScreen } from './screens/auth/RegisterScreen.jsx'
+import { LoginScreen } from './screens/auth/LoginScreen.jsx'
+import { Dashboard } from './screens/home/Dashboard.jsx'
+import { StreakHistory } from './screens/home/StreakHistory.jsx'
+import { FriendsScreen } from './screens/friends/FriendsScreen.jsx'
+import { FriendRequests } from './screens/friends/FriendRequests.jsx'
+import { FriendSearch } from './screens/friends/FriendSearch.jsx'
+import { PublicProfile } from './screens/friends/PublicProfile.jsx'
+import { ChatList } from './screens/chat/ChatList.jsx'
+import { ChatThread } from './screens/chat/ChatThread.jsx'
+import { BadgesScreen } from './screens/badges/BadgesScreen.jsx'
+import { BadgeDetail } from './screens/badges/BadgeDetail.jsx'
+import { MyProfile } from './screens/profile/MyProfile.jsx'
+import { EditProfile } from './screens/profile/EditProfile.jsx'
+import { Settings } from './screens/profile/Settings.jsx'
+import { useTweaks, TweaksPanel, TweakSection, TweakRadio, TweakToggle } from './dev/TweaksPanel.jsx'
 
 const TWEAK_DEFAULTS = {
   direction: 'sage',

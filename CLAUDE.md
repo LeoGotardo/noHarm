@@ -2,70 +2,73 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-@AGENTS.md
-
 ## What this project is
 
 NoHarm — addiction recovery tracker. Core loop: register → start streak → daily check-in → earn milestone badges → connect with friends for accountability → 1-on-1 chat. Tone must be warm and compassionate, never clinical.
 
-## Two tracks
-
-### 1. HTML prototype (`NoHarm.html`)
-No bundler. React + Babel loaded from CDN. The `src/*.jsx` files are script tags compiled in-browser by Babel. Open `NoHarm.html` directly in a browser — no build step. `NoHarm-standalone.html` is a single-file version with all scripts inlined.
-
-File layout:
-- `src/data.jsx` — mock data exposed on `window` (ME, BADGES, FRIENDS, CHATS, PEOPLE, …)
-- `src/ui.jsx` — shared primitives exposed on `window` (Icon, Avatar, Btn, Card, Field, BottomSheet, Toast, StreakRing, TabBar, …)
-- `src/geo.jsx` — animated geometric backgrounds
-- `src/app.jsx` — App orchestrator: theme tweaks, navigation state machine, all screen routing
-- `src/screens_auth.jsx`, `src/screens_home.jsx`, `src/screens_friends.jsx`, `src/screens_chat.jsx`, `src/screens_badges.jsx`, `src/screens_profile.jsx` — screen components per feature area
-- `tweaks-panel.jsx` — dev-only panel (useTweaks, TweaksPanel, TweakRadio, TweakToggle, …)
-
-All globals are set via `window.X = X` or bare `const` in script scope so Babel passes them between script tags.
-
-### 2. Root Expo project (Expo 54, TypeScript)
-The root `package.json` runs Expo 54 with expo-router and React 19. `app/index.tsx` is currently a placeholder — the active UI work is in the HTML prototype. The old expo-router pages that lived under `src/` were removed on the `ref/new-ui` branch.
+## Commands
 
 ```bash
-npm install
-npx expo start          # or npm start
-npm run android
-npm run ios
-npm run web
-npm run lint            # expo lint
+npm run dev      # Vite dev server (hot reload)
+npm run build    # production build → dist/
+npm run preview  # serve dist/ locally
 ```
 
-## Navigation model (both tracks)
+No test runner, no lint script. Open `http://localhost:5173` after `npm run dev`.
 
-Custom stack-on-tabs pattern — no React Navigation or expo-router involved:
+## Architecture
+
+**Main app**: Vite + React 19 SPA. Entry: `index.html` → `src/main.jsx` → `src/app.jsx`.
+
+**Standalone demo**: `NoHarm.html` / `NoHarm-standalone.html` — CDN-loaded React + Babel, no bundler. Not the active development target. The CDN version still uses `window.X` globals; the Vite version uses ES module imports.
+
+### src/ layout
+
+| File | Role |
+|------|------|
+| `src/data.jsx` | Mock data exports: `ME`, `BADGES`, `FRIENDS`, `CHATS`, `PEOPLE`, `STREAK_HISTORY`, etc. |
+| `src/ui.jsx` | Shared primitives: `Icon`, `Avatar`, `Btn`, `Card`, `Field`, `BottomSheet`, `Toast`, `StreakRing`, `TabBar`, `Screen`, `cx` |
+| `src/geo.jsx` | Animated geometric SVG backgrounds |
+| `src/app.jsx` | Root component: navigation state machine, theme wiring, screen routing, global state (days, checkedIn, friends, toasts) |
+| `src/screens_auth.jsx` | `SplashScreen`, `RegisterScreen`, `LoginScreen` |
+| `src/screens_home.jsx` | `Dashboard`, `StreakHistory` |
+| `src/screens_friends.jsx` | `FriendsScreen`, `FriendRequests`, `FriendSearch`, `PublicProfile` |
+| `src/screens_chat.jsx` | `ChatList`, `ChatThread` |
+| `src/screens_badges.jsx` | `BadgesScreen`, `BadgeDetail` |
+| `src/screens_profile.jsx` | `MyProfile`, `EditProfile`, `Settings` |
+| `src/tweaks-panel.jsx` | Dev overlay: `useTweaks`, `TweaksPanel`, `TweakRadio`, `TweakToggle` |
+| `src/theme.css` | CSS custom properties for all theme variants; imported by `main.jsx` |
+
+## Navigation model
+
+Custom stack-on-tabs — no router library:
+
 - `phase`: `'splash' | 'register' | 'login' | 'app' | 'deleted'`
 - `tab`: `'home' | 'friends' | 'chat' | 'badges' | 'profile'`
-- `stack`: array of `{ screen, props }` pushed over the active tab
+- `stack`: `{ screen, props }[]` pushed over the active tab
 
-`push(screen, props)` / `pop()` / `resetTo(tab)` are the only navigation primitives.
+Only three navigation primitives: `push(screen, props)` / `pop()` / `resetTo(tab)`.
+
+**Adding a screen**: add a `case` to the `switch (top.screen)` block (overlay screens) or `switch (tab)` block (tab roots) in `src/app.jsx`, implement the component in the appropriate `src/screens_*.jsx`.
 
 ## Theming
 
-Two visual directions, two modes each:
-- **sage** light/dark — humanist sans (Figtree), muted green
-- **dawn** light/dark — soft serif numerals (Spectral), warm clay
+Two visual directions × two modes = four combinations:
 
-Controlled via `data-dir` and `data-mode` attributes on `.nh-root` in the HTML prototype; via `ThemeProvider`/`useTheme` in the Expo app.
+- **sage** light/dark — Figtree (humanist sans), muted green
+- **dawn** light/dark — Spectral (soft serif), warm clay
 
-`TWEAK_DEFAULTS` in `src/app.jsx` sets the initial direction/mode/motion/accentName. The `TweaksPanel` (bottom-right overlay in the HTML prototype) lets you toggle these at runtime.
+Switched at runtime via `data-dir` and `data-mode` attributes on `.nh-root`. `TWEAK_DEFAULTS` in `src/app.jsx` sets the initial values. The `TweaksPanel` bottom-right overlay toggles direction/mode/motion/accent live.
 
-## Domain data shapes
+CSS tokens live in `src/theme.css` under selectors like `.nh-root[data-dir="sage"][data-mode="light"]`.
 
-See `uploads/FRONTEND_DESIGN_BRIEF.md` for complete API data shapes and backend rules. Key points:
-- **Streak**: one active at a time; expires if no check-in within 24 h; ending a streak immediately starts a new one.
-- **Friendship status codes**: 4=pending, 5=accepted, 6=rejected, 3=blocked, 2=deleted.
+## Domain rules
+
+See `uploads/FRONTEND_DESIGN_BRIEF.md` for full API shapes. Key invariants:
+
+- **Streak**: one active at a time; expires without 24 h check-in; relapse resets to 0 and immediately starts a new streak.
+- **Friendship status codes**: 2=deleted, 3=blocked, 4=pending, 5=accepted, 6=rejected.
 - **Chat**: friends-only, 1-on-1. Lifecycle: pending → enabled → disabled.
-- **Messages**: text only, max 2000 chars, status 7=unread / 8=read.
-- **Auth**: Firebase identity + app-issued JWT. Access token 15 min, refresh token 7 days.
-- **WebSocket** (Socket.IO): authenticated via JWT at connect. Events: chat (join/leave/send/mark_read/typing), presence (get_online_status / online_status), friend notifications (friend_request/accept/reject/remove/block/unblock).
-
-## Adding screens
-
-In the HTML prototype, add a case to the `switch (top.screen)` block (overlay screens) or `switch (tab)` block (tab root screens) in `src/app.jsx`, then implement the component in the appropriate `src/screens_*.jsx` file.
-
-In the Expo app, add the component to the relevant file under `expo/src/screens/` and wire it into `expo/App.js` the same way.
+- **Messages**: text only, max 2000 chars. Status 7=unread, 8=read.
+- **Auth**: Firebase identity + app JWT. Access token 15 min, refresh 7 days.
+- **WebSocket** (Socket.IO): JWT-authenticated at connect. Events: `chat` (join/leave/send/mark_read/typing), `presence` (get_online_status/online_status), friend notifications (friend_request/accept/reject/remove/block/unblock).
