@@ -1,0 +1,3914 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "NoHarm API", "version": "1.0.0" },
+  "paths": {
+    "/auth/register": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Register a new user",
+        "description": "Creates a new account from Firebase identity data and returns a token pair. Enforces username uniqueness, email uniqueness, and username format rules. Status is set to 'pending' until email is verified by Firebase.",
+        "operationId": "register_auth_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AuthRegisterRequest" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Login",
+        "description": "Authenticates the user via Firebase UID and issues a token pair. Rate-limited to 5 attempts / 15 min per UID. Banned, blocked, or deleted accounts are rejected with 403.",
+        "operationId": "login_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AuthLoginRequest" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Refresh tokens",
+        "description": "Issues a new token pair from a valid refresh token. The old refresh token is revoked (rotation).",
+        "operationId": "refresh_auth_refresh_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AuthRefreshRequest" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Logout",
+        "description": "Revokes both tokens. The user is logged out of this device only.",
+        "operationId": "logout_auth_logout_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AuthRefreshRequest" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": { "description": "Successful Response" },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        },
+        "security": [{ "HTTPBearer": [] }]
+      }
+    },
+    "/users/me": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Get my profile",
+        "description": "Returns the full private profile of the authenticated user.",
+        "operationId": "getMyProfile_users_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UserResponse" }
+              }
+            }
+          }
+        },
+        "security": [{ "HTTPBearer": [] }]
+      },
+      "put": {
+        "tags": ["Users"],
+        "summary": "Update my profile",
+        "description": "Updates allowed fields for the authenticated user. Only `username` and `profilePicture` can be changed here. Email changes require a separate verification flow. Status can never be changed via this endpoint.",
+        "operationId": "updateMyProfile_users_me_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ProfileUpdateRequest" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UserResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        },
+        "security": [{ "HTTPBearer": [] }]
+      },
+      "delete": {
+        "tags": ["Users"],
+        "summary": "Delete my account",
+        "description": "Soft-deletes the authenticated user's own account (sets status = deleted). Only a user can delete their own account (§1.4).",
+        "operationId": "deleteUser_users_me_delete",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          }
+        },
+        "security": [{ "HTTPBearer": [] }]
+      }
+    },
+    "/users/{userId}": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Get a user's public profile",
+        "description": "Returns a user's public profile. Blocked users cannot view the profile of their blocker (§3.3).",
+        "operationId": "getPublicProfile_users__userId__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Userid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UserResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Get all users",
+        "description": "Returns all users (admin use).",
+        "operationId": "getAllUsers_users_get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "paginated",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Paginated"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Pagesize"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/PaginatedResponse_User_" },
+                    { "$ref": "#/components/schemas/UserListResponse" }
+                  ],
+                  "title": "Response Getallusers Users Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/{userId}/status/{status}": {
+      "put": {
+        "tags": ["Users"],
+        "summary": "Update a user status (admin)",
+        "description": "Updates the status of an existing user. Admin action — creates audit log type=5.",
+        "operationId": "updateUserStatus_users__userId__status__status__put",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer", "title": "Status" }
+          },
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Userid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UserResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/chats": {
+      "get": {
+        "tags": ["Chats"],
+        "summary": "Get my chats",
+        "description": "Returns all chats where the authenticated user is a participant.",
+        "operationId": "getMyChats_chats_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ChatListResponse" }
+              }
+            }
+          }
+        },
+        "security": [{ "HTTPBearer": [] }]
+      },
+      "post": {
+        "tags": ["Chats"],
+        "summary": "Start or retrieve a chat",
+        "description": "Opens a chat with another user (§4.1). Users must be accepted friends (§3.4). If an active chat already exists between the two users, it is returned instead of creating a duplicate. New chats start with status = pending.",
+        "operationId": "getOrCreateChat_chats_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ChatCreateRequest" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ChatResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        },
+        "security": [{ "HTTPBearer": [] }]
+      }
+    },
+    "/chats/{chatId}": {
+      "get": {
+        "tags": ["Chats"],
+        "summary": "Get a chat by ID",
+        "description": "Returns a specific chat. Only participants may access it (§4.3).",
+        "operationId": "getChatById_chats__chatId__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "chatId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Chatid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ChatResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Chats"],
+        "summary": "Delete a chat",
+        "description": "Soft-deletes an existing chat.",
+        "operationId": "deleteChat_chats__chatId__delete",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "chatId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Chatid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/chats/{chatId}/accept": {
+      "post": {
+        "tags": ["Chats"],
+        "summary": "Accept a chat invitation",
+        "description": "Activates a pending chat (pending → enabled). Either participant may accept. Once enabled, messages can be sent (§4.1, §5.1).",
+        "operationId": "acceptChat_chats__chatId__accept_post",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "chatId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Chatid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ChatResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/chats/{chatId}/end": {
+      "post": {
+        "tags": ["Chats"],
+        "summary": "End a chat",
+        "description": "Closes the chat (§4.2). Either participant may end it. Sets endedAt = now and status = disabled. No new messages can be sent afterwards.",
+        "operationId": "endChat_chats__chatId__end_post",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "chatId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Chatid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ChatResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/messages/chat/{chatId}": {
+      "get": {
+        "tags": ["Messages"],
+        "summary": "Get messages in a chat",
+        "description": "Returns all messages for a chat. Only participants may access them (§5.2, RLS).",
+        "operationId": "getMessagesByChatId_messages_chat__chatId__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "chatId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Chatid" }
+          },
+          {
+            "name": "paginated",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Paginated"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Pagesize"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/PaginatedResponse_MessageResponse_"
+                    },
+                    { "$ref": "#/components/schemas/MessageListResponse" }
+                  ],
+                  "title": "Response Getmessagesbychatid Messages Chat  Chatid  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/messages/chat/{chatId}/unread": {
+      "get": {
+        "tags": ["Messages"],
+        "summary": "Get unread messages in a chat",
+        "description": "Returns all unread messages in the given chat.",
+        "operationId": "getUnreadMessagesByChatId_messages_chat__chatId__unread_get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "chatId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Chatid" }
+          },
+          {
+            "name": "paginated",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Paginated"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Pagesize"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/PaginatedResponse_MessageResponse_"
+                    },
+                    { "$ref": "#/components/schemas/MessageListResponse" }
+                  ],
+                  "title": "Response Getunreadmessagesbychatid Messages Chat  Chatid  Unread Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/messages/{messageId}": {
+      "get": {
+        "tags": ["Messages"],
+        "summary": "Get a message by ID",
+        "description": "Returns a specific message.",
+        "operationId": "getMessageById_messages__messageId__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "messageId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Messageid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MessageResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/messages": {
+      "post": {
+        "tags": ["Messages"],
+        "summary": "Send a message",
+        "description": "Sends a message to a chat (§5.1). The chat must be active (enabled or pending — pending chats auto-activate on first message). Content is sanitised; empty content after sanitisation is rejected. status = unread, sendAt = now.",
+        "operationId": "sendMessage_messages_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SendMessageRequest" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MessageResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        },
+        "security": [{ "HTTPBearer": [] }]
+      }
+    },
+    "/messages/{messageId}/read": {
+      "put": {
+        "tags": ["Messages"],
+        "summary": "Mark a message as read",
+        "description": "Marks a specific message as read (§5.3). Idempotent — already-read messages are not updated.",
+        "operationId": "markMessageAsRead_messages__messageId__read_put",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "messageId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Messageid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MessageResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/messages/chat/{chatId}/read": {
+      "put": {
+        "tags": ["Messages"],
+        "summary": "Mark all messages as read",
+        "description": "Marks all unread messages in a chat as read (§5.3).",
+        "operationId": "markAllMessagesAsRead_messages_chat__chatId__read_put",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "chatId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Chatid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/streaks/current": {
+      "get": {
+        "tags": ["Streaks"],
+        "summary": "Get my current streak",
+        "description": "Returns the authenticated user's active streak. Auto-expires and resets the streak if no activity was recorded in the last 24 h (§6.3).",
+        "operationId": "getCurrentStreak_streaks_current_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StreakResponse" }
+              }
+            }
+          }
+        },
+        "security": [{ "HTTPBearer": [] }]
+      }
+    },
+    "/streaks/record": {
+      "get": {
+        "tags": ["Streaks"],
+        "summary": "Get my record streak",
+        "description": "Returns the authenticated user's longest streak (isRecord = True).",
+        "operationId": "getRecordStreak_streaks_record_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StreakResponse" }
+              }
+            }
+          }
+        },
+        "security": [{ "HTTPBearer": [] }]
+      }
+    },
+    "/streaks/history": {
+      "get": {
+        "tags": ["Streaks"],
+        "summary": "Get my streak history",
+        "description": "Returns all past and current streaks for the authenticated user.",
+        "operationId": "getStreakHistory_streaks_history_get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "paginated",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Paginated"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Pagesize"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/PaginatedResponse_Streak_"
+                    },
+                    { "$ref": "#/components/schemas/StreakListResponse" }
+                  ],
+                  "title": "Response Getstreakhistory Streaks History Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/streaks/start": {
+      "post": {
+        "tags": ["Streaks"],
+        "summary": "Start a new streak",
+        "description": "Creates a new active streak. Fails with 409 if an active streak already exists (§6.1). start = now, isRecord = False.",
+        "operationId": "startStreak_streaks_start_post",
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StreakResponse" }
+              }
+            }
+          }
+        },
+        "security": [{ "HTTPBearer": [] }]
+      }
+    },
+    "/streaks/end": {
+      "post": {
+        "tags": ["Streaks"],
+        "summary": "End (reset) my streak",
+        "description": "Manually ends the active streak, checks whether it is a new personal record, and immediately starts a fresh streak (§6.2). Creates an audit log entry of type 7.",
+        "operationId": "endStreak_streaks_end_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StreakResponse" }
+              }
+            }
+          }
+        },
+        "security": [{ "HTTPBearer": [] }]
+      }
+    },
+    "/streaks/checkin": {
+      "post": {
+        "tags": ["Streaks"],
+        "summary": "Daily check-in",
+        "description": "Confirms the user's sobriety for today, refreshing the streak's activity timestamp. Must be called at least once every 24 h to prevent auto-expiry (§6.3).",
+        "operationId": "checkin_streaks_checkin_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StreakResponse" }
+              }
+            }
+          }
+        },
+        "security": [{ "HTTPBearer": [] }]
+      }
+    },
+    "/badges": {
+      "get": {
+        "tags": ["Badges"],
+        "summary": "Get all badges for current user",
+        "description": "Returns all badges for the current user.",
+        "operationId": "getAllBadges_badges_get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "paginated",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Paginated"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Pagesize"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/PaginatedResponse_Badge_" },
+                    { "$ref": "#/components/schemas/BadgeListResponse" }
+                  ],
+                  "title": "Response Getallbadges Badges Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Badges"],
+        "summary": "Create a badge",
+        "description": "Creates a new badge.",
+        "operationId": "createBadge_badges_post",
+        "security": [{ "HTTPBearer": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/BadgeCreate" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/BadgeResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/badges/{badgeId}": {
+      "get": {
+        "tags": ["Badges"],
+        "summary": "Get a badge by ID",
+        "description": "Returns a specific badge by its ID.",
+        "operationId": "getBadgeById_badges__badgeId__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "badgeId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Badgeid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/BadgeResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Badges"],
+        "summary": "Delete a badge",
+        "description": "Soft deletes an existing badge.",
+        "operationId": "deleteBadge_badges__badgeId__delete",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "badgeId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Badgeid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/BadgeResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/badges/update/{badgeId}": {
+      "put": {
+        "tags": ["Badges"],
+        "summary": "Update a badge",
+        "description": "Updates an existing badge.",
+        "operationId": "updateBadge_badges_update__badgeId__put",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "badgeId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Badgeid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/BadgeUpdate" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/BadgeResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/badges/update/{badgeId}/status/{status}": {
+      "post": {
+        "tags": ["Badges"],
+        "summary": "Update a badge status",
+        "description": "Updates the status of an existing badge.",
+        "operationId": "updateBadgeStatus_badges_update__badgeId__status__status__post",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Status" }
+          },
+          {
+            "name": "badgeId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Badgeid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/BadgeResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/user-badges/{userBadgeId}": {
+      "get": {
+        "tags": ["User Badges"],
+        "summary": "Get user badge by badgeId",
+        "description": "Returns all user badges by badgeId.",
+        "operationId": "getByBadgeId_user_badges__userBadgeId__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "badgeId",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "title": "Badgeid" }
+          },
+          {
+            "name": "paginated",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Paginated"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Pagesize"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/PaginatedResponse_UserBadge_"
+                    },
+                    { "$ref": "#/components/schemas/UserBadgeListResponse" }
+                  ],
+                  "title": "Response Getbybadgeid User Badges  Userbadgeid  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["User Badges"],
+        "summary": "Delete a user badge",
+        "description": "Soft deletes an existing user badge.",
+        "operationId": "deleteUserBadge_user_badges__userBadgeId__delete",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "userBadgeId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Userbadgeid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UserBadgeResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/user-badges/update/{userBadgeId}": {
+      "put": {
+        "tags": ["User Badges"],
+        "summary": "Update a user badge",
+        "description": "Updates an existing user badge.",
+        "operationId": "updateUserBadge_user_badges_update__userBadgeId__put",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "userBadgeId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Userbadgeid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UserBadgeUpdate" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UserBadgeResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/user-badges/{userId}/{badgeId}": {
+      "post": {
+        "tags": ["User Badges"],
+        "summary": "Grant a user badge",
+        "description": "Grants a badge to a user.",
+        "operationId": "grantUserBadge_user_badges__userId___badgeId__post",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Userid" }
+          },
+          {
+            "name": "badgeId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Badgeid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UserBadgeCreate" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/user-badges/revoke/{userId}/{badgeId}": {
+      "post": {
+        "tags": ["User Badges"],
+        "summary": "Revoke a user badge",
+        "description": "Revokes a badge from a user.",
+        "operationId": "revokeUserBadge_user_badges_revoke__userId___badgeId__post",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Userid" }
+          },
+          {
+            "name": "badgeId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Badgeid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UserBadgeResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/user-badges/update/{userBadgeId}/status/{status}": {
+      "post": {
+        "tags": ["User Badges"],
+        "summary": "Update a user badge status",
+        "description": "Updates the status of an existing user badge.",
+        "operationId": "updateUserBadgeStatus_user_badges_update__userBadgeId__status__status__post",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Status" }
+          },
+          {
+            "name": "userBadgeId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Userbadgeid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UserBadgeResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/logs": {
+      "get": {
+        "tags": ["Audit Logs"],
+        "summary": "Get all audit logs for current user",
+        "description": "Returns all audit logs for the authenticated user. RLS policies ensure users only see their own logs.",
+        "operationId": "getAllAuditLogs_logs_get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "paginated",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Paginated"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Pagesize"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/AuditLogsListResponse" },
+                    {
+                      "$ref": "#/components/schemas/PaginatedResponse_AuditLogs_"
+                    }
+                  ],
+                  "title": "Response Getallauditlogs Logs Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Audit Logs"],
+        "summary": "Create audit log",
+        "description": "Creates a new audit log entry.",
+        "operationId": "createAuditLog_logs_post",
+        "security": [{ "HTTPBearer": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AuditLogsCreate" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuditLogsResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/logs/{logId}": {
+      "get": {
+        "tags": ["Audit Logs"],
+        "summary": "Get audit log by ID",
+        "description": "Returns a specific audit log by its ID.",
+        "operationId": "getAuditLogById_logs__logId__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "logId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Logid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuditLogsResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/logs/type/{logType}": {
+      "get": {
+        "tags": ["Audit Logs"],
+        "summary": "Get audit logs by type",
+        "description": "Returns all audit logs filtered by type (e.g., 1=login, 2=password_change).",
+        "operationId": "getAuditLogsByType_logs_type__logType__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "logType",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer", "title": "Logtype" }
+          },
+          {
+            "name": "paginated",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Paginated"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Pagesize"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/AuditLogsListResponse" },
+                    {
+                      "$ref": "#/components/schemas/PaginatedResponse_AuditLogs_"
+                    }
+                  ],
+                  "title": "Response Getauditlogsbytype Logs Type  Logtype  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/logs/catalyst/{catalystId}": {
+      "get": {
+        "tags": ["Audit Logs"],
+        "summary": "Get audit logs by catalyst",
+        "description": "Returns all audit logs for a specific catalyst (user).",
+        "operationId": "getAuditLogsByCatalyst_logs_catalyst__catalystId__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "catalystId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Catalystid" }
+          },
+          {
+            "name": "paginated",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Paginated"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Pagesize"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/AuditLogsListResponse" },
+                    {
+                      "$ref": "#/components/schemas/PaginatedResponse_AuditLogs_"
+                    }
+                  ],
+                  "title": "Response Getauditlogsbycatalyst Logs Catalyst  Catalystid  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/logs/range/by-date": {
+      "get": {
+        "tags": ["Audit Logs"],
+        "summary": "Get audit logs by date range",
+        "description": "Returns all audit logs within a specified date range.",
+        "operationId": "getAuditLogsByDateRange_logs_range_by_date_get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Start date (YYYY-MM-DD)",
+              "title": "Startdate"
+            },
+            "description": "Start date (YYYY-MM-DD)"
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "End date (YYYY-MM-DD)",
+              "title": "Enddate"
+            },
+            "description": "End date (YYYY-MM-DD)"
+          },
+          {
+            "name": "paginated",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Paginated"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Pagesize"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/AuditLogsListResponse" },
+                    {
+                      "$ref": "#/components/schemas/PaginatedResponse_AuditLogs_"
+                    }
+                  ],
+                  "title": "Response Getauditlogsbydaterange Logs Range By Date Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/friendships": {
+      "get": {
+        "tags": ["Friendships"],
+        "summary": "Get my friendships",
+        "description": "Returns all friendships for the authenticated user.",
+        "operationId": "getMyFriendships_friendships_get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "paginated",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Paginated"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Pagesize"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/PaginatedResponse_Friendship_"
+                    },
+                    { "$ref": "#/components/schemas/FriendshipListResponse" }
+                  ],
+                  "title": "Response Getmyfriendships Friendships Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/friendships/pending": {
+      "get": {
+        "tags": ["Friendships"],
+        "summary": "Get pending friend requests (received)",
+        "description": "Returns all pending friendship requests received by the authenticated user.",
+        "operationId": "getPendingReceived_friendships_pending_get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "paginated",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Paginated"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Pagesize"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/PaginatedResponse_Friendship_"
+                    },
+                    { "$ref": "#/components/schemas/FriendshipListResponse" }
+                  ],
+                  "title": "Response Getpendingreceived Friendships Pending Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/friendships/sent": {
+      "get": {
+        "tags": ["Friendships"],
+        "summary": "Get pending friend requests (sent)",
+        "description": "Returns all pending friendship requests sent by the authenticated user.",
+        "operationId": "getPendingSent_friendships_sent_get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "paginated",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Paginated"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Pagesize"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/PaginatedResponse_Friendship_"
+                    },
+                    { "$ref": "#/components/schemas/FriendshipListResponse" }
+                  ],
+                  "title": "Response Getpendingsent Friendships Sent Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/friendships/{friendshipId}": {
+      "get": {
+        "tags": ["Friendships"],
+        "summary": "Get a friendship by ID",
+        "description": "Returns a specific friendship. Only participants may access it.",
+        "operationId": "getFriendshipById_friendships__friendshipId__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "friendshipId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Friendshipid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/FriendshipResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Friendships"],
+        "summary": "Remove a friendship",
+        "description": "Soft-deletes the friendship. Only participants may remove it.",
+        "operationId": "deleteFriendship_friendships__friendshipId__delete",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "friendshipId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Friendshipid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/friendships/{receiverId}": {
+      "post": {
+        "tags": ["Friendships"],
+        "summary": "Send a friend request",
+        "description": "Sends a friend request to the specified user (§3.1). Cannot send to yourself, cannot send if a non-deleted friendship already exists, and cannot send to a user who has blocked you.",
+        "operationId": "sendFriendRequest_friendships__receiverId__post",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "receiverId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Receiverid" }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/FriendshipResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/friendships/{friendshipId}/accept": {
+      "post": {
+        "tags": ["Friendships"],
+        "summary": "Accept a friend request",
+        "description": "Accepts a pending friend request (§3.2). Only the recipient of the request can accept it.",
+        "operationId": "acceptFriendRequest_friendships__friendshipId__accept_post",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "friendshipId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Friendshipid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/FriendshipResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/friendships/{friendshipId}/reject": {
+      "post": {
+        "tags": ["Friendships"],
+        "summary": "Reject a friend request",
+        "description": "Rejects (ignores) a pending friend request (§3.2). Only the recipient of the request can reject it.",
+        "operationId": "rejectFriendRequest_friendships__friendshipId__reject_post",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "friendshipId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Friendshipid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/FriendshipResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/friendships/{friendshipId}/block": {
+      "post": {
+        "tags": ["Friendships"],
+        "summary": "Block a user",
+        "description": "Blocks a user within a friendship (§3.3). Either participant may block the other at any time, regardless of current status.",
+        "operationId": "blockUser_friendships__friendshipId__block_post",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "friendshipId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Friendshipid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/FriendshipResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/friendships/{friendshipId}/unblock": {
+      "post": {
+        "tags": ["Friendships"],
+        "summary": "Unblock a user",
+        "description": "Unblocks a previously blocked user.",
+        "operationId": "unblockUser_friendships__friendshipId__unblock_post",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "friendshipId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Friendshipid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/FriendshipResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/": {
+      "get": {
+        "summary": "  Redirect To Docs",
+        "operationId": "__redirect_to_docs__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Checa o status da API",
+        "operationId": "health_check_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } },
+            "status": "ok",
+            "database": "database is connected or disconnected",
+            "env": "config mode [development, production]"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AuditLogs": {
+        "properties": {
+          "type": { "type": "integer", "title": "Type" },
+          "description": { "type": "string", "title": "Description" },
+          "id": {
+            "anyOf": [
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
+            ],
+            "title": "Id"
+          },
+          "created_at": {
+            "anyOf": [
+              { "type": "string", "format": "date-time" },
+              { "type": "null" }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              { "type": "string", "format": "date-time" },
+              { "type": "null" }
+            ],
+            "title": "Updated At"
+          },
+          "catalyst_id": {
+            "anyOf": [
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
+            ],
+            "title": "Catalyst Id"
+          },
+          "catalyst": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Catalyst"
+          }
+        },
+        "type": "object",
+        "required": ["type", "description"],
+        "title": "AuditLogs"
+      },
+      "AuditLogsCreate": {
+        "properties": {
+          "type": {
+            "type": "integer",
+            "title": "Type",
+            "description": "Audit log type (ex: 1 login, 2 password change, etc.)"
+          },
+          "catalyst_id": {
+            "anyOf": [
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
+            ],
+            "title": "Catalyst Id",
+            "description": "User ID of the catalyst"
+          },
+          "catalyst": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Catalyst",
+            "description": "Catalyst action code"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "description": "Audit log description"
+          }
+        },
+        "type": "object",
+        "required": ["type", "description"],
+        "title": "AuditLogsCreate"
+      },
+      "AuditLogsListResponse": {
+        "properties": {
+          "audit_logs": {
+            "items": { "$ref": "#/components/schemas/AuditLogsResponse" },
+            "type": "array",
+            "title": "Audit Logs"
+          },
+          "total": { "type": "integer", "title": "Total" }
+        },
+        "type": "object",
+        "required": ["audit_logs", "total"],
+        "title": "AuditLogsListResponse"
+      },
+      "AuditLogsResponse": {
+        "properties": {
+          "type": {
+            "type": "integer",
+            "title": "Type",
+            "description": "Audit log type (ex: 1 login, 2 password change, etc.)"
+          },
+          "catalyst_id": {
+            "anyOf": [
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
+            ],
+            "title": "Catalyst Id",
+            "description": "User ID of the catalyst"
+          },
+          "catalyst": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Catalyst",
+            "description": "Catalyst action code"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "description": "Audit log description"
+          },
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Created at"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At",
+            "description": "Updated at"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["type", "description", "id", "created_at", "updated_at"],
+        "title": "AuditLogsResponse"
+      },
+      "AuthLoginRequest": {
+        "properties": {
+          "uid": {
+            "type": "string",
+            "title": "Uid",
+            "description": "Firebase UID"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email",
+            "description": "User email"
+          }
+        },
+        "type": "object",
+        "required": ["uid", "email"],
+        "title": "AuthLoginRequest"
+      },
+      "AuthRefreshRequest": {
+        "properties": {
+          "refreshToken": {
+            "type": "string",
+            "title": "Refreshtoken",
+            "description": "Valid refresh token"
+          }
+        },
+        "type": "object",
+        "required": ["refreshToken"],
+        "title": "AuthRefreshRequest"
+      },
+      "AuthRegisterRequest": {
+        "properties": {
+          "uid": {
+            "type": "string",
+            "title": "Uid",
+            "description": "Firebase UID"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email",
+            "description": "User email"
+          },
+          "username": {
+            "type": "string",
+            "maxLength": 50,
+            "minLength": 3,
+            "title": "Username",
+            "description": "Username (alphanumeric, _ and - only)"
+          },
+          "photoURL": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Photourl",
+            "description": "Profile picture URL from Firebase"
+          },
+          "emailVerified": {
+            "type": "boolean",
+            "title": "Emailverified",
+            "description": "Whether Firebase confirmed email",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": ["uid", "email", "username"],
+        "title": "AuthRegisterRequest"
+      },
+      "AuthResponse": {
+        "properties": {
+          "accessToken": { "type": "string", "title": "Accesstoken" },
+          "refreshToken": { "type": "string", "title": "Refreshtoken" },
+          "tokenType": {
+            "type": "string",
+            "title": "Tokentype",
+            "default": "Bearer"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["accessToken", "refreshToken"],
+        "title": "AuthResponse"
+      },
+      "Badge": {
+        "properties": {
+          "name": { "type": "string", "title": "Name" },
+          "description": { "type": "string", "title": "Description" },
+          "milestone": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Milestone"
+          },
+          "icon": { "type": "string", "title": "Icon" },
+          "status": { "type": "integer", "title": "Status" },
+          "id": {
+            "anyOf": [
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
+            ],
+            "title": "Id"
+          },
+          "created_at": {
+            "anyOf": [
+              { "type": "string", "format": "date-time" },
+              { "type": "null" }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              { "type": "string", "format": "date-time" },
+              { "type": "null" }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": ["name", "description", "milestone", "icon", "status"],
+        "title": "Badge"
+      },
+      "BadgeCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 50,
+            "minLength": 3,
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 3,
+            "title": "Description"
+          },
+          "milestone": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Milestone",
+            "description": "Milestone date"
+          },
+          "status": {
+            "type": "integer",
+            "title": "Status",
+            "description": "Badge status (ex: 1 active, 0 inactive)",
+            "default": 1
+          },
+          "icon": {
+            "type": "string",
+            "title": "Icon",
+            "description": "Icon image link"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At",
+            "description": "Last updated timestamp"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Created timestamp"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "description",
+          "milestone",
+          "icon",
+          "updated_at",
+          "created_at"
+        ],
+        "title": "BadgeCreate"
+      },
+      "BadgeListResponse": {
+        "properties": {
+          "badges": {
+            "items": { "$ref": "#/components/schemas/BadgeResponse" },
+            "type": "array",
+            "title": "Badges"
+          },
+          "total": { "type": "integer", "title": "Total" }
+        },
+        "type": "object",
+        "required": ["badges", "total"],
+        "title": "BadgeListResponse"
+      },
+      "BadgeResponse": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 50,
+            "minLength": 3,
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 3,
+            "title": "Description"
+          },
+          "milestone": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Milestone",
+            "description": "Milestone date"
+          },
+          "status": {
+            "type": "integer",
+            "title": "Status",
+            "description": "Badge status (ex: 1 active, 0 inactive)",
+            "default": 1
+          },
+          "icon": {
+            "type": "string",
+            "title": "Icon",
+            "description": "Icon image link"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "description",
+          "milestone",
+          "icon",
+          "updated_at",
+          "id",
+          "created_at"
+        ],
+        "title": "BadgeResponse"
+      },
+      "BadgeUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              { "type": "string", "maxLength": 50, "minLength": 3 },
+              { "type": "null" }
+            ],
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              { "type": "string", "maxLength": 500, "minLength": 3 },
+              { "type": "null" }
+            ],
+            "title": "Description"
+          },
+          "milestone": {
+            "anyOf": [
+              { "type": "string", "format": "date-time" },
+              { "type": "null" }
+            ],
+            "title": "Milestone",
+            "description": "Milestone date"
+          },
+          "status": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Status",
+            "description": "Badge status (ex: 1 active, 0 inactive)"
+          },
+          "icon": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Icon",
+            "description": "Icon image link"
+          }
+        },
+        "type": "object",
+        "title": "BadgeUpdate"
+      },
+      "ChatCreateRequest": {
+        "properties": {
+          "receiverId": { "type": "string", "title": "Receiverid" }
+        },
+        "type": "object",
+        "required": ["receiverId"],
+        "title": "ChatCreateRequest"
+      },
+      "ChatListResponse": {
+        "properties": {
+          "chats": {
+            "items": { "$ref": "#/components/schemas/ChatResponse" },
+            "type": "array",
+            "title": "Chats"
+          },
+          "total": { "type": "integer", "title": "Total" }
+        },
+        "type": "object",
+        "required": ["chats", "total"],
+        "title": "ChatListResponse"
+      },
+      "ChatResponse": {
+        "properties": {
+          "sender": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Sender",
+            "description": "User ID"
+          },
+          "reciver": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Reciver",
+            "description": "User ID"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Started At",
+            "description": "Start time"
+          },
+          "ended_at": {
+            "anyOf": [
+              { "type": "string", "format": "date-time" },
+              { "type": "null" }
+            ],
+            "title": "Ended At",
+            "description": "End time"
+          },
+          "status": {
+            "type": "integer",
+            "title": "Status",
+            "description": "Chat status (ex: 1 active, 0 disabled)",
+            "default": 1
+          },
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Created at"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At",
+            "description": "Updated at"
+          },
+          "messages": { "$ref": "#/components/schemas/MessageListResponse" }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "sender",
+          "reciver",
+          "started_at",
+          "id",
+          "created_at",
+          "updated_at",
+          "messages"
+        ],
+        "title": "ChatResponse"
+      },
+      "Friendship": {
+        "properties": {
+          "sender": { "type": "string", "format": "uuid", "title": "Sender" },
+          "reciver": { "type": "string", "format": "uuid", "title": "Reciver" },
+          "status": { "type": "integer", "title": "Status" },
+          "created_at": {
+            "anyOf": [
+              { "type": "string", "format": "date-time" },
+              { "type": "null" }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              { "type": "string", "format": "date-time" },
+              { "type": "null" }
+            ],
+            "title": "Updated At"
+          },
+          "id": {
+            "anyOf": [
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
+            ],
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": ["sender", "reciver", "status"],
+        "title": "Friendship"
+      },
+      "FriendshipListResponse": {
+        "properties": {
+          "friendships": {
+            "items": { "$ref": "#/components/schemas/FriendshipResponse" },
+            "type": "array",
+            "title": "Friendships"
+          },
+          "total": { "type": "integer", "title": "Total" }
+        },
+        "type": "object",
+        "required": ["friendships", "total"],
+        "title": "FriendshipListResponse"
+      },
+      "FriendshipResponse": {
+        "properties": {
+          "sender": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Sender",
+            "description": "User ID"
+          },
+          "reciver": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Reciver",
+            "description": "User ID"
+          },
+          "send_at": {
+            "anyOf": [
+              { "type": "string", "format": "date-time" },
+              { "type": "null" }
+            ],
+            "title": "Send At",
+            "description": "Sent at"
+          },
+          "recived_at": {
+            "anyOf": [
+              { "type": "string", "format": "date-time" },
+              { "type": "null" }
+            ],
+            "title": "Recived At",
+            "description": "Received at"
+          },
+          "status": {
+            "type": "integer",
+            "title": "Status",
+            "description": "Friendship status (ex: 1 active, 0 disabled)",
+            "default": 1
+          },
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Created at"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At",
+            "description": "Updated at"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["sender", "reciver", "id", "created_at", "updated_at"],
+        "title": "FriendshipResponse"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": { "$ref": "#/components/schemas/ValidationError" },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "MessageListResponse": {
+        "properties": {
+          "messages": {
+            "items": { "$ref": "#/components/schemas/MessageResponse" },
+            "type": "array",
+            "title": "Messages"
+          },
+          "total": { "type": "integer", "title": "Total" }
+        },
+        "type": "object",
+        "required": ["messages", "total"],
+        "title": "MessageListResponse"
+      },
+      "MessageResponse": {
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "chat": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Chat",
+            "description": "Chat ID"
+          },
+          "sender": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Sender",
+            "description": "Sender user ID"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "Message content"
+          },
+          "status": {
+            "type": "integer",
+            "title": "Status",
+            "description": "Message status"
+          },
+          "send_at": {
+            "anyOf": [
+              { "type": "string", "format": "date-time" },
+              { "type": "null" }
+            ],
+            "title": "Send At",
+            "description": "Sent time"
+          },
+          "recived_at": {
+            "anyOf": [
+              { "type": "string", "format": "date-time" },
+              { "type": "null" }
+            ],
+            "title": "Recived At",
+            "description": "Received time"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Created time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At",
+            "description": "Updated time"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "chat",
+          "sender",
+          "message",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "MessageResponse"
+      },
+      "PaginatedResponse_AuditLogs_": {
+        "properties": {
+          "items": {
+            "items": { "$ref": "#/components/schemas/AuditLogs" },
+            "type": "array",
+            "title": "Items",
+            "description": "List of items for the current page"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total",
+            "description": "Total number of items across all pages"
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Page",
+            "description": "Current page number"
+          },
+          "pageSize": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Pagesize",
+            "description": "Number of items per page"
+          },
+          "totalPages": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Totalpages",
+            "description": "Total number of pages"
+          },
+          "hasNext": {
+            "type": "boolean",
+            "title": "Hasnext",
+            "description": "Whether there is a next page"
+          },
+          "hasPrevious": {
+            "type": "boolean",
+            "title": "Hasprevious",
+            "description": "Whether there is a previous page"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize",
+          "totalPages",
+          "hasNext",
+          "hasPrevious"
+        ],
+        "title": "PaginatedResponse[AuditLogs]",
+        "example": {
+          "hasNext": true,
+          "hasPrevious": false,
+          "items": [],
+          "page": 1,
+          "pageSize": 20,
+          "total": 100,
+          "totalPages": 5
+        }
+      },
+      "PaginatedResponse_Badge_": {
+        "properties": {
+          "items": {
+            "items": { "$ref": "#/components/schemas/Badge" },
+            "type": "array",
+            "title": "Items",
+            "description": "List of items for the current page"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total",
+            "description": "Total number of items across all pages"
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Page",
+            "description": "Current page number"
+          },
+          "pageSize": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Pagesize",
+            "description": "Number of items per page"
+          },
+          "totalPages": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Totalpages",
+            "description": "Total number of pages"
+          },
+          "hasNext": {
+            "type": "boolean",
+            "title": "Hasnext",
+            "description": "Whether there is a next page"
+          },
+          "hasPrevious": {
+            "type": "boolean",
+            "title": "Hasprevious",
+            "description": "Whether there is a previous page"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize",
+          "totalPages",
+          "hasNext",
+          "hasPrevious"
+        ],
+        "title": "PaginatedResponse[Badge]",
+        "example": {
+          "hasNext": true,
+          "hasPrevious": false,
+          "items": [],
+          "page": 1,
+          "pageSize": 20,
+          "total": 100,
+          "totalPages": 5
+        }
+      },
+      "PaginatedResponse_Friendship_": {
+        "properties": {
+          "items": {
+            "items": { "$ref": "#/components/schemas/Friendship" },
+            "type": "array",
+            "title": "Items",
+            "description": "List of items for the current page"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total",
+            "description": "Total number of items across all pages"
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Page",
+            "description": "Current page number"
+          },
+          "pageSize": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Pagesize",
+            "description": "Number of items per page"
+          },
+          "totalPages": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Totalpages",
+            "description": "Total number of pages"
+          },
+          "hasNext": {
+            "type": "boolean",
+            "title": "Hasnext",
+            "description": "Whether there is a next page"
+          },
+          "hasPrevious": {
+            "type": "boolean",
+            "title": "Hasprevious",
+            "description": "Whether there is a previous page"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize",
+          "totalPages",
+          "hasNext",
+          "hasPrevious"
+        ],
+        "title": "PaginatedResponse[Friendship]",
+        "example": {
+          "hasNext": true,
+          "hasPrevious": false,
+          "items": [],
+          "page": 1,
+          "pageSize": 20,
+          "total": 100,
+          "totalPages": 5
+        }
+      },
+      "PaginatedResponse_MessageResponse_": {
+        "properties": {
+          "items": {
+            "items": { "$ref": "#/components/schemas/MessageResponse" },
+            "type": "array",
+            "title": "Items",
+            "description": "List of items for the current page"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total",
+            "description": "Total number of items across all pages"
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Page",
+            "description": "Current page number"
+          },
+          "pageSize": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Pagesize",
+            "description": "Number of items per page"
+          },
+          "totalPages": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Totalpages",
+            "description": "Total number of pages"
+          },
+          "hasNext": {
+            "type": "boolean",
+            "title": "Hasnext",
+            "description": "Whether there is a next page"
+          },
+          "hasPrevious": {
+            "type": "boolean",
+            "title": "Hasprevious",
+            "description": "Whether there is a previous page"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize",
+          "totalPages",
+          "hasNext",
+          "hasPrevious"
+        ],
+        "title": "PaginatedResponse[MessageResponse]",
+        "example": {
+          "hasNext": true,
+          "hasPrevious": false,
+          "items": [],
+          "page": 1,
+          "pageSize": 20,
+          "total": 100,
+          "totalPages": 5
+        }
+      },
+      "PaginatedResponse_Streak_": {
+        "properties": {
+          "items": {
+            "items": { "$ref": "#/components/schemas/Streak" },
+            "type": "array",
+            "title": "Items",
+            "description": "List of items for the current page"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total",
+            "description": "Total number of items across all pages"
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Page",
+            "description": "Current page number"
+          },
+          "pageSize": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Pagesize",
+            "description": "Number of items per page"
+          },
+          "totalPages": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Totalpages",
+            "description": "Total number of pages"
+          },
+          "hasNext": {
+            "type": "boolean",
+            "title": "Hasnext",
+            "description": "Whether there is a next page"
+          },
+          "hasPrevious": {
+            "type": "boolean",
+            "title": "Hasprevious",
+            "description": "Whether there is a previous page"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize",
+          "totalPages",
+          "hasNext",
+          "hasPrevious"
+        ],
+        "title": "PaginatedResponse[Streak]",
+        "example": {
+          "hasNext": true,
+          "hasPrevious": false,
+          "items": [],
+          "page": 1,
+          "pageSize": 20,
+          "total": 100,
+          "totalPages": 5
+        }
+      },
+      "PaginatedResponse_UserBadge_": {
+        "properties": {
+          "items": {
+            "items": { "$ref": "#/components/schemas/UserBadge" },
+            "type": "array",
+            "title": "Items",
+            "description": "List of items for the current page"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total",
+            "description": "Total number of items across all pages"
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Page",
+            "description": "Current page number"
+          },
+          "pageSize": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Pagesize",
+            "description": "Number of items per page"
+          },
+          "totalPages": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Totalpages",
+            "description": "Total number of pages"
+          },
+          "hasNext": {
+            "type": "boolean",
+            "title": "Hasnext",
+            "description": "Whether there is a next page"
+          },
+          "hasPrevious": {
+            "type": "boolean",
+            "title": "Hasprevious",
+            "description": "Whether there is a previous page"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize",
+          "totalPages",
+          "hasNext",
+          "hasPrevious"
+        ],
+        "title": "PaginatedResponse[UserBadge]",
+        "example": {
+          "hasNext": true,
+          "hasPrevious": false,
+          "items": [],
+          "page": 1,
+          "pageSize": 20,
+          "total": 100,
+          "totalPages": 5
+        }
+      },
+      "PaginatedResponse_User_": {
+        "properties": {
+          "items": {
+            "items": { "$ref": "#/components/schemas/User" },
+            "type": "array",
+            "title": "Items",
+            "description": "List of items for the current page"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total",
+            "description": "Total number of items across all pages"
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Page",
+            "description": "Current page number"
+          },
+          "pageSize": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Pagesize",
+            "description": "Number of items per page"
+          },
+          "totalPages": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Totalpages",
+            "description": "Total number of pages"
+          },
+          "hasNext": {
+            "type": "boolean",
+            "title": "Hasnext",
+            "description": "Whether there is a next page"
+          },
+          "hasPrevious": {
+            "type": "boolean",
+            "title": "Hasprevious",
+            "description": "Whether there is a previous page"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize",
+          "totalPages",
+          "hasNext",
+          "hasPrevious"
+        ],
+        "title": "PaginatedResponse[User]",
+        "example": {
+          "hasNext": true,
+          "hasPrevious": false,
+          "items": [],
+          "page": 1,
+          "pageSize": 20,
+          "total": 100,
+          "totalPages": 5
+        }
+      },
+      "ProfileUpdateRequest": {
+        "properties": {
+          "username": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Username"
+          },
+          "profile_picture": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Profile Picture"
+          }
+        },
+        "type": "object",
+        "title": "ProfileUpdateRequest"
+      },
+      "SendMessageRequest": {
+        "properties": {
+          "chatId": { "type": "string", "title": "Chatid" },
+          "content": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Content"
+          }
+        },
+        "type": "object",
+        "required": ["chatId", "content"],
+        "title": "SendMessageRequest"
+      },
+      "Streak": {
+        "properties": {
+          "owner_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Owner Id"
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start"
+          },
+          "status": { "type": "integer", "title": "Status" },
+          "id": {
+            "anyOf": [
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
+            ],
+            "title": "Id"
+          },
+          "created_at": {
+            "anyOf": [
+              { "type": "string", "format": "date-time" },
+              { "type": "null" }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              { "type": "string", "format": "date-time" },
+              { "type": "null" }
+            ],
+            "title": "Updated At"
+          },
+          "is_record": {
+            "anyOf": [{ "type": "boolean" }, { "type": "null" }],
+            "title": "Is Record",
+            "default": false
+          },
+          "end": {
+            "anyOf": [
+              { "type": "string", "format": "date-time" },
+              { "type": "null" }
+            ],
+            "title": "End"
+          }
+        },
+        "type": "object",
+        "required": ["owner_id", "start", "status"],
+        "title": "Streak"
+      },
+      "StreakListResponse": {
+        "properties": {
+          "streaks": {
+            "items": { "$ref": "#/components/schemas/StreakResponse" },
+            "type": "array",
+            "title": "Streaks"
+          },
+          "total": { "type": "integer", "title": "Total" }
+        },
+        "type": "object",
+        "required": ["streaks", "total"],
+        "title": "StreakListResponse"
+      },
+      "StreakResponse": {
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "owner_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Owner Id",
+            "description": "Owner user ID"
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start",
+            "description": "Start time"
+          },
+          "end": {
+            "anyOf": [
+              { "type": "string", "format": "date-time" },
+              { "type": "null" }
+            ],
+            "title": "End",
+            "description": "End time"
+          },
+          "status": {
+            "type": "integer",
+            "title": "Status",
+            "description": "Streak status"
+          },
+          "is_record": {
+            "anyOf": [{ "type": "boolean" }, { "type": "null" }],
+            "title": "Is Record",
+            "description": "Whether this is the user's personal record",
+            "default": false
+          },
+          "created_at": {
+            "anyOf": [
+              { "type": "string", "format": "date-time" },
+              { "type": "null" }
+            ],
+            "title": "Created At",
+            "description": "Created at"
+          },
+          "updated_at": {
+            "anyOf": [
+              { "type": "string", "format": "date-time" },
+              { "type": "null" }
+            ],
+            "title": "Updated At",
+            "description": "Updated at"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["id", "owner_id", "start", "status"],
+        "title": "StreakResponse"
+      },
+      "User": {
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "username": { "type": "string", "title": "Username" },
+          "email": { "type": "string", "title": "Email" },
+          "status": { "type": "integer", "title": "Status" },
+          "created_at": {
+            "anyOf": [
+              { "type": "string", "format": "date-time" },
+              { "type": "null" }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              { "type": "string", "format": "date-time" },
+              { "type": "null" }
+            ],
+            "title": "Updated At"
+          },
+          "profile_picture": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Profile Picture"
+          }
+        },
+        "type": "object",
+        "required": ["id", "username", "email", "status"],
+        "title": "User"
+      },
+      "UserBadge": {
+        "properties": {
+          "user_id": { "type": "string", "format": "uuid", "title": "User Id" },
+          "badge_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Badge Id"
+          },
+          "status": { "type": "integer", "title": "Status" },
+          "id": {
+            "anyOf": [
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
+            ],
+            "title": "Id"
+          },
+          "given_at": {
+            "anyOf": [
+              { "type": "string", "format": "date-time" },
+              { "type": "null" }
+            ],
+            "title": "Given At"
+          },
+          "created_at": {
+            "anyOf": [
+              { "type": "string", "format": "date-time" },
+              { "type": "null" }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              { "type": "string", "format": "date-time" },
+              { "type": "null" }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": ["user_id", "badge_id", "status"],
+        "title": "UserBadge"
+      },
+      "UserBadgeCreate": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id",
+            "description": "User ID"
+          },
+          "badge_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Badge Id",
+            "description": "Badge ID"
+          },
+          "given_at": {
+            "anyOf": [
+              { "type": "string", "format": "date-time" },
+              { "type": "null" }
+            ],
+            "title": "Given At",
+            "description": "Granted at"
+          },
+          "status": {
+            "type": "integer",
+            "title": "Status",
+            "description": "Badge status (ex: 1 active, 0 disabled)",
+            "default": 1
+          }
+        },
+        "type": "object",
+        "required": ["user_id", "badge_id"],
+        "title": "UserBadgeCreate"
+      },
+      "UserBadgeListResponse": {
+        "properties": {
+          "badges": {
+            "items": { "$ref": "#/components/schemas/UserBadgeResponse" },
+            "type": "array",
+            "title": "Badges"
+          },
+          "total": { "type": "integer", "title": "Total" }
+        },
+        "type": "object",
+        "required": ["badges", "total"],
+        "title": "UserBadgeListResponse"
+      },
+      "UserBadgeResponse": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id",
+            "description": "User ID"
+          },
+          "badge_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Badge Id",
+            "description": "Badge ID"
+          },
+          "given_at": {
+            "anyOf": [
+              { "type": "string", "format": "date-time" },
+              { "type": "null" }
+            ],
+            "title": "Given At",
+            "description": "Granted at"
+          },
+          "status": {
+            "type": "integer",
+            "title": "Status",
+            "description": "Badge status (ex: 1 active, 0 disabled)",
+            "default": 1
+          },
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Created at"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At",
+            "description": "Updated at"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["user_id", "badge_id", "id", "created_at", "updated_at"],
+        "title": "UserBadgeResponse"
+      },
+      "UserBadgeUpdate": {
+        "properties": {
+          "given_at": {
+            "anyOf": [
+              { "type": "string", "format": "date-time" },
+              { "type": "null" }
+            ],
+            "title": "Given At",
+            "description": "Granted at"
+          },
+          "status": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Status",
+            "description": "Badge status (ex: 1 active, 0 disabled)"
+          }
+        },
+        "type": "object",
+        "title": "UserBadgeUpdate"
+      },
+      "UserListResponse": {
+        "properties": {
+          "users": {
+            "items": { "$ref": "#/components/schemas/UserResponse" },
+            "type": "array",
+            "title": "Users"
+          },
+          "total": { "type": "integer", "title": "Total" }
+        },
+        "type": "object",
+        "required": ["users", "total"],
+        "title": "UserListResponse"
+      },
+      "UserResponse": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "maxLength": 50,
+            "minLength": 3,
+            "title": "Username",
+            "description": "Unique username"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email",
+            "description": "Valid email address"
+          },
+          "status": {
+            "type": "integer",
+            "title": "Status",
+            "description": "Account status (ex: 1 enabled, 0 disabled)",
+            "default": 1
+          },
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "profile_picture": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Profile Picture"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "username",
+          "email",
+          "id",
+          "profile_picture",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "UserResponse",
+        "description": "Schema for the client response.\nHas the fields created by the database (ID and timestamps)."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": { "anyOf": [{ "type": "string" }, { "type": "integer" }] },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": { "type": "string", "title": "Message" },
+          "type": { "type": "string", "title": "Error Type" },
+          "input": { "title": "Input" },
+          "ctx": { "type": "object", "title": "Context" }
+        },
+        "type": "object",
+        "required": ["loc", "msg", "type"],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": { "HTTPBearer": { "type": "http", "scheme": "bearer" } }
+  }
+}
