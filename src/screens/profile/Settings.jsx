@@ -1,86 +1,7 @@
 import { useState } from 'react'
-import { ME, BADGES } from './data.jsx'
-import { Screen, Header, Avatar, Icon, Btn, Card, Field, BadgeMedallion, BottomSheet } from './ui.jsx'
+import { Screen, Header, Card, Icon, Btn, Field, BottomSheet } from '../../ui/index.js'
 
-export function MyProfile({ days, personalRecord, badgeCount, totalBadges, joined, onEdit, onSettings, onOpenBadges, mode, dir }) {
-  return (
-    <Screen geo="profile" padTop={56}>
-      <Header title=""
-        right={<button onClick={onSettings} style={{ width: 38, height: 38, borderRadius: 11, background: 'var(--surface)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-          <Icon name="gear" size={20} color="var(--ink-2)" /></button>} />
-
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '8px 24px 0', position: 'relative', zIndex: 1 }}>
-        <Avatar name={ME.username} size={106} hue={ME.color} />
-        <div style={{ fontSize: 23, fontWeight: 700, color: 'var(--ink)', marginTop: 14 }}>{ME.username}</div>
-        <div style={{ fontSize: 13.5, color: 'var(--ink-3)', marginTop: 3 }}>Member since {joined}</div>
-        <div style={{ marginTop: 16 }}>
-          <Btn kind="outline" icon="edit" onClick={onEdit}>Edit profile</Btn>
-        </div>
-
-        <div style={{ width: '100%', marginTop: 24, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <Card style={{ textAlign: 'center', padding: '18px 12px' }}>
-            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 'var(--display-weight)', fontSize: 30, color: 'var(--primary)', lineHeight: 1 }}>{days}</div>
-            <div style={{ fontSize: 12.5, color: 'var(--ink-3)', marginTop: 6 }}>current streak</div>
-          </Card>
-          <Card style={{ textAlign: 'center', padding: '18px 12px' }}>
-            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 'var(--display-weight)', fontSize: 30, color: 'var(--ink)', lineHeight: 1 }}>{personalRecord}</div>
-            <div style={{ fontSize: 12.5, color: 'var(--ink-3)', marginTop: 6 }}>personal best</div>
-          </Card>
-        </div>
-
-        <Card pad={0} onClick={onOpenBadges} style={{ width: '100%', marginTop: 12, display: 'flex', alignItems: 'center', gap: 14, padding: '15px 16px' }}>
-          <div style={{ display: 'flex' }}>
-            {BADGES.filter(b => b.earned).slice(0, 3).map((b, i) => (
-              <div key={b.id} style={{ marginLeft: i ? -14 : 0, borderRadius: '50%', background: 'var(--surface)' }}>
-                <BadgeMedallion milestone={b.milestone} earned size={40} />
-              </div>
-            ))}
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)' }}>{badgeCount} badges earned</div>
-            <div style={{ fontSize: 12.5, color: 'var(--ink-3)' }}>{totalBadges - badgeCount} more to unlock</div>
-          </div>
-          <Icon name="chevR" size={18} color="var(--ink-3)" />
-        </Card>
-      </div>
-    </Screen>
-  );
-}
-
-export function EditProfile({ onBack, onSave }) {
-  const [username, setUsername] = useState(ME.username);
-  const [pic, setPic] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const taken = ['maya_rivera', 'theo_k'].includes(username.trim().toLowerCase());
-  const valid = username.length >= 3 && !taken;
-  const dirty = username !== ME.username;
-  const save = () => { setSaving(true); setTimeout(() => onSave(username), 900); };
-  return (
-    <Screen geo="auth" padTop={56}>
-      <Header title="Edit profile" onBack={onBack}
-        right={<button onClick={valid && dirty ? save : undefined} disabled={!valid || !dirty} style={{ background: 'none', border: 'none', cursor: valid && dirty ? 'pointer' : 'default', color: valid && dirty ? 'var(--primary)' : 'var(--ink-3)', fontSize: 15.5, fontWeight: 700, padding: 6 }}>
-          {saving ? 'Saving…' : 'Save'}</button>} />
-      <div style={{ padding: '18px 24px 0' }}>
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 28 }}>
-          <div style={{ position: 'relative' }}>
-            <Avatar name={ME.username} size={104} hue={ME.color} />
-            <button onClick={() => setPic(!pic)} style={{ position: 'absolute', right: -2, bottom: -2, width: 34, height: 34, borderRadius: '50%', background: 'var(--primary)', border: '3px solid var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-              <Icon name="camera" size={16} color="var(--on-primary)" sw={2} />
-            </button>
-          </div>
-        </div>
-        <Field label="Username" value={username} onChange={setUsername}
-          error={taken ? 'That username is taken.' : username.length < 3 ? 'At least 3 characters.' : null}
-          hint={valid ? 'Friends find you by this name.' : null} />
-        <div style={{ marginTop: 18 }}>
-          <Field label="Email" value={ME.email} onChange={() => {}} hint="Email can't be changed here." />
-        </div>
-      </div>
-    </Screen>
-  );
-}
-
-export function ToggleRow({ icon, label, sub, value, onChange }) {
+function ToggleRow({ icon, label, sub, value, onChange }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '13px 4px' }}>
       <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -97,7 +18,7 @@ export function ToggleRow({ icon, label, sub, value, onChange }) {
   );
 }
 
-export function LinkRow({ icon, label, onClick, danger, last }) {
+function LinkRow({ icon, label, onClick, danger, last }) {
   return (
     <button onClick={onClick} style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '14px 4px', background: 'none', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer', borderBottom: last ? 'none' : '1px solid var(--border)' }}>
       <div style={{ width: 36, height: 36, borderRadius: 10, background: danger ? 'var(--accent-soft)' : 'var(--surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -109,7 +30,7 @@ export function LinkRow({ icon, label, onClick, danger, last }) {
   );
 }
 
-export function Settings({ onBack, onLogout, onDeleted, mode, onToggleMode, dir, onToggleDir }) {
+export function Settings({ onBack, onLogout, onDeleted, mode, onToggleMode }) {
   const [notif, setNotif] = useState(true);
   const [reminders, setReminders] = useState(true);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -157,7 +78,7 @@ export function Settings({ onBack, onLogout, onDeleted, mode, onToggleMode, dir,
           </div>
           <div style={{ fontSize: 19, fontWeight: 700, color: 'var(--ink)' }}>Delete your account?</div>
           <div style={{ fontSize: 14, color: 'var(--ink-2)', marginTop: 8, lineHeight: 1.5 }}>
-            This erases your streak, badges, friends and messages permanently. Your <strong>{47}-day streak</strong> can't be recovered.
+            This erases your streak, badges, friends and messages permanently. Your <strong>47-day streak</strong> can't be recovered.
           </div>
         </div>
         <div style={{ margin: '18px 0 8px' }}>
