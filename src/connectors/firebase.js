@@ -1,6 +1,6 @@
 // Firebase app init. Import auth from here rather than initialising elsewhere.
 import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -22,32 +22,19 @@ export { provider };
  * @returns {Promise<{ success: true, credential: import('firebase/auth').OAuthCredential, token: string, user: import('firebase/auth').User } | { success: false, errorCode: string, errorMessage: string, email: string, credential: import('firebase/auth').OAuthCredential }>}
  */
 export async function fbLogin() {
-  signInWithPopup(auth, provider)
+  return signInWithPopup(auth, provider)
     .then((result) => {
       const credential = GoogleAuthProvider.credentialFromResult(result);
       const token = credential.accessToken;
       const user = result.user;
-
-      return {
-        success: true,
-        credential: credential,
-        token: token,
-        user: user,
-      };
+      return { success: true, credential, token, user };
     })
     .catch((error) => {
       const errorCode = error.code;
       const errorMessage = error.message;
-      const email = error.customData.message;
+      const email = error.customData?.email ?? null;
       const credential = GoogleAuthProvider.credentialFromError(error);
-
-      return {
-        success: false,
-        errorCode: errorCode,
-        errorMessage: errorMessage,
-        email: email,
-        credential: credential,
-      };
+      return { success: false, errorCode, errorMessage, email, credential };
     });
 }
 
@@ -56,11 +43,5 @@ export async function fbLogin() {
  * @returns {Promise<true | Error>}
  */
 export async function fbLogout() {
-  signOut(auth)
-    .then(() => {
-      return true;
-    })
-    .catch((error) => {
-      return error;
-    });
+  return signOut(auth).then(() => true).catch((error) => error);
 }
