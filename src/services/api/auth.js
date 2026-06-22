@@ -1,5 +1,5 @@
 import { api } from "../../connectors/api.js";
-import { auth, fbLogin } from "../../connectors/firebase.js";
+import { fbLogin, fbLogout } from "../../connectors/firebase.js";
 import { tokens } from "../../connectors/tokens.js";
 
 /**
@@ -14,9 +14,8 @@ export async function signIn() {
     return userData;
   }
 
-  const { credential, token, user } = userData;
-  const firebaseId = user.uid;
-  const email = user.email;
+  const { user } = userData;
+  const { uid, email } = user;
 
   const result = await api.post("/auth/login", { uid, email });
   tokens.set(result);
@@ -34,7 +33,7 @@ export async function signUp() {
     return userData;
   }
 
-  const { credential, token, user } = userData;
+  const { user } = userData;
   const { uid, email, displayName, photoURL, emailVerified } = user;
 
   const username = displayName || email;
@@ -57,7 +56,7 @@ export async function signUp() {
  * @returns {Promise<object>}
  */
 export async function signOut() {
-  await fbSignOut(auth);
+  await fbLogout();
 
   const refreshToken = tokens.getRefresh();
 
