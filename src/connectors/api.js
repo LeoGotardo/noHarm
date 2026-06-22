@@ -17,13 +17,21 @@ async function parseResponse(res) {
   return json;
 }
 
-async function request(method, path, body, retry = true) {
+async function request(method, path, body, retry = true, params) {
   const headers = { "Content-Type": "application/json" };
 
   const token = tokens.getAccess();
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
-  const res = await fetch(BASE_URL + path, {
+  let url = BASE_URL + path;
+  if (params && Object.keys(params).length > 0) {
+    const qs = new URLSearchParams(
+      Object.entries(params).filter(([, v]) => v != null).map(([k, v]) => [k, String(v)])
+    ).toString();
+    if (qs) url += '?' + qs;
+  }
+
+  const res = await fetch(url, {
     method,
     headers,
     body: body != null ? JSON.stringify(body) : undefined,
@@ -42,14 +50,14 @@ async function request(method, path, body, retry = true) {
     const refreshed = await parseResponse(refreshRes);
     tokens.set(refreshed);
 
-    return request(method, path, body, false);
+    return request(method, path, body, false, params);
   }
 
   return parseResponse(res);
 }
 
 export const api = {
-  get: (path) => request("GET", path),
+  get: (path, params) => request("GET", path, undefined, true, params),
   post: (path, body) => request("POST", path, body),
   put: (path, body) => request("PUT", path, body),
   patch: (path, body) => request("PATCH", path, body),
