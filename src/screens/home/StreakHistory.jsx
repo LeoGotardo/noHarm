@@ -1,9 +1,50 @@
-import { useState } from 'react'
-import { Screen, Header, Card, Icon, Btn } from '../../ui/index.js'
+import { useState, useEffect } from 'react'
+import { Screen, Header, Card, Icon } from '../../ui/index.js'
+import { getStreakHistory } from '../../services/api/streak.js'
+import { cacheRead, cacheWrite } from '../../store/cache.js'
 
-export function StreakHistory({ onBack, streaks, currentDays, currentStart, empty }) {
-  const [loadingMore, setLoadingMore] = useState(false);
-  const list = empty ? [] : streaks;
+function fmtDate(iso) {
+  if (!iso) return '?'
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+function streakDays(s) {
+  const end = s.end ?? new Date().toISOString()
+  return Math.max(0, Math.floor((new Date(end) - new Date(s.start)) / 86_400_000))
+}
+
+export function StreakHistory({ onBack, currentDays, currentStart, empty }) {
+  const [streaks, setStreaks] = useState(() => cacheRead('streak_history')?.data ?? [])
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+
+  useEffect(() => {
+    getStreakHistory(true, 1, 20).then(res => {
+      const list = res.streaks ?? res.items ?? []
+      setStreaks(list)
+      setHasMore((res.hasNext ?? false))
+      cacheWrite('streak_history', list)
+    })
+  }, [])
+
+  const loadMore = async () => {
+    setLoadingMore(true)
+    const next = page + 1
+    try {
+      const res = await getStreakHistory(true, next, 20)
+      const list = res.streaks ?? res.items ?? []
+      setStreaks(prev => [...prev, ...list])
+      setHasMore(res.hasNext ?? false)
+      setPage(next)
+    } finally {
+      setLoadingMore(false)
+    }
+  }
+
+  // Exclude the active streak (status 1, no end) from history list
+  const past = streaks.filter(s => s.end !== null && s.end !== undefined)
+
   return (
     <Screen geo="history" padTop={56}>
       <Header title="Streak history" onBack={onBack} />
@@ -23,7 +64,7 @@ export function StreakHistory({ onBack, streaks, currentDays, currentStart, empt
           </Card>
         )}
 
-        {empty ? (
+        {empty && past.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '60px 30px' }}>
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 18 }}>
               <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'var(--primary-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -36,33 +77,37 @@ export function StreakHistory({ onBack, streaks, currentDays, currentStart, empt
         ) : (
           <>
             <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: 0.6, padding: '6px 4px 0' }}>Past streaks</div>
-            {list.map((s, i) => (
-              <Card key={s.id} pad={15} style={{ display: 'flex', alignItems: 'center', gap: 14, animation: 'nhRise .4s both', animationDelay: `${i * 0.04}s` }}>
-                <div style={{ width: 44, height: 44, borderRadius: 13, background: 'var(--surface-2)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                  <span style={{ fontFamily: 'var(--font-display)', fontWeight: 'var(--display-weight)', fontSize: 18, color: 'var(--ink)', lineHeight: 1 }}>{s.days}</span>
-                  <span style={{ fontSize: 8.5, color: 'var(--ink-3)', fontWeight: 600 }}>DAYS</span>
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 14.5, fontWeight: 600, color: 'var(--ink)' }}>{s.start} → {s.end}</span>
+            {past.map((s, i) => {
+              const days = streakDays(s)
+              return (
+                <Card key={s.id} pad={15} style={{ display: 'flex', alignItems: 'center', gap: 14, animation: 'nhRise .4s both', animationDelay: `${i * 0.04}s` }}>
+                  <div style={{ width: 44, height: 44, borderRadius: 13, background: 'var(--surface-2)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                    <span style={{ fontFamily: 'var(--font-display)', fontWeight: 'var(--display-weight)', fontSize: 18, color: 'var(--ink)', lineHeight: 1 }}>{days}</span>
+                    <span style={{ fontSize: 8.5, color: 'var(--ink-3)', fontWeight: 600 }}>DAYS</span>
                   </div>
-                  {s.record && (
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 5, fontSize: 11, fontWeight: 700, color: 'var(--accent-ink)', background: 'var(--accent-soft)', padding: '2px 8px', borderRadius: 99 }}>
-                      <Icon name="badges" size={12} color="var(--accent-ink)" sw={1.6} fill="var(--accent-ink)" /> Record at the time
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14.5, fontWeight: 600, color: 'var(--ink)' }}>
+                      {fmtDate(s.start)} → {fmtDate(s.end)}
                     </div>
-                  )}
-                </div>
-              </Card>
-            ))}
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 0 4px' }}>
-              {loadingMore
-                ? <span className="nh-spin" style={{ width: 22, height: 22, borderRadius: '50%', border: '2.5px solid var(--border)', borderTopColor: 'var(--primary)' }} />
-                : <button onClick={() => { setLoadingMore(true); setTimeout(() => setLoadingMore(false), 1400); }}
-                    style={{ background: 'none', border: 'none', color: 'var(--ink-3)', fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 8 }}>Load older streaks</button>}
-            </div>
+                    {s.is_record && (
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 5, fontSize: 11, fontWeight: 700, color: 'var(--accent-ink)', background: 'var(--accent-soft)', padding: '2px 8px', borderRadius: 99 }}>
+                        <Icon name="badges" size={12} color="var(--accent-ink)" sw={1.6} fill="var(--accent-ink)" /> Record at the time
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              )
+            })}
+            {hasMore && (
+              <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 0 4px' }}>
+                {loadingMore
+                  ? <span className="nh-spin" style={{ width: 22, height: 22, borderRadius: '50%', border: '2.5px solid var(--border)', borderTopColor: 'var(--primary)' }} />
+                  : <button onClick={loadMore} style={{ background: 'none', border: 'none', color: 'var(--ink-3)', fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 8 }}>Load older streaks</button>}
+              </div>
+            )}
           </>
         )}
       </div>
     </Screen>
-  );
+  )
 }

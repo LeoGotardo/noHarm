@@ -28,15 +28,14 @@ export function getSocket() {
   return _socket
 }
 
-// Typed event emitters
 export const chat = {
-  join:      (chatId)            => getSocket().emit('chat:join',      { chatId }),
-  leave:     (chatId)            => getSocket().emit('chat:leave',     { chatId }),
-  send:      (chatId, text)      => getSocket().emit('chat:send',      { chatId, text }),
-  markRead:  (chatId, messageId) => getSocket().emit('chat:mark_read', { chatId, messageId }),
-  typing:    (chatId, isTyping)  => getSocket().emit('chat:typing',    { chatId, isTyping }),
+  join:     (chatId)           => getSocket().emit('join_chat',     { chatId }),
+  leave:    (chatId)           => getSocket().emit('leave_chat',    { chatId }),
+  send:     (chatId, content)  => getSocket().emit('send_message',  { chatId, content }),
+  markRead: (chatId)           => getSocket().emit('mark_read',     { chatId }),
+  typing:   (chatId, isTyping) => getSocket().emit('typing',        { chatId, isTyping }),
 }
 
 export const presence = {
-  getOnlineStatus: (userIds) => getSocket().emit('presence:get_online_status', { userIds }),
+  getOnlineStatus: (userIds) => getSocket().emit('get_online_status', { userIds }),
 }

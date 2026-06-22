@@ -16,28 +16,50 @@ npm run preview  # serve dist/ locally
 
 No test runner, no lint script. Open `http://localhost:5173` after `npm run dev`.
 
+Env vars: `VITE_API_URL` (REST base URL) and `VITE_SOCKET_URL` (Socket.IO URL, falls back to `VITE_API_URL`).
+
 ## Architecture
 
 **Main app**: Vite + React 19 SPA. Entry: `index.html` → `src/main.jsx` → `src/app.jsx`.
 
-**Standalone demo**: `NoHarm.html` / `NoHarm-standalone.html` — CDN-loaded React + Babel, no bundler. Not the active development target. The CDN version still uses `window.X` globals; the Vite version uses ES module imports.
+**Standalone demo**: `NoHarm.html` / `NoHarm-standalone.html` — CDN-loaded React + Babel, no bundler. Not the active development target.
+
+### Layer diagram
+
+```
+screens/          ← React UI, one folder per domain
+  └─ import from ─→ ui/          ← shared primitives (Icon, Btn, Card, …)
+                  → services/    ← domain logic
+                      api/       ← REST calls
+                      ws/        ← Socket.IO event handlers
+                  → data/mock.js ← mock data (dev only)
+
+services/ import from connectors/
+  connectors/api.js      ← fetch wrapper + auto JWT refresh (401 → /auth/refresh → retry)
+  connectors/firebase.js ← Firebase Auth instance
+  connectors/socket.js   ← Socket.IO singleton (connect/disconnect/getSocket + typed emitters)
+  connectors/tokens.js   ← localStorage access/refresh token store (keys: nh_access, nh_refresh)
+```
 
 ### src/ layout
 
-| File | Role |
+| Path | Role |
 |------|------|
-| `src/data.jsx` | Mock data exports: `ME`, `BADGES`, `FRIENDS`, `CHATS`, `PEOPLE`, `STREAK_HISTORY`, etc. |
-| `src/ui.jsx` | Shared primitives: `Icon`, `Avatar`, `Btn`, `Card`, `Field`, `BottomSheet`, `Toast`, `StreakRing`, `TabBar`, `Screen`, `cx` |
-| `src/geo.jsx` | Animated geometric SVG backgrounds |
-| `src/app.jsx` | Root component: navigation state machine, theme wiring, screen routing, global state (days, checkedIn, friends, toasts) |
-| `src/screens_auth.jsx` | `SplashScreen`, `RegisterScreen`, `LoginScreen` |
-| `src/screens_home.jsx` | `Dashboard`, `StreakHistory` |
-| `src/screens_friends.jsx` | `FriendsScreen`, `FriendRequests`, `FriendSearch`, `PublicProfile` |
-| `src/screens_chat.jsx` | `ChatList`, `ChatThread` |
-| `src/screens_badges.jsx` | `BadgesScreen`, `BadgeDetail` |
-| `src/screens_profile.jsx` | `MyProfile`, `EditProfile`, `Settings` |
-| `src/tweaks-panel.jsx` | Dev overlay: `useTweaks`, `TweaksPanel`, `TweakRadio`, `TweakToggle` |
-| `src/theme.css` | CSS custom properties for all theme variants; imported by `main.jsx` |
+| `src/app.jsx` | Root component: nav state machine, theme wiring, screen routing, global state |
+| `src/main.jsx` | Mounts `<App>`, imports `theme.css` |
+| `src/theme.css` | CSS custom properties for all four theme variants |
+| `src/data/mock.js` | Mock exports: `ME`, `BADGES`, `FRIENDS`, `CHATS`, `PEOPLE`, `STREAK_HISTORY`, etc. |
+| `src/ui/index.js` | Re-exports all UI primitives (`Icon`, `Avatar`, `Btn`, `Card`, `Field`, `Banner`, `Toast`, `BottomSheet`, `StreakRing`, `BadgeMedallion`, `Header`, `TabBar`, `Skeleton`, `GeoBackground`, `Screen`, `cx`) |
+| `src/connectors/` | Transport layer (see diagram above) |
+| `src/services/api/` | `auth`, `badge`, `chat`, `friendship`, `message`, `streak`, `user` |
+| `src/services/ws/` | `chat`, `friendship`, `presence` |
+| `src/screens/auth/` | `SplashScreen`, `RegisterScreen`, `LoginScreen` |
+| `src/screens/home/` | `Dashboard`, `StreakHistory` |
+| `src/screens/friends/` | `FriendsScreen`, `FriendRequests`, `FriendSearch`, `PublicProfile` |
+| `src/screens/chat/` | `ChatList`, `ChatThread` |
+| `src/screens/badges/` | `BadgesScreen`, `BadgeDetail` |
+| `src/screens/profile/` | `MyProfile`, `EditProfile`, `Settings` |
+| `src/dev/TweaksPanel.jsx` | Dev overlay: `useTweaks`, `TweaksPanel`, `TweakSection`, `TweakRadio`, `TweakToggle` |
 
 ## Navigation model
 
@@ -49,7 +71,7 @@ Custom stack-on-tabs — no router library:
 
 Only three navigation primitives: `push(screen, props)` / `pop()` / `resetTo(tab)`.
 
-**Adding a screen**: add a `case` to the `switch (top.screen)` block (overlay screens) or `switch (tab)` block (tab roots) in `src/app.jsx`, implement the component in the appropriate `src/screens_*.jsx`.
+**Adding a screen**: add a `case` to the `switch (top.screen)` block (overlay screens) or `switch (tab)` block (tab roots) in `src/app.jsx`, implement the component in the appropriate `src/screens/*/` folder.
 
 ## Theming
 
@@ -58,7 +80,7 @@ Two visual directions × two modes = four combinations:
 - **sage** light/dark — Figtree (humanist sans), muted green
 - **dawn** light/dark — Spectral (soft serif), warm clay
 
-Switched at runtime via `data-dir` and `data-mode` attributes on `.nh-root`. `TWEAK_DEFAULTS` in `src/app.jsx` sets the initial values. The `TweaksPanel` bottom-right overlay toggles direction/mode/motion/accent live.
+Switched at runtime via `data-dir` and `data-mode` attributes on `.nh-root`. `TWEAK_DEFAULTS` in `src/app.jsx` sets initial values. The `TweaksPanel` bottom-right overlay toggles direction/mode/motion/accent live.
 
 CSS tokens live in `src/theme.css` under selectors like `.nh-root[data-dir="sage"][data-mode="light"]`.
 
@@ -70,5 +92,5 @@ See `uploads/FRONTEND_DESIGN_BRIEF.md` for full API shapes. Key invariants:
 - **Friendship status codes**: 2=deleted, 3=blocked, 4=pending, 5=accepted, 6=rejected.
 - **Chat**: friends-only, 1-on-1. Lifecycle: pending → enabled → disabled.
 - **Messages**: text only, max 2000 chars. Status 7=unread, 8=read.
-- **Auth**: Firebase identity + app JWT. Access token 15 min, refresh 7 days.
+- **Auth**: Firebase identity + app JWT. Access token 15 min, refresh 7 days. `connectors/api.js` handles the silent refresh automatically on 401.
 - **WebSocket** (Socket.IO): JWT-authenticated at connect. Events: `chat` (join/leave/send/mark_read/typing), `presence` (get_online_status/online_status), friend notifications (friend_request/accept/reject/remove/block/unblock).

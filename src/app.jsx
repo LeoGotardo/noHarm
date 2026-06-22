@@ -1,15 +1,11 @@
-import { useState, useEffect } from 'react'
-import {
-  ME, BADGES, FRIENDS, REQUESTS_RECEIVED, REQUESTS_SENT,
-  CHATS, PEOPLE, STREAK_HISTORY, STREAK_START_LABEL,
-  PERSONAL_RECORD, TOTAL_STREAKS,
-} from './data/mock.js'
+import { useState, useEffect, useMemo } from 'react'
 import { Banner, Toast, BottomSheet, TabBar, Icon, Btn, Screen } from './ui/index.js'
 import { SplashScreen } from './screens/auth/SplashScreen.jsx'
 import { RegisterScreen } from './screens/auth/RegisterScreen.jsx'
 import { LoginScreen } from './screens/auth/LoginScreen.jsx'
 import { Dashboard } from './screens/home/Dashboard.jsx'
 import { StreakHistory } from './screens/home/StreakHistory.jsx'
+import { CheckInModal } from './screens/home/CheckInModal.jsx'
 import { FriendsScreen } from './screens/friends/FriendsScreen.jsx'
 import { FriendRequests } from './screens/friends/FriendRequests.jsx'
 import { FriendSearch } from './screens/friends/FriendSearch.jsx'
@@ -22,6 +18,11 @@ import { MyProfile } from './screens/profile/MyProfile.jsx'
 import { EditProfile } from './screens/profile/EditProfile.jsx'
 import { Settings } from './screens/profile/Settings.jsx'
 import { useTweaks, TweaksPanel, TweakSection, TweakRadio, TweakToggle } from './dev/TweaksPanel.jsx'
+import { useUser } from './store/useUser.js'
+import { useStreak } from './store/useStreak.js'
+import { useFriends } from './store/useFriends.js'
+import { useChats } from './store/useChats.js'
+import { useBadges } from './store/useBadges.js'
 
 const TWEAK_DEFAULTS = {
   direction: 'sage',
@@ -32,83 +33,131 @@ const TWEAK_DEFAULTS = {
 
 export default function App() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
-  const dir = t.direction;
+  const dir  = t.direction;
   const mode = t.mode;
 
-  const BASE_DAYS = 47;
-  const [days, setDays] = useState(BASE_DAYS);
-  const [checkedIn, setCheckedIn] = useState(false);
-  const [pulseKey, setPulseKey] = useState(0);
+  // ── Data hooks ──────────────────────────────────────────────────────────────
+  const { me } = useUser()
+  const { streak, record, days, checkedIn, needsCheckin, missedDays, lastCheckinDate, checkIn, relapse: doRelapse, performCheckin, loading: streakLoading } = useStreak()
+  const { friends: friendshipData, requestsReceived: reqRecvData, requestsSent: reqSentData, refetch: refetchFriends } = useFriends()
+  const { chats: chatData } = useChats()
+  const { badges: badgeData } = useBadges()
 
-  const nextBadge = BADGES.find(b => b.milestone > days) || BADGES[BADGES.length - 1];
-  const milestone = nextBadge.milestone;
+  // ── Derived data ─────────────────────────────────────────────────────────────
+  const chatList  = chatData.chats  ?? []
+  const badgeList = badgeData.badges ?? []
 
-  const liveBadges = BADGES.map(b => ({
-    ...b,
-    earned: b.milestone <= days ? (b.earned || todayLabel()) : null,
-  }));
-  const badgeCount = liveBadges.filter(b => b.earned).length;
+  // Accepted friends (status 5)
+  const friends      = friendshipData.friendships?.filter(f => f.status === 5) ?? []
+  const reqReceived  = reqRecvData.friendships ?? []
+  const reqSent      = reqSentData.friendships ?? []
 
+  // Unread count: messages with status 7 (unread) sent by someone else
+  const chatUnread = useMemo(() =>
+    chatList.reduce((n, c) => {
+      const msgs = c.messages?.messages ?? []
+      return n + msgs.filter(m => m.status === 7 && m.sender !== me?.id).length
+    }, 0)
+  , [chatList, me])
+
+  // Badge milestone: API stores milestone as ISO datetime; days since epoch ÷ 86400
+  // Compare by converting streak days to epoch days from streak start
+  const liveBadges = badgeList.map(b => {
+    const milestoneDays = typeof b.milestone === 'number'
+      ? b.milestone
+      : Math.floor(new Date(b.milestone).getTime() / 86_400_000)
+    const earned = days >= milestoneDays
+    return { ...b, earned: earned ? (b.given_at ?? todayLabel()) : null }
+  })
+  const badgeCount = liveBadges.filter(b => b.earned).length
+  const nextBadge  = liveBadges.find(b => !b.earned) ?? liveBadges[liveBadges.length - 1]
+  const milestone  = nextBadge?.milestone ?? 0
+
+  // Format streak start as readable label
+  const startLabel = streak?.start
+    ? new Date(streak.start).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+    : '—'
+
+  const personalRecord = record ? Math.floor((new Date(record.end ?? Date.now()) - new Date(record.start)) / 86_400_000) : 0
+
+  // ── Navigation ───────────────────────────────────────────────────────────────
   const [phase, setPhase] = useState('splash');
-  const [tab, setTab] = useState('home');
+  const [tab,   setTab]   = useState('home');
   const [stack, setStack] = useState([]);
-  const push = (screen, props = {}) => setStack(s => [...s, { screen, props }]);
-  const pop = () => setStack(s => s.slice(0, -1));
+  const push    = (screen, props = {}) => setStack(s => [...s, { screen, props }]);
+  const pop     = () => setStack(s => s.slice(0, -1));
   const resetTo = (newTab) => { setTab(newTab); setStack([]); };
 
+  // ── UI state ─────────────────────────────────────────────────────────────────
+  const [pulseKey,    setPulseKey]    = useState(0);
   const [relapseOpen, setRelapseOpen] = useState(false);
-  const [toast, setToast] = useState(null);
-  const [banner, setBanner] = useState(null);
-  const showToast = (text, icon = 'check') => { setToast({ text, icon }); setTimeout(() => setToast(null), 2200); };
-
-  const [reqReceived, setReqReceived] = useState(REQUESTS_RECEIVED);
-  const [reqSent, setReqSent] = useState(REQUESTS_SENT);
-  const [friends, setFriends] = useState(FRIENDS);
-  const [chatUnread, setChatUnread] = useState(CHATS.reduce((n, c) => n + c.unread, 0));
-
-  const onCheckIn = () => {
-    setCheckedIn(true);
-    setPulseKey(k => k + 1);
-    if (t.motion) burstConfetti();
-    showToast('Checked in — day ' + days + ' ✓');
-  };
-  const onRelapseConfirm = () => {
-    setRelapseOpen(false);
-    setDays(0);
-    setCheckedIn(false);
-    setPulseKey(k => k + 1);
-    showToast('A new streak begins. Be gentle with yourself.', 'heart');
+  const [toast,       setToast]       = useState(null);
+  const [banner,      setBanner]      = useState(null);
+  const showToast = (text, icon = 'check') => {
+    setToast({ text, icon });
+    setTimeout(() => setToast(null), 2200);
   };
 
+  // ── Actions ───────────────────────────────────────────────────────────────────
+  const onCheckIn = async () => {
+    await checkIn()
+    setPulseKey(k => k + 1)
+    if (t.motion) burstConfetti()
+    showToast('Checked in — day ' + days + ' ✓')
+  }
+
+  const onRelapseConfirm = async () => {
+    setRelapseOpen(false)
+    await doRelapse()
+    setPulseKey(k => k + 1)
+    showToast('A new streak begins. Be gentle with yourself.', 'heart')
+  }
+
+  const onCheckinConfirm = async (relapses) => {
+    await performCheckin(relapses)
+    setPulseKey(k => k + 1)
+    if (relapses.length === 0) {
+      if (t.motion) burstConfetti()
+      showToast(`Checked in — day ${days} ✓`)
+    } else {
+      showToast('A new streak begins. Be gentle with yourself.', 'heart')
+    }
+  }
+
+  const openProfile = (id) => {
+    const isFriend  = friends.some(f => f.sender === id || f.reciver === id)
+    const isSent    = reqSent.some(r => r.reciver === id)
+    const isRecv    = reqReceived.some(r => r.sender === id)
+    const rel = isFriend ? 'friend' : isSent ? 'pending_out' : isRecv ? 'pending_in' : 'none'
+    // person shape: PublicProfile will receive userId and fetch details itself
+    push('publicProfile', { userId: id, relation: rel })
+  }
+
+  const openChat = (chatId) => {
+    const c = chatList.find(x => x.id === chatId)
+    if (!c) return
+    push('chatThread', { chat: c })
+  }
+
+  const messagePerson = (userId) => {
+    const c = chatList.find(x => x.sender === userId || x.reciver === userId)
+    resetTo('chat')
+    setTimeout(() => push('chatThread', { chat: c ?? { id: null, sender: me?.id, reciver: userId, messages: { messages: [], total: 0 } } }), 30)
+  }
+
+  // ── Demo banner ───────────────────────────────────────────────────────────────
   useEffect(() => {
     if (phase !== 'app') return;
     const t1 = setTimeout(() => {
-      setBanner({ icon: 'chat', title: 'maya_rivera', body: "That's huge, Alex. Proud of you 💚", to: 'chat', chatId: 'c_maya' });
+      setBanner({ icon: 'chat', title: 'Friend', body: 'Check in with your streak!', to: 'chat' });
     }, 4200);
     return () => clearTimeout(t1);
   }, [phase]);
-  useEffect(() => { if (banner) { const x = setTimeout(() => setBanner(null), 5200); return () => clearTimeout(x); } }, [banner]);
+  useEffect(() => {
+    if (banner) { const x = setTimeout(() => setBanner(null), 5200); return () => clearTimeout(x); }
+  }, [banner]);
 
-  const openProfile = (id) => {
-    const p = PEOPLE[id]; if (!p) return;
-    const isFriend = friends.some(f => f.id === id);
-    const isSent = reqSent.some(r => r.id === id);
-    const isRecv = reqReceived.some(r => r.id === id);
-    const rel = isFriend ? 'friend' : isSent ? 'pending_out' : isRecv ? 'pending_in' : 'none';
-    push('publicProfile', { person: p, relation: rel });
-  };
-  const openChat = (chatId) => {
-    const c = CHATS.find(x => x.id === chatId); if (!c) return;
-    push('chatThread', { chat: c });
-    if (c.unread) setChatUnread(n => Math.max(0, n - c.unread));
-  };
-  const messagePerson = (personId) => {
-    let c = CHATS.find(x => x.with === personId);
-    if (!c) { c = { id: 'new_' + personId, with: personId, status: 'active', unread: 0, messages: [] }; CHATS.push(c); }
-    resetTo('chat');
-    setTimeout(() => push('chatThread', { chat: c }), 30);
-  };
-
+  // ── Routing ───────────────────────────────────────────────────────────────────
   let body;
   if (phase === 'splash') {
     body = <SplashScreen onGetStarted={() => setPhase('register')} onLogin={() => setPhase('login')} />;
@@ -117,34 +166,29 @@ export default function App() {
   } else if (phase === 'login') {
     body = <LoginScreen onBack={() => setPhase('splash')} onDone={() => { setPhase('app'); resetTo('home'); }} />;
   } else if (phase === 'deleted') {
-    body = <DeletedScreen onRestart={() => { setDays(BASE_DAYS); setCheckedIn(false); setPhase('splash'); }} />;
+    body = <DeletedScreen onRestart={() => setPhase('splash')} />;
   } else {
     const top = stack[stack.length - 1];
     if (top) {
       switch (top.screen) {
         case 'history':
-          body = <StreakHistory onBack={pop} streaks={STREAK_HISTORY} currentDays={days} currentStart={STREAK_START_LABEL} empty={days === 0} />; break;
+          body = <StreakHistory onBack={pop} currentDays={days} currentStart={startLabel} empty={days === 0} />; break;
         case 'requests':
-          body = <FriendRequests onBack={pop} received={reqReceived} sent={reqSent}
-            onAccept={id => { const p = reqReceived.find(r => r.id === id); setReqReceived(l => l.filter(r => r.id !== id)); if (p) setFriends(f => [...f, { ...p, online: false }]); showToast('Friend added'); }}
-            onDecline={id => setReqReceived(l => l.filter(r => r.id !== id))}
-            onCancel={id => setReqSent(l => l.filter(r => r.id !== id))}
+          body = <FriendRequests onBack={pop} received={reqReceived} sent={reqSent} meId={me?.id}
+            onAccept={async (id) => { await refetchFriends(); showToast('Friend added'); }}
+            onDecline={async (id) => { await refetchFriends(); }}
+            onCancel={async (id) => { await refetchFriends(); }}
             onOpenProfile={openProfile} />; break;
         case 'search':
-          body = <FriendSearch onBack={pop} pool={reqSent.length > 0 ? reqSent.map(r => ({ ...r, rel: 'pending' })).concat(friends.map(f => ({ ...f, rel: 'friend' }))) : [
-            { id: 'noor', username: 'noor_h', hue: 40, streak: 5, avatar: null, rel: 'none' },
-            { id: 'sam', username: 'sam_99', hue: 285, streak: 41, avatar: null, rel: 'none' },
-            { id: 'maya', username: 'maya_rivera', hue: 12, streak: 63, avatar: null, rel: 'friend' },
-            { id: 'river', username: 'river.b', hue: 200, streak: 33, avatar: null, rel: 'pending' },
-          ]} onOpenProfile={openProfile}
-            onSendRequest={id => { const p = PEOPLE[id]; if (p) setReqSent(l => [...l, { ...p, when: 'just now' }]); showToast('Request sent'); }} />; break;
+          body = <FriendSearch onBack={pop} pool={[]} onOpenProfile={openProfile}
+            onSendRequest={async (id) => { showToast('Request sent'); }} />; break;
         case 'publicProfile':
-          body = <PublicProfile onBack={pop} person={top.props.person} relation={top.props.relation}
-            onMessage={() => { pop(); messagePerson(top.props.person.id); }}
-            onAdd={() => { const p = top.props.person; setReqSent(l => [...l, { ...p, when: 'just now' }]); showToast('Request sent'); }}
-            onAccept={() => { const p = top.props.person; setReqReceived(l => l.filter(r => r.id !== p.id)); setFriends(f => [...f, { ...p, online: false }]); showToast('Friend added'); }}
-            onRemove={() => { setFriends(f => f.filter(x => x.id !== top.props.person.id)); showToast('Friend removed'); }}
-            onBlock={() => { setFriends(f => f.filter(x => x.id !== top.props.person.id)); showToast('User blocked'); }} />; break;
+          body = <PublicProfile onBack={pop} userId={top.props.userId} relation={top.props.relation}
+            onMessage={() => { pop(); messagePerson(top.props.userId); }}
+            onAdd={async () => { showToast('Request sent'); }}
+            onAccept={async () => { await refetchFriends(); showToast('Friend added'); }}
+            onRemove={async () => { await refetchFriends(); showToast('Friend removed'); }}
+            onBlock={async () => { await refetchFriends(); showToast('User blocked'); }} />; break;
         case 'chatThread':
           body = <ChatThread onBack={pop} chat={top.props.chat} onOpenProfile={id => openProfile(id)} />; break;
         case 'badgeDetail':
@@ -152,34 +196,39 @@ export default function App() {
         case 'edit':
           body = <EditProfile onBack={pop} onSave={() => { pop(); showToast('Profile updated'); }} />; break;
         case 'settings':
-          body = <Settings onBack={pop} mode={mode} onToggleMode={() => setTweak('mode', mode === 'dark' ? 'light' : 'dark')}
-            onLogout={() => { setStack([]); setPhase('splash'); }} onDeleted={() => { setStack([]); setPhase('deleted'); }} />; break;
+          body = <Settings onBack={pop} mode={mode}
+            onToggleMode={() => setTweak('mode', mode === 'dark' ? 'light' : 'dark')}
+            onLogout={() => { setStack([]); setPhase('splash'); }}
+            onDeleted={() => { setStack([]); setPhase('deleted'); }} />; break;
         default: body = null;
       }
     } else {
       switch (tab) {
         case 'home':
-          body = <Dashboard days={days} checkedIn={checkedIn} milestone={milestone} startLabel={STREAK_START_LABEL}
-            personalRecord={PERSONAL_RECORD} totalStreaks={TOTAL_STREAKS} nextBadgeName={nextBadge.name} pulseKey={pulseKey}
-            onCheckIn={onCheckIn} onRelapse={() => setRelapseOpen(true)} onOpenHistory={() => push('history')} />; break;
+          body = <Dashboard days={days} checkedIn={checkedIn} milestone={milestone} startLabel={startLabel}
+            personalRecord={personalRecord} totalStreaks={0} nextBadgeName={nextBadge?.name ?? ''}
+            pulseKey={pulseKey} onCheckIn={onCheckIn} onRelapse={() => setRelapseOpen(true)}
+            onOpenHistory={() => push('history')} />; break;
         case 'friends':
-          body = <FriendsScreen friends={friends} requestCount={reqReceived.length}
+          body = <FriendsScreen friends={friends} meId={me?.id} requestCount={reqReceived.length}
             onOpenRequests={() => push('requests')} onOpenSearch={() => push('search')}
             onOpenProfile={openProfile} onMessage={messagePerson} />; break;
         case 'chat':
-          body = <ChatList chats={CHATS} onOpen={openChat} onOpenProfile={openProfile} />; break;
+          body = <ChatList chats={chatList} onOpen={openChat} onOpenProfile={openProfile} />; break;
         case 'badges':
           body = <BadgesScreen badges={liveBadges} currentDays={days}
             onOpen={id => { const b = liveBadges.find(x => x.id === id); push('badgeDetail', { badge: b }); }} />; break;
         case 'profile':
-          body = <MyProfile days={days} personalRecord={PERSONAL_RECORD} badgeCount={badgeCount} totalBadges={BADGES.length}
-            joined={ME.joined} onEdit={() => push('edit')} onSettings={() => push('settings')} onOpenBadges={() => resetTo('badges')} />; break;
+          body = <MyProfile days={days} personalRecord={personalRecord} badgeCount={badgeCount}
+            totalBadges={badgeList.length} joined={me?.created_at ?? ''}
+            onEdit={() => push('edit')} onSettings={() => push('settings')}
+            onOpenBadges={() => resetTo('badges')} />; break;
         default: body = null;
       }
     }
   }
 
-  const showTabs = phase === 'app' && stack.length === 0;
+  const showTabs   = phase === 'app' && stack.length === 0;
   const showBanner = banner && phase === 'app';
 
   return (
@@ -198,7 +247,16 @@ export default function App() {
         )}
         {toast && <Toast text={toast.text} icon={toast.icon} />}
 
-        {showTabs && <TabBar active={tab} onChange={resetTo} badges={{ friends: reqReceived.length || undefined, chat: chatUnread || undefined }} />}
+        {showTabs && <TabBar active={tab} onChange={resetTo}
+          badges={{ friends: reqReceived.length || undefined, chat: chatUnread || undefined }} />}
+
+        <CheckInModal
+          open={phase === 'app' && needsCheckin}
+          missedDays={missedDays}
+          lastCheckinDate={lastCheckinDate}
+          onConfirm={onCheckinConfirm}
+          loading={streakLoading}
+        />
 
         <BottomSheet open={relapseOpen} onClose={() => setRelapseOpen(false)}>
           <div style={{ textAlign: 'center' }}>
@@ -232,7 +290,6 @@ export default function App() {
       </TweaksPanel>
     </div>
   );
-
 }
 
 function DeletedScreen({ onRestart }) {
