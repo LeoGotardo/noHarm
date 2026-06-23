@@ -18,6 +18,7 @@ import { MyProfile } from './screens/profile/MyProfile.jsx'
 import { EditProfile } from './screens/profile/EditProfile.jsx'
 import { Settings } from './screens/profile/Settings.jsx'
 import { useTweaks, TweaksPanel, TweakSection, TweakRadio, TweakToggle } from './dev/TweaksPanel.jsx'
+import { tokens } from './connectors/tokens.js'
 import { useUser } from './store/useUser.js'
 import { useStreak } from './store/useStreak.js'
 import { useFriends } from './store/useFriends.js'
@@ -37,7 +38,7 @@ export default function App() {
   const mode = t.mode;
 
   // ── Data hooks ──────────────────────────────────────────────────────────────
-  const { me } = useUser()
+  const { me, refetch: refetchMe } = useUser()
   const { streak, record, days, checkedIn, needsCheckin, missedDays, lastCheckinDate, checkIn, relapse: doRelapse, performCheckin, loading: streakLoading } = useStreak()
   const { friends: friendshipData, requestsReceived: reqRecvData, requestsSent: reqSentData, refetch: refetchFriends } = useFriends()
   const { chats: chatData } = useChats()
@@ -81,7 +82,7 @@ export default function App() {
   const personalRecord = record ? Math.floor((new Date(record.end ?? Date.now()) - new Date(record.start)) / 86_400_000) : 0
 
   // ── Navigation ───────────────────────────────────────────────────────────────
-  const [phase, setPhase] = useState('splash');
+  const [phase, setPhase] = useState(() => tokens.getAccess() ? 'app' : 'splash');
   const [tab,   setTab]   = useState('home');
   const [stack, setStack] = useState([]);
   const push    = (screen, props = {}) => setStack(s => [...s, { screen, props }]);
@@ -190,11 +191,11 @@ export default function App() {
             onRemove={async () => { await refetchFriends(); showToast('Friend removed'); }}
             onBlock={async () => { await refetchFriends(); showToast('User blocked'); }} />; break;
         case 'chatThread':
-          body = <ChatThread onBack={pop} chat={top.props.chat} onOpenProfile={id => openProfile(id)} />; break;
+          body = <ChatThread onBack={pop} chat={top.props.chat} meId={me?.id} onOpenProfile={id => openProfile(id)} />; break;
         case 'badgeDetail':
           body = <BadgeDetail onBack={pop} badge={top.props.badge} currentDays={days} justUnlocked={top.props.justUnlocked} />; break;
         case 'edit':
-          body = <EditProfile onBack={pop} onSave={() => { pop(); showToast('Profile updated'); }} />; break;
+          body = <EditProfile me={me} onBack={pop} onSave={() => { pop(); refetchMe(); showToast('Profile updated'); }} />; break;
         case 'settings':
           body = <Settings onBack={pop} mode={mode}
             onToggleMode={() => setTweak('mode', mode === 'dark' ? 'light' : 'dark')}
@@ -205,21 +206,22 @@ export default function App() {
     } else {
       switch (tab) {
         case 'home':
-          body = <Dashboard days={days} checkedIn={checkedIn} milestone={milestone} startLabel={startLabel}
+          body = <Dashboard me={me} days={days} checkedIn={checkedIn} milestone={milestone} startLabel={startLabel}
             personalRecord={personalRecord} totalStreaks={0} nextBadgeName={nextBadge?.name ?? ''}
             pulseKey={pulseKey} onCheckIn={onCheckIn} onRelapse={() => setRelapseOpen(true)}
-            onOpenHistory={() => push('history')} />; break;
+            onOpenHistory={() => push('history')} onProfile={() => resetTo('profile')} />; break;
         case 'friends':
           body = <FriendsScreen friends={friends} meId={me?.id} requestCount={reqReceived.length}
             onOpenRequests={() => push('requests')} onOpenSearch={() => push('search')}
             onOpenProfile={openProfile} onMessage={messagePerson} />; break;
         case 'chat':
-          body = <ChatList chats={chatList} onOpen={openChat} onOpenProfile={openProfile} />; break;
+          body = <ChatList chats={chatList} meId={me?.id} onOpen={openChat} onOpenProfile={openProfile} />; break;
         case 'badges':
           body = <BadgesScreen badges={liveBadges} currentDays={days}
             onOpen={id => { const b = liveBadges.find(x => x.id === id); push('badgeDetail', { badge: b }); }} />; break;
         case 'profile':
-          body = <MyProfile days={days} personalRecord={personalRecord} badgeCount={badgeCount}
+          body = <MyProfile me={me} earnedBadges={liveBadges.filter(b => b.earned)}
+            days={days} personalRecord={personalRecord} badgeCount={badgeCount}
             totalBadges={badgeList.length} joined={me?.created_at ?? ''}
             onEdit={() => push('edit')} onSettings={() => push('settings')}
             onOpenBadges={() => resetTo('badges')} />; break;

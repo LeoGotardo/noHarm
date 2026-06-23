@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getCurrentStreak, getStreakRecord, checkinStreak, endStreak } from '../services/api/streak.js'
 import { cacheRead, cacheWrite } from './cache.js'
+import { tokens } from '../connectors/tokens.js'
 
 const KEY_STREAK  = 'streak_current'
 const KEY_RECORD  = 'streak_record'
@@ -68,6 +69,8 @@ export function useStreak() {
         getCurrentStreak(),
         getStreakRecord().catch(() => null),
       ])
+      console.log('[useStreak] current streak:', cur)
+      console.log('[useStreak] record:', rec)
       saveStreak(cur)
       if (rec) { setRecord(rec); cacheWrite(KEY_RECORD, rec) }
       return cur
@@ -125,7 +128,8 @@ export function useStreak() {
   }, [today])
 
   useEffect(() => {
-    fetchAll()
+    if (tokens.getAccess()) fetchAll()
+    else setLoading(false)
   }, [])
 
   return {

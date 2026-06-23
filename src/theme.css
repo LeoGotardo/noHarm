@@ -2,10 +2,10 @@
 html, body { margin: 0; height: 100%; }
 body {
   font-family: 'Figtree', system-ui, sans-serif;
-  min-height: 100vh; overflow: hidden;
+  min-height: 100vh; min-height: 100dvh; overflow: hidden;
   background: var(--bg, oklch(0.972 0.008 140));
 }
-#root { width: 100%; height: 100vh; display: flex; justify-content: center; }
+#root { width: 100%; height: 100vh; height: 100dvh; display: flex; justify-content: center; }
 img { -webkit-user-drag: none; }
 button { font-family: inherit; }
 
@@ -17,6 +17,7 @@ button { font-family: inherit; }
   width: 100%;
   max-width: 480px;
   height: 100vh;
+  height: 100dvh;
   position: relative;
   overflow: hidden;
 }

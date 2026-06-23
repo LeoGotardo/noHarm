@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { getMe } from '../services/api/user.js'
 import { cacheRead, cacheWrite } from './cache.js'
+import { tokens } from '../connectors/tokens.js'
 
 const KEY = 'me'
 
@@ -12,6 +13,7 @@ export function useUser() {
   async function fetch() {
     try {
       const data = await getMe()
+      console.log('[useUser] me:', data)
       setMe(data)
       cacheWrite(KEY, data)
     } catch (e) {
@@ -21,7 +23,7 @@ export function useUser() {
     }
   }
 
-  useEffect(() => { fetch() }, [])
+  useEffect(() => { if (tokens.getAccess()) { fetch() } else { setLoading(false) } }, [])
 
   return { me, loading, error, refetch: fetch }
 }
