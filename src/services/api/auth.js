@@ -26,17 +26,12 @@ export async function signIn() {
  * Stores access + refresh tokens in localStorage on success.
  * @returns {Promise<object | { success: false, errorCode: string, errorMessage: string }>}
  */
-export async function signUp() {
-  // register
+export async function signUp(username) {
   const userData = await fbLogin();
-  if (!userData.success) {
-    return userData;
-  }
+  if (!userData.success) return userData;
 
   const { user } = userData;
-  const { uid, email, displayName, photoURL, emailVerified } = user;
-
-  const username = displayName || email;
+  const { uid, email, photoURL, emailVerified } = user;
 
   const result = await api.post("/auth/register", {
     uid,

@@ -5,7 +5,7 @@ export function StreakRing({ days, milestone, label, sub, size = 232, display, r
   const stroke = 13;
   const r = (size - stroke) / 2;
   const C = 2 * Math.PI * r;
-  const pct = Math.min(1, days / milestone);
+  const pct = milestone > 0 ? Math.min(1, days / milestone) : 0;
   const [anim, setAnim] = useState(0);
   useEffect(() => {
     const t = setTimeout(() => setAnim(pct), 220);

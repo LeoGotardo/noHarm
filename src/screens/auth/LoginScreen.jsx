@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Screen, Header, Icon } from '../../ui/index.js'
 import { Logo } from './SplashScreen.jsx'
+import { signIn } from '../../services/api/auth.js'
 
 function GoogleButton({ onClick, loading }) {
   return (
@@ -37,18 +38,25 @@ export function LoginScreen({ onBack, onDone }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const MOCK_ERRORS = [
-    null, null, null,
-    'This account has been suspended. Please contact support@noharm.app.',
-  ];
-
-  const submit = () => {
-    setLoading(true); setError(null);
-    setTimeout(() => {
-      const e = MOCK_ERRORS[Math.floor(Math.random() * MOCK_ERRORS.length)];
-      if (e) { setError(e); setLoading(false); }
-      else onDone();
-    }, 1100);
+  const submit = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await signIn();
+      if (result?.success === false) {
+        if (result.errorCode === 'auth/popup-closed-by-user' || result.errorCode === 'auth/cancelled-popup-request') return;
+        setError('Google sign-in failed. Please try again.');
+        return;
+      }
+      onDone();
+    } catch (e) {
+      const msg = e?.body?.detail ?? e?.message ?? null;
+      if (e?.status === 403) setError('This account has been suspended. Please contact support.');
+      else if (e?.status === 404) setError('No account found. Try signing up instead.');
+      else setError(msg ?? 'Something went wrong. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

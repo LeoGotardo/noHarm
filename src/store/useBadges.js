@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { getAllBedges } from '../services/api/badge.js'
 import { cacheRead, cacheWrite, cacheValid } from './cache.js'
+import { tokens } from '../connectors/tokens.js'
 
 const ONE_HOUR = 3_600_000
 
@@ -9,11 +10,11 @@ export function useBadges() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Badge definitions rarely change — skip fetch if cache is fresh
+    if (!tokens.getAccess()) { setLoading(false); return }
     if (cacheValid('badges', ONE_HOUR)) { setLoading(false); return }
 
     getAllBedges()
-      .then(data => { setBadges(data); cacheWrite('badges', data) })
+      .then(data => { console.log('[useBadges] badges:', data); setBadges(data); cacheWrite('badges', data) })
       .finally(() => setLoading(false))
   }, [])
 

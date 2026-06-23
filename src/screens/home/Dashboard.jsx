@@ -1,5 +1,10 @@
 import { Screen, Header, Card, Icon, Btn, StreakRing, Avatar } from '../../ui/index.js'
-import { ME } from '../../data/mock.js'
+
+function hashHue(str = '') {
+  let h = 0
+  for (const c of str) h = (h * 31 + c.charCodeAt(0)) & 0xffffffff
+  return Math.abs(h) % 360
+}
 
 function StatTile({ value, label, accent }) {
   return (
@@ -11,8 +16,8 @@ function StatTile({ value, label, accent }) {
   );
 }
 
-export function Dashboard({ days, checkedIn, milestone, startLabel, personalRecord, totalStreaks,
-  nextBadgeName, onCheckIn, onRelapse, onOpenHistory, pulseKey }) {
+export function Dashboard({ me, days, checkedIn, milestone, startLabel, personalRecord, totalStreaks,
+  nextBadgeName, onCheckIn, onRelapse, onOpenHistory, onProfile, pulseKey }) {
   const isRecord = days >= personalRecord;
   const toRecord = personalRecord - days;
   return (
@@ -20,9 +25,11 @@ export function Dashboard({ days, checkedIn, milestone, startLabel, personalReco
       <div style={{ padding: '0 22px 6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
           <div style={{ fontSize: 13, color: 'var(--ink-3)', fontWeight: 500 }}>Good morning,</div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--ink)' }}>{ME.username}</div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--ink)' }}>{me?.username ?? '…'}</div>
         </div>
-        <Avatar name={ME.username} size={42} hue={ME.color} />
+        <div onClick={onProfile} style={{ cursor: 'pointer' }}>
+          <Avatar name={me?.username ?? '?'} size={42} hue={hashHue(me?.username ?? '')} src={me?.profile_picture ?? null} />
+        </div>
       </div>
 
       <div style={{ padding: '14px 0 6px' }}>

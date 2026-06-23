@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getFriendships, getPendingFriendships, getSentFriendships } from '../services/api/friendship.js'
+import { tokens } from '../connectors/tokens.js'
 import { onFriendRequest, onFriendAccept, onFriendReject, onFriendRemove, onFriendBlock, onFriendUnblock } from '../services/ws/friendship.js'
 import { cacheRead, cacheWrite } from './cache.js'
 
@@ -18,6 +19,9 @@ export function useFriends() {
         getPendingFriendships(),
         getSentFriendships(),
       ])
+      console.log('[useFriends] friends:', f)
+      console.log('[useFriends] requests received:', r)
+      console.log('[useFriends] requests sent:', s)
       setFriends(f);           cacheWrite('friends', f)
       setRequestsReceived(r);  cacheWrite('requests_received', r)
       setRequestsSent(s);      cacheWrite('requests_sent', s)
@@ -33,6 +37,7 @@ export function useFriends() {
   }, [])
 
   useEffect(() => {
+    if (!tokens.getAccess()) { setLoading(false); return }
     fetchAll()
 
     try {

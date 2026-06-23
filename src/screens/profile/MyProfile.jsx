@@ -1,7 +1,20 @@
 import { Screen, Header, Avatar, Icon, Btn, Card, BadgeMedallion } from '../../ui/index.js'
-import { ME, BADGES } from '../../data/mock.js'
 
-export function MyProfile({ days, personalRecord, badgeCount, totalBadges, joined, onEdit, onSettings, onOpenBadges }) {
+function hashHue(str = '') {
+  let h = 0
+  for (const c of str) h = (h * 31 + c.charCodeAt(0)) & 0xffffffff
+  return Math.abs(h) % 360
+}
+
+export function MyProfile({ me, earnedBadges = [], days, personalRecord, badgeCount, totalBadges, joined, onEdit, onSettings, onOpenBadges }) {
+  const username = me?.username ?? ''
+  const hue      = hashHue(username)
+  const src      = me?.profile_picture ?? null
+
+  const joinedLabel = joined
+    ? new Date(joined).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+    : ''
+
   return (
     <Screen geo="profile" padTop={56}>
       <Header title=""
@@ -9,9 +22,9 @@ export function MyProfile({ days, personalRecord, badgeCount, totalBadges, joine
           <Icon name="gear" size={20} color="var(--ink-2)" /></button>} />
 
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '8px 24px 0', position: 'relative', zIndex: 1 }}>
-        <Avatar name={ME.username} size={106} hue={ME.color} />
-        <div style={{ fontSize: 23, fontWeight: 700, color: 'var(--ink)', marginTop: 14 }}>{ME.username}</div>
-        <div style={{ fontSize: 13.5, color: 'var(--ink-3)', marginTop: 3 }}>Member since {joined}</div>
+        <Avatar name={username || '?'} size={106} hue={hue} src={src} />
+        <div style={{ fontSize: 23, fontWeight: 700, color: 'var(--ink)', marginTop: 14 }}>{username || '—'}</div>
+        {joinedLabel && <div style={{ fontSize: 13.5, color: 'var(--ink-3)', marginTop: 3 }}>Member since {joinedLabel}</div>}
         <div style={{ marginTop: 16 }}>
           <Btn kind="outline" icon="edit" onClick={onEdit}>Edit profile</Btn>
         </div>
@@ -29,19 +42,24 @@ export function MyProfile({ days, personalRecord, badgeCount, totalBadges, joine
 
         <Card pad={0} onClick={onOpenBadges} style={{ width: '100%', marginTop: 12, display: 'flex', alignItems: 'center', gap: 14, padding: '15px 16px' }}>
           <div style={{ display: 'flex' }}>
-            {BADGES.filter(b => b.earned).slice(0, 3).map((b, i) => (
+            {earnedBadges.slice(0, 3).map((b, i) => (
               <div key={b.id} style={{ marginLeft: i ? -14 : 0, borderRadius: '50%', background: 'var(--surface)' }}>
                 <BadgeMedallion milestone={b.milestone} earned size={40} />
               </div>
             ))}
+            {earnedBadges.length === 0 && (
+              <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Icon name="badges" size={20} color="var(--ink-3)" />
+              </div>
+            )}
           </div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)' }}>{badgeCount} badges earned</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)' }}>{badgeCount} badge{badgeCount !== 1 ? 's' : ''} earned</div>
             <div style={{ fontSize: 12.5, color: 'var(--ink-3)' }}>{totalBadges - badgeCount} more to unlock</div>
           </div>
           <Icon name="chevR" size={18} color="var(--ink-3)" />
         </Card>
       </div>
     </Screen>
-  );
+  )
 }

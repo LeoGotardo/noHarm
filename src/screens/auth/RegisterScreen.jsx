@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Screen, Header, Avatar, Icon, Field } from '../../ui/index.js'
+import { Screen, Header, Avatar, Icon, Field, Banner } from '../../ui/index.js'
+import { signUp } from '../../services/api/auth.js'
 
 function GoogleButton({ onClick, loading, disabled }) {
   return (
@@ -34,12 +35,31 @@ function GoogleButton({ onClick, loading, disabled }) {
 export function RegisterScreen({ onBack, onDone }) {
   const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const taken = ['maya_rivera', 'theo_k', 'admin', 'alex'].includes(username.trim().toLowerCase());
   const tooShort = username.length > 0 && username.length < 3;
-  const canSubmit = username.length >= 3 && !taken && !loading;
+  const canSubmit = username.length >= 3 && !tooShort && !loading;
 
-  const submit = () => { setLoading(true); setTimeout(() => onDone(), 1100); };
+  const submit = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await signUp(username.trim());
+      if (result?.success === false) {
+        if (result.errorCode === 'auth/popup-closed-by-user' || result.errorCode === 'auth/cancelled-popup-request') return;
+        setError('Google sign-in failed. Please try again.');
+        return;
+      }
+      onDone();
+    } catch (e) {
+      const msg = e?.body?.detail ?? e?.message ?? null;
+      if (e?.status === 409) setError('That username is already taken. Please choose another.');
+      else if (e?.status === 422) setError('Invalid username. Use only letters, numbers, _ or -.');
+      else setError(msg ?? 'Something went wrong. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <Screen geo="auth" padTop={56} padBottom={28}>
@@ -58,14 +78,20 @@ export function RegisterScreen({ onBack, onDone }) {
         <div style={{ fontSize: 13, color: 'var(--ink-3)', textAlign: 'center', marginBottom: 24, lineHeight: 1.5 }}>
           Your profile photo will come from Google.
         </div>
+        {error && (
+          <div style={{ display: 'flex', gap: 10, padding: '12px 14px', borderRadius: 14, background: 'var(--accent-soft)', marginBottom: 16, alignItems: 'flex-start' }}>
+            <Icon name="bell" size={18} color="var(--accent-ink)" style={{ marginTop: 1 }} />
+            <div style={{ fontSize: 13.5, color: 'var(--accent-ink)', lineHeight: 1.45, fontWeight: 500 }}>{error}</div>
+          </div>
+        )}
         <Field
           label="Username"
           value={username}
           onChange={setUsername}
           placeholder="3–50 characters"
-          error={taken ? 'That username is already taken.' : tooShort ? 'At least 3 characters.' : null}
-          hint={!taken && !tooShort && username.length > 0 ? 'This is how friends will find you.' : null}
-          right={username.length >= 3 && !taken ? <Icon name="check" size={18} color="var(--primary)" sw={2.4} /> : null}
+          error={tooShort ? 'At least 3 characters.' : null}
+          hint={!tooShort && username.length > 0 ? 'This is how friends will find you.' : null}
+          right={username.length >= 3 ? <Icon name="check" size={18} color="var(--primary)" sw={2.4} /> : null}
         />
         <div style={{ flex: 1 }} />
         <GoogleButton onClick={submit} loading={loading} disabled={!canSubmit} />

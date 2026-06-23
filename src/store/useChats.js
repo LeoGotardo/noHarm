@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getChats, getChat } from '../services/api/chat.js'
+import { tokens } from '../connectors/tokens.js'
 import { getMessages } from '../services/api/message.js'
 import { onMessage, onMessagesRead } from '../services/ws/chat.js'
 import { cacheRead, cacheWrite } from './cache.js'
@@ -12,8 +13,9 @@ export function useChats() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    if (!tokens.getAccess()) { setLoading(false); return }
     getChats()
-      .then(data => { setChats(data); cacheWrite('chats', data) })
+      .then(data => { console.log('[useChats] chats:', data); setChats(data); cacheWrite('chats', data) })
       .finally(() => setLoading(false))
 
     try {
@@ -43,6 +45,7 @@ export function useChatThread(chatId) {
 
   const fetchMessages = useCallback(async () => {
     const data = await getMessages(chatId)
+    console.log(`[useChatThread] messages (chat ${chatId}):`, data)
     setMessages(data)
     cacheWrite(cacheKey, data)
   }, [chatId])
