@@ -1,72 +1,25 @@
 import { api } from "../../connectors/api.js";
 
-/**
- * Fetch the user's current active streak.
- * @returns {Promise<object>}
- */
 export async function getCurrentStreak() {
-  const result = await api.get(`/streaks/current`);
-
-  return result;
+  return api.get(`/streaks/current`);
 }
 
-/**
- * Fetch the user's all-time streak record.
- * @returns {Promise<object>}
- */
 export async function getStreakRecord() {
-  const result = await api.get(`/streaks/record`);
-
-  return result;
+  return api.get(`/streaks/record`);
 }
 
-/**
- * Fetch paginated streak history.
- * @param {boolean} paginated
- * @param {number} page
- * @param {number} pageSize
- * @returns {Promise<object>}
- */
-export async function getStreakHistory(
-  paginated = true,
-  page = 1,
-  pageSize = 20,
-) {
-  const result = await api.get(`/streaks/history`, {
-    paginated,
-    page,
-    pageSize,
-  });
-
-  return result;
+export async function getStreakHistory(paginated = false, page = 1, pageSize = 20) {
+  return api.get(`/streaks/history`, { paginated, page, pageSize });
 }
 
-/**
- * Start a new streak. Only one active streak allowed at a time.
- * @returns {Promise<object>}
- */
-export async function startStreak() {
-  const result = await api.post(`/streaks/start`);
-
-  return result;
+export async function startStreak(start_at = null) {
+  return api.post(`/streaks/start`, { start_at });
 }
 
-/**
- * End the current streak (relapse). Resets days to 0 and starts a new streak immediately.
- * @returns {Promise<object>}
- */
-export async function endStreak() {
-  const result = await api.post(`/streaks/end`);
-
-  return result;
+export async function endStreak(end_at = null) {
+  return api.post(`/streaks/end`, { end_at });
 }
 
-/**
- * Record the daily check-in. Must be called within 24 h to keep the streak alive.
- * @returns {Promise<object>}
- */
 export async function checkinStreak() {
-  const result = await api.post(`/streaks/checkin`);
-
-  return result;
+  return api.post(`/streaks/checkin`);
 }

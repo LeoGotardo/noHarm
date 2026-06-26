@@ -1,19 +1,11 @@
 import { useState, useEffect, Fragment } from 'react'
-import { Screen, Header, Icon, Card } from '../../ui/index.js'
+import { Icon, Card, Divider } from '@ui'
+import { Screen, Header, EmptyState, hashHue } from '@components'
 import { getUser } from '../../services/api/user.js'
 import { cacheRead, cacheWrite } from '../../store/cache.js'
-import { PersonRow, SegTabs } from './FriendsScreen.jsx'
-
-function fmtDate(iso) {
-  if (!iso) return ''
-  const diff = Math.floor((Date.now() - new Date(iso)) / 86_400_000)
-  if (diff === 0) return 'today'
-  if (diff === 1) return '1d ago'
-  return `${diff}d ago`
-}
+import { PersonRow, SegTabs, fmtRelDate } from '@components'
 
 async function enrichRequest(friendship, meId) {
-  // For received: sender is the other person. For sent: reciver is the other person.
   const otherId = friendship.sender === meId ? friendship.reciver : friendship.sender
   const cacheKey = `user_${otherId}`
   const cached = cacheRead(cacheKey)
@@ -25,14 +17,8 @@ async function enrichRequest(friendship, meId) {
     profile_picture: user?.profile_picture ?? null,
     hue: hashHue(user?.username),
     streak: null,
-    when: fmtDate(friendship.send_at ?? friendship.created_at),
+    when: fmtRelDate(friendship.send_at ?? friendship.created_at),
   }
-}
-
-function hashHue(str = '') {
-  let h = 0
-  for (const c of str) h = (h * 31 + c.charCodeAt(0)) & 0xffffffff
-  return Math.abs(h) % 360
 }
 
 export function FriendRequests({ onBack, received, sent, meId, onAccept, onDecline, onCancel, onOpenProfile }) {
@@ -61,16 +47,17 @@ export function FriendRequests({ onBack, received, sent, meId, onAccept, onDecli
       </div>
       <div style={{ padding: '16px 20px 0' }}>
         {list.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '60px 24px', color: 'var(--ink-3)' }}>
-            <Icon name={tab === 'received' ? 'bell' : 'send'} size={34} color="var(--ink-3)" style={{ margin: '0 auto 14px' }} />
-            <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink-2)' }}>{tab === 'received' ? 'No new requests' : 'No pending requests'}</div>
-            <div style={{ fontSize: 13.5, marginTop: 6 }}>{tab === 'received' ? "You're all caught up." : 'Requests you send will appear here.'}</div>
-          </div>
+          <EmptyState
+            icon={tab === 'received' ? 'bell' : 'send'}
+            pad="60px 24px"
+            title={tab === 'received' ? 'No new requests' : 'No pending requests'}
+            sub={tab === 'received' ? "You're all caught up." : 'Requests you send will appear here.'}
+          />
         ) : (
           <Card pad={6}>
             {list.map((p, i) => (
               <Fragment key={p.friendshipId}>
-                {i > 0 && <div style={{ height: 1, background: 'var(--border)', margin: '0 4px' }} />}
+                {i > 0 && <Divider />}
                 <div style={{ padding: '0 8px' }}>
                   <PersonRow person={p} onClick={() => onOpenProfile(p.id)}
                     sub={p.when}

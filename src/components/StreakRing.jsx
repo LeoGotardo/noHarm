@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Icon } from './Icon.jsx'
+import { Icon } from '@ui/Icon.jsx'
 
 export function StreakRing({ days, milestone, label, sub, size = 232, display, recordPill }) {
   const stroke = 13;

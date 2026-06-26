@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { getCurrentStreak, getStreakRecord, checkinStreak, endStreak } from '../services/api/streak.js'
+import { getCurrentStreak, getStreakRecord, checkinStreak, endStreak, startStreak } from '../services/api/streak.js'
 import { cacheRead, cacheWrite } from './cache.js'
 import { tokens } from '../connectors/tokens.js'
 
@@ -18,9 +18,9 @@ export function daysBetween(isoA, isoB) {
 }
 
 export function streakDays(streak) {
-  if (!streak?.start) return 0
-  const ref = streak.end ?? new Date().toISOString()
-  return Math.max(0, Math.floor((new Date(ref) - new Date(streak.start)) / 86_400_000))
+  if (!streak?.start_at) return 0
+  const ref = streak.end_at ?? new Date().toISOString()
+  return Math.max(0, Math.floor((new Date(ref) - new Date(streak.start_at)) / 86_400_000))
 }
 
 /**
@@ -38,8 +38,8 @@ async function runCheckinSequence(relapses, lastCheckin, today) {
     const daysBefore = Math.max(0, daysBetween(windowStart, relapse.date) - 1)
     for (let i = 0; i < daysBefore; i++) await checkinStreak()
 
-    // Relapse: ends current streak, API starts a new one immediately
-    await endStreak()
+    // Relapse: ends current streak with the backdated timestamp
+    await endStreak(`${relapse.date}T${relapse.time}:00`)
 
     windowStart = relapse.date
   }
@@ -66,7 +66,7 @@ export function useStreak() {
   const fetchAll = useCallback(async () => {
     try {
       const [cur, rec] = await Promise.all([
-        getCurrentStreak(),
+        getCurrentStreak().catch(e => e.status === 404 ? null : Promise.reject(e)),
         getStreakRecord().catch(() => null),
       ])
       console.log('[useStreak] current streak:', cur)
@@ -117,6 +117,34 @@ export function useStreak() {
     } catch (e) { setError(e) }
   }, [lastCheckinDate, today])
 
+  /**
+   * Start a brand-new streak, optionally backdated.
+   * Calls startStreak() then checkins for every day between startDate and today.
+   * @param {string} startDate - 'YYYY-MM-DD'
+   */
+  const startFrom = useCallback(async (startDate) => {
+    setLoading(true)
+    setError(null)
+    try {
+      await startStreak(`${startDate}T00:00:00`)
+      const daysToCheckin = Math.max(0, daysBetween(startDate, today))
+      for (let i = 0; i < daysToCheckin; i++) await checkinStreak()
+      cacheWrite(KEY_CHECKIN, today)
+      const [cur, rec] = await Promise.all([
+        getCurrentStreak(),
+        getStreakRecord().catch(() => null),
+      ])
+      saveStreak(cur)
+      if (rec) { setRecord(rec); cacheWrite(KEY_RECORD, rec) }
+      return cur
+    } catch (e) {
+      setError(e)
+      throw e
+    } finally {
+      setLoading(false)
+    }
+  }, [today])
+
   /** Relapse button from dashboard (immediate, no batch). */
   const relapse = useCallback(async () => {
     try {
@@ -145,6 +173,7 @@ export function useStreak() {
     checkIn,
     relapse,
     performCheckin,
+    startFrom,
     refetch: fetchAll,
   }
 }

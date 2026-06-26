@@ -1,25 +1,9 @@
 import { useState, useEffect } from 'react'
-import { Screen, Header, Avatar, Icon, Btn, Card, BadgeMedallion, BottomSheet, Skeleton } from '../../ui/index.js'
+import { Avatar, Icon, Btn, Card, Skeleton } from '@ui'
+import { Screen, Header, BadgeMedallion, BottomSheet, hashHue } from '@components'
 import { getUser } from '../../services/api/user.js'
 import { cacheRead, cacheWrite } from '../../store/cache.js'
-
-function hashHue(str = '') {
-  let h = 0
-  for (const c of str) h = (h * 31 + c.charCodeAt(0)) & 0xffffffff
-  return Math.abs(h) % 360
-}
-
-function SheetAction({ icon, label, onClick, danger }) {
-  return (
-    <button onClick={onClick} style={{
-      display: 'flex', alignItems: 'center', gap: 13, padding: '14px 8px',
-      background: 'none', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left',
-      borderRadius: 12, color: danger ? 'var(--accent-ink)' : 'var(--ink)', fontSize: 15.5, fontWeight: 600,
-    }}>
-      <Icon name={icon} size={21} color={danger ? 'var(--accent-ink)' : 'var(--ink-2)'} />{label}
-    </button>
-  )
-}
+import { SheetAction } from './SheetAction.jsx'
 
 export function PublicProfile({ onBack, userId, relation, onMessage, onAdd, onAccept, onRemove, onBlock }) {
   const [user, setUser]   = useState(() => cacheRead(`user_${userId}`)?.data ?? null)

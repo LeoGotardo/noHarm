@@ -51,7 +51,5 @@ export async function getUser(id) {
  * @returns {Promise<object>}
  */
 export async function getUsers(paginated = true, page = 1, pageSize = 20) {
-  const resutlt = await api.get("users", { paginated, page, pageSize });
-
-  return resutlt;
+  return api.get("/users", { paginated, page, pageSize });
 }

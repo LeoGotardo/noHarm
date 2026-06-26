@@ -6,6 +6,9 @@ import { onMessage, onMessagesRead } from '../services/ws/chat.js'
 import { cacheRead, cacheWrite } from './cache.js'
 
 const emptyChats = { chats: [], total: 0 }
+
+// API returns { items: [] } — normalize to { chats: [] } for consumers
+const normChats = (r) => ({ ...r, chats: r.items ?? r.chats ?? [] })
 const emptyMsgs  = { messages: [], total: 0 }
 
 export function useChats() {
@@ -15,7 +18,7 @@ export function useChats() {
   useEffect(() => {
     if (!tokens.getAccess()) { setLoading(false); return }
     getChats()
-      .then(data => { console.log('[useChats] chats:', data); setChats(data); cacheWrite('chats', data) })
+      .then(data => { const nd = normChats(data); console.log('[useChats] chats:', nd); setChats(nd); cacheWrite('chats', nd) })
       .finally(() => setLoading(false))
 
     try {

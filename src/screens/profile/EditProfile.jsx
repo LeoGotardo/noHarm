@@ -1,12 +1,7 @@
 import { useState } from 'react'
-import { Screen, Header, Avatar, Icon, Field } from '../../ui/index.js'
+import { Avatar, Icon, Field } from '@ui'
+import { Screen, Header, hashHue } from '@components'
 import { putMe } from '../../services/api/user.js'
-
-function hashHue(str = '') {
-  let h = 0
-  for (const c of str) h = (h * 31 + c.charCodeAt(0)) & 0xffffffff
-  return Math.abs(h) % 360
-}
 
 export function EditProfile({ me, onBack, onSave }) {
   const [username, setUsername] = useState(me?.username ?? '')

@@ -1,4 +1,4 @@
-import { Icon } from './Icon.jsx'
+import { Icon } from '@ui/Icon.jsx'
 
 export function Header({ title, onBack, right, sub, large }) {
   return (

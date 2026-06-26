@@ -1,4 +1,4 @@
-import { GeoBackground } from './GeoBackground.jsx'
+import { GeoBackground } from '@ui/GeoBackground.jsx'
 
 export function Screen({ geo, pulseKey, children, scrollRef, padTop = 52, padBottom = 96, noScroll }) {
   return (
