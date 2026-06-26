@@ -1,4 +1,5 @@
-import { Screen, Header, Card, Icon, BadgeMedallion } from '../../ui/index.js'
+import { Card, Icon } from '@ui'
+import { Screen, Header, BadgeMedallion } from '@components'
 
 export function BadgesScreen({ badges, currentDays, onOpen }) {
   const earned = badges.filter(b => b.earned);

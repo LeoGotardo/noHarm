@@ -1,10 +1,5 @@
-import { Screen, Header, Avatar, Icon, Btn, Card, BadgeMedallion } from '../../ui/index.js'
-
-function hashHue(str = '') {
-  let h = 0
-  for (const c of str) h = (h * 31 + c.charCodeAt(0)) & 0xffffffff
-  return Math.abs(h) % 360
-}
+import { Avatar, Icon, Btn, Card } from '@ui'
+import { Screen, Header, BadgeMedallion, hashHue } from '@components'
 
 export function MyProfile({ me, earnedBadges = [], days, personalRecord, badgeCount, totalBadges, joined, onEdit, onSettings, onOpenBadges }) {
   const username = me?.username ?? ''

@@ -1,60 +1,13 @@
 import { useState, useRef, useEffect } from 'react'
-import { Avatar, Icon, Btn, GeoBackground } from '../../ui/index.js'
+import { Avatar, Icon, Btn, GeoBackground } from '@ui'
+import { hashHue } from '@components'
 import { getUser } from '../../services/api/user.js'
 import { sendMessage as apiSend } from '../../services/api/message.js'
 import { startChat, acceptChat } from '../../services/api/chat.js'
 import { joinChat, leaveChat, markRead, onTypingIndicator } from '../../services/ws/chat.js'
 import { useChatThread } from '../../store/useChats.js'
-
-function hashHue(str = '') {
-  let h = 0
-  for (const c of str) h = (h * 31 + c.charCodeAt(0)) & 0xffffffff
-  return Math.abs(h) % 360
-}
-
-function fmtTime(iso) {
-  if (!iso) return ''
-  const d = new Date(iso)
-  const now = new Date()
-  if (d.toDateString() === now.toDateString())
-    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-  return d.toLocaleDateString([], { month: 'short', day: 'numeric' })
-}
-
-function Bubble({ msg, mine }) {
-  return (
-    <div style={{ display: 'flex', justifyContent: mine ? 'flex-end' : 'flex-start', animation: 'nhRise .32s both' }}>
-      <div style={{ maxWidth: '76%' }}>
-        <div style={{
-          padding: '10px 14px', borderRadius: 20, fontSize: 15, lineHeight: 1.4,
-          background: mine ? 'var(--primary)' : 'var(--surface)',
-          color: mine ? 'var(--on-primary)' : 'var(--ink)',
-          borderBottomRightRadius: mine ? 6 : 20, borderBottomLeftRadius: mine ? 20 : 6,
-          border: mine ? 'none' : '1px solid var(--border)',
-          boxShadow: mine ? '0 4px 14px -8px var(--primary)' : '0 2px 8px -6px rgba(0,0,0,0.2)',
-        }}>{msg.message}</div>
-        <div style={{ fontSize: 10.5, color: 'var(--ink-3)', marginTop: 4, textAlign: mine ? 'right' : 'left', padding: '0 6px', display: 'flex', gap: 4, justifyContent: mine ? 'flex-end' : 'flex-start', alignItems: 'center' }}>
-          {fmtTime(msg.send_at ?? msg.created_at)}
-          {mine && (msg.status === 8
-            ? <span style={{ display: 'inline-flex' }}><Icon name="check" size={13} color="var(--primary)" sw={2.6} /></span>
-            : <span style={{ display: 'inline-flex' }}><Icon name="check" size={13} color="var(--ink-3)" sw={2.2} /></span>)}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function TypingBubble() {
-  return (
-    <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-      <div style={{ padding: '13px 16px', borderRadius: 20, borderBottomLeftRadius: 6, background: 'var(--surface)', border: '1px solid var(--border)', display: 'flex', gap: 5 }}>
-        {[0, 1, 2].map(i => (
-          <span key={i} style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--ink-3)', animation: `nhTypeDot 1.2s ease-in-out ${i * 0.18}s infinite` }} />
-        ))}
-      </div>
-    </div>
-  )
-}
+import { Bubble } from './Bubble.jsx'
+import { TypingBubble } from './TypingBubble.jsx'
 
 export function ChatThread({ onBack, chat: initialChat, meId, onOpenProfile }) {
   const [chat, setChat]         = useState(initialChat)

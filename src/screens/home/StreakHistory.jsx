@@ -1,16 +1,12 @@
 import { useState, useEffect } from 'react'
-import { Screen, Header, Card, Icon } from '../../ui/index.js'
+import { Card, Icon, SectionLabel } from '@ui'
+import { Screen, Header, EmptyState, fmtLongDate } from '@components'
 import { getStreakHistory } from '../../services/api/streak.js'
 import { cacheRead, cacheWrite } from '../../store/cache.js'
 
-function fmtDate(iso) {
-  if (!iso) return '?'
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-}
-
 function streakDays(s) {
-  const end = s.end ?? new Date().toISOString()
-  return Math.max(0, Math.floor((new Date(end) - new Date(s.start)) / 86_400_000))
+  const end = s.end_at ?? new Date().toISOString()
+  return Math.max(0, Math.floor((new Date(end) - new Date(s.start_at)) / 86_400_000))
 }
 
 export function StreakHistory({ onBack, currentDays, currentStart, empty }) {
@@ -43,7 +39,7 @@ export function StreakHistory({ onBack, currentDays, currentStart, empty }) {
   }
 
   // Exclude the active streak (status 1, no end) from history list
-  const past = streaks.filter(s => s.end !== null && s.end !== undefined)
+  const past = streaks.filter(s => s.end_at !== null && s.end_at !== undefined)
 
   return (
     <Screen geo="history" padTop={56}>
@@ -65,18 +61,15 @@ export function StreakHistory({ onBack, currentDays, currentStart, empty }) {
         )}
 
         {empty && past.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '60px 30px' }}>
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 18 }}>
-              <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'var(--primary-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Icon name="flame" size={34} color="var(--primary)" sw={1.4} />
-              </div>
-            </div>
-            <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--ink)' }}>Your first streak is still going strong!</div>
-            <div style={{ fontSize: 14, color: 'var(--ink-3)', marginTop: 8, lineHeight: 1.5 }}>Past streaks will appear here. For now, focus on today.</div>
-          </div>
+          <EmptyState
+            icon="flame" iconBg="var(--primary-soft)" iconColor="var(--primary)" iconSw={1.4} round
+            pad="60px 30px"
+            title="Your first streak is still going strong!"
+            sub="Past streaks will appear here. For now, focus on today."
+          />
         ) : (
           <>
-            <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: 0.6, padding: '6px 4px 0' }}>Past streaks</div>
+            <SectionLabel style={{ padding: '6px 4px 0' }}>Past streaks</SectionLabel>
             {past.map((s, i) => {
               const days = streakDays(s)
               return (
@@ -87,7 +80,7 @@ export function StreakHistory({ onBack, currentDays, currentStart, empty }) {
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 14.5, fontWeight: 600, color: 'var(--ink)' }}>
-                      {fmtDate(s.start)} → {fmtDate(s.end)}
+                      {fmtLongDate(s.start_at)} → {fmtLongDate(s.end_at)}
                     </div>
                     {s.is_record && (
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 5, fontSize: 11, fontWeight: 700, color: 'var(--accent-ink)', background: 'var(--accent-soft)', padding: '2px 8px', borderRadius: 99 }}>

@@ -854,7 +854,7 @@
       "get": {
         "tags": ["Streaks"],
         "summary": "Get my current streak",
-        "description": "Returns the authenticated user's active streak. Auto-expires and resets the streak if no activity was recorded in the last 24 h (§6.3).",
+        "description": "Returns the authenticated user's active streak.",
         "operationId": "getCurrentStreak_streaks_current_get",
         "responses": {
           "200": {
@@ -962,14 +962,30 @@
       "post": {
         "tags": ["Streaks"],
         "summary": "Start a new streak",
-        "description": "Creates a new active streak. Fails with 409 if an active streak already exists (§6.1). start = now, isRecord = False.",
+        "description": "Creates a new active streak. Fails with 409 if an active streak already exists. `start_at` defaults to now if omitted.",
         "operationId": "startStreak_streaks_start_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/StreakStartRequest" }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "201": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/StreakResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
               }
             }
           }
@@ -981,14 +997,30 @@
       "post": {
         "tags": ["Streaks"],
         "summary": "End (reset) my streak",
-        "description": "Manually ends the active streak, checks whether it is a new personal record, and immediately starts a fresh streak (§6.2). Creates an audit log entry of type 7.",
+        "description": "Marks relapse: sets end_at on the active streak, checks personal record, and starts a fresh streak. `end_at` defaults to now if omitted. Creates an audit log entry of type 7.",
         "operationId": "endStreak_streaks_end_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/StreakEndRequest" }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/StreakResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
               }
             }
           }
@@ -1000,7 +1032,7 @@
       "post": {
         "tags": ["Streaks"],
         "summary": "Daily check-in",
-        "description": "Confirms the user's sobriety for today, refreshing the streak's activity timestamp. Must be called at least once every 24 h to prevent auto-expiry (§6.3).",
+        "description": "Confirms the user's sobriety, refreshing the streak's activity timestamp. Streaks only reset via manual relapse (POST /streaks/end).",
         "operationId": "checkin_streaks_checkin_post",
         "responses": {
           "200": {
@@ -2506,6 +2538,116 @@
         }
       }
     },
+    "/notifications": {
+      "post": {
+        "tags": ["Notifications"],
+        "summary": "Register device for notifications",
+        "description": "Register an FCM device token to receive push notifications.",
+        "operationId": "addDevice_notifications_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/DeviceBody" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        },
+        "security": [{ "HTTPBearer": [] }]
+      }
+    },
+    "/notifications/{oldFCM}": {
+      "put": {
+        "tags": ["Notifications"],
+        "summary": "Update device token",
+        "description": "Replace an existing FCM token with a new one.",
+        "operationId": "updateDevice_notifications__oldFCM__put",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "oldFCM",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Oldfcm" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateDeviceBody" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications/{fcmToken}": {
+      "delete": {
+        "tags": ["Notifications"],
+        "summary": "Unregister device",
+        "description": "Remove an FCM device token from the notification registry.",
+        "operationId": "deleteDevice_notifications__fcmToken__delete",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "fcmToken",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Fcmtoken" }
+          }
+        ],
+        "responses": {
+          "204": { "description": "Successful Response" },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
     "/": {
       "get": {
         "summary": "  Redirect To Docs",
@@ -2562,10 +2704,7 @@
             "title": "Updated At"
           },
           "catalyst_id": {
-            "anyOf": [
-              { "type": "string", "format": "uuid" },
-              { "type": "null" }
-            ],
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
             "title": "Catalyst Id"
           },
           "catalyst": {
@@ -3027,10 +3166,22 @@
         ],
         "title": "ChatResponse"
       },
+      "DeviceBody": {
+        "properties": {
+          "deviceFCM": {
+            "type": "string",
+            "title": "Devicefcm",
+            "description": "FCM device token"
+          }
+        },
+        "type": "object",
+        "required": ["deviceFCM"],
+        "title": "DeviceBody"
+      },
       "Friendship": {
         "properties": {
-          "sender": { "type": "string", "format": "uuid", "title": "Sender" },
-          "reciver": { "type": "string", "format": "uuid", "title": "Reciver" },
+          "sender": { "type": "string", "title": "Sender" },
+          "reciver": { "type": "string", "title": "Reciver" },
           "status": { "type": "integer", "title": "Status" },
           "created_at": {
             "anyOf": [
@@ -3216,6 +3367,27 @@
           "updated_at"
         ],
         "title": "MessageResponse"
+      },
+      "NotificationResponse": {
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "user_id": { "type": "string", "title": "User Id" },
+          "status": { "type": "integer", "title": "Status" },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["id", "user_id", "status", "created_at", "updated_at"],
+        "title": "NotificationResponse"
       },
       "PaginatedResponse_AuditLogs_": {
         "properties": {
@@ -3695,15 +3867,11 @@
       },
       "Streak": {
         "properties": {
-          "owner_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Owner Id"
-          },
-          "start": {
+          "owner_id": { "type": "string", "title": "Owner Id" },
+          "start_at": {
             "type": "string",
             "format": "date-time",
-            "title": "Start"
+            "title": "Start At"
           },
           "status": { "type": "integer", "title": "Status" },
           "id": {
@@ -3732,17 +3900,38 @@
             "title": "Is Record",
             "default": false
           },
-          "end": {
+          "end_at": {
             "anyOf": [
               { "type": "string", "format": "date-time" },
               { "type": "null" }
             ],
-            "title": "End"
+            "title": "End At"
+          },
+          "last_checkin": {
+            "anyOf": [
+              { "type": "string", "format": "date-time" },
+              { "type": "null" }
+            ],
+            "title": "Last Checkin"
           }
         },
         "type": "object",
-        "required": ["owner_id", "start", "status"],
+        "required": ["owner_id", "start_at", "status"],
         "title": "Streak"
+      },
+      "StreakEndRequest": {
+        "properties": {
+          "end_at": {
+            "anyOf": [
+              { "type": "string", "format": "date-time" },
+              { "type": "null" }
+            ],
+            "title": "End At",
+            "description": "When the streak ended (defaults to now)"
+          }
+        },
+        "type": "object",
+        "title": "StreakEndRequest"
       },
       "StreakListResponse": {
         "properties": {
@@ -3766,19 +3955,27 @@
             "title": "Owner Id",
             "description": "Owner user ID"
           },
-          "start": {
+          "start_at": {
             "type": "string",
             "format": "date-time",
-            "title": "Start",
-            "description": "Start time"
+            "title": "Start At",
+            "description": "When the streak started"
           },
-          "end": {
+          "end_at": {
             "anyOf": [
               { "type": "string", "format": "date-time" },
               { "type": "null" }
             ],
-            "title": "End",
-            "description": "End time"
+            "title": "End At",
+            "description": "When the streak ended (null if active)"
+          },
+          "last_checkin": {
+            "anyOf": [
+              { "type": "string", "format": "date-time" },
+              { "type": "null" }
+            ],
+            "title": "Last Checkin",
+            "description": "Last sobriety check-in timestamp"
           },
           "status": {
             "type": "integer",
@@ -3810,12 +4007,38 @@
         },
         "additionalProperties": false,
         "type": "object",
-        "required": ["id", "owner_id", "start", "status"],
+        "required": ["id", "owner_id", "start_at", "status"],
         "title": "StreakResponse"
+      },
+      "StreakStartRequest": {
+        "properties": {
+          "start_at": {
+            "anyOf": [
+              { "type": "string", "format": "date-time" },
+              { "type": "null" }
+            ],
+            "title": "Start At",
+            "description": "When the streak started (defaults to now)"
+          }
+        },
+        "type": "object",
+        "title": "StreakStartRequest"
+      },
+      "UpdateDeviceBody": {
+        "properties": {
+          "newFCM": {
+            "type": "string",
+            "title": "Newfcm",
+            "description": "New FCM device token"
+          }
+        },
+        "type": "object",
+        "required": ["newFCM"],
+        "title": "UpdateDeviceBody"
       },
       "User": {
         "properties": {
-          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "id": { "type": "string", "title": "Id" },
           "username": { "type": "string", "title": "Username" },
           "email": { "type": "string", "title": "Email" },
           "status": { "type": "integer", "title": "Status" },
@@ -3844,7 +4067,7 @@
       },
       "UserBadge": {
         "properties": {
-          "user_id": { "type": "string", "format": "uuid", "title": "User Id" },
+          "user_id": { "type": "string", "title": "User Id" },
           "badge_id": {
             "type": "string",
             "format": "uuid",
@@ -4030,7 +4253,7 @@
             "description": "Account status (ex: 1 enabled, 0 disabled)",
             "default": 1
           },
-          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "id": { "type": "string", "title": "Id" },
           "profile_picture": {
             "anyOf": [{ "type": "string" }, { "type": "null" }],
             "title": "Profile Picture"

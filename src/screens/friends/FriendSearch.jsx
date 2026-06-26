@@ -1,6 +1,6 @@
 import { useState, Fragment } from 'react'
-import { Screen, Header, Icon, Card, Field } from '../../ui/index.js'
-import { PersonRow } from './FriendsScreen.jsx'
+import { Icon, Card, Field, Divider } from '@ui'
+import { Screen, Header, EmptyState, PersonRow } from '@components'
 
 export function FriendSearch({ onBack, pool, onOpenProfile, onSendRequest }) {
   const [q, setQ] = useState('');
@@ -16,22 +16,23 @@ export function FriendSearch({ onBack, pool, onOpenProfile, onSendRequest }) {
       </div>
       <div style={{ padding: '16px 20px 0' }}>
         {trimmed.length < 2 ? (
-          <div style={{ textAlign: 'center', padding: '50px 30px', color: 'var(--ink-3)' }}>
-            <Icon name="search" size={32} color="var(--ink-3)" style={{ margin: '0 auto 14px' }} />
-            <div style={{ fontSize: 14, lineHeight: 1.5 }}>Type at least 2 characters to search.<br />Usernames are private — only exact matches show.</div>
-          </div>
+          <EmptyState
+            icon="search" iconSize={32} pad="50px 30px"
+            sub={<>Type at least 2 characters to search.<br />Usernames are private — only exact matches show.</>}
+          />
         ) : results.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '50px 30px', color: 'var(--ink-3)' }}>
-            <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink-2)' }}>No one found</div>
-            <div style={{ fontSize: 13.5, marginTop: 6 }}>No user matches "{q}".</div>
-          </div>
+          <EmptyState
+            pad="50px 30px"
+            title="No one found"
+            sub={`No user matches "${q}".`}
+          />
         ) : (
           <Card pad={6}>
             {results.map((p, i) => {
               const rel = sentTo[p.id] ? 'pending' : p.rel;
               return (
                 <Fragment key={p.id}>
-                  {i > 0 && <div style={{ height: 1, background: 'var(--border)', margin: '0 4px' }} />}
+                  {i > 0 && <Divider />}
                   <div style={{ padding: '0 8px' }}>
                     <PersonRow person={p} onClick={() => onOpenProfile(p.id)}
                       right={

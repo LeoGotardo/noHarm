@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
-import { getAllBedges } from '../services/api/badge.js'
+import { getAllBadges } from '../services/api/badge.js'
 import { cacheRead, cacheWrite, cacheValid } from './cache.js'
 import { tokens } from '../connectors/tokens.js'
 
 const ONE_HOUR = 3_600_000
 
 export function useBadges() {
+  // API returns { items: [] } — normalize to { badges: [] } for consumers
+  const normBadges = (r) => ({ ...r, badges: r.items ?? r.badges ?? [] })
   const [badges, setBadges]   = useState(() => cacheRead('badges')?.data ?? { badges: [], total: 0 })
   const [loading, setLoading] = useState(true)
 
@@ -13,8 +15,8 @@ export function useBadges() {
     if (!tokens.getAccess()) { setLoading(false); return }
     if (cacheValid('badges', ONE_HOUR)) { setLoading(false); return }
 
-    getAllBedges()
-      .then(data => { console.log('[useBadges] badges:', data); setBadges(data); cacheWrite('badges', data) })
+    getAllBadges()
+      .then(data => { const nd = normBadges(data); console.log('[useBadges] badges:', nd); setBadges(nd); cacheWrite('badges', nd) })
       .finally(() => setLoading(false))
   }, [])
 

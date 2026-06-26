@@ -6,6 +6,9 @@ import { cacheRead, cacheWrite } from './cache.js'
 
 const empty = { friendships: [], total: 0 }
 
+// API returns { items: [] } — normalize to { friendships: [] } for consumers
+const norm = (r) => ({ ...r, friendships: r.items ?? r.friendships ?? [] })
+
 export function useFriends() {
   const [friends, setFriends]                 = useState(() => cacheRead('friends')?.data ?? empty)
   const [requestsReceived, setRequestsReceived] = useState(() => cacheRead('requests_received')?.data ?? empty)
@@ -22,18 +25,19 @@ export function useFriends() {
       console.log('[useFriends] friends:', f)
       console.log('[useFriends] requests received:', r)
       console.log('[useFriends] requests sent:', s)
-      setFriends(f);           cacheWrite('friends', f)
-      setRequestsReceived(r);  cacheWrite('requests_received', r)
-      setRequestsSent(s);      cacheWrite('requests_sent', s)
+      const nf = norm(f), nr = norm(r), ns = norm(s)
+      setFriends(nf);           cacheWrite('friends', nf)
+      setRequestsReceived(nr);  cacheWrite('requests_received', nr)
+      setRequestsSent(ns);      cacheWrite('requests_sent', ns)
     } finally {
       setLoading(false)
     }
   }, [])
 
   const fetchReceived = useCallback(async () => {
-    const r = await getPendingFriendships()
-    setRequestsReceived(r)
-    cacheWrite('requests_received', r)
+    const nr = norm(await getPendingFriendships())
+    setRequestsReceived(nr)
+    cacheWrite('requests_received', nr)
   }, [])
 
   useEffect(() => {

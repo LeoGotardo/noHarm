@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Screen, Header, Icon, BadgeMedallion, Btn } from '../../ui/index.js'
+import { Icon, Btn } from '@ui'
+import { Screen, Header, BadgeMedallion } from '@components'
 
 export function BadgeDetail({ onBack, badge, currentDays, justUnlocked }) {
   const earned = !!badge.earned;
