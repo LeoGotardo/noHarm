@@ -26,11 +26,16 @@ Env vars: `VITE_API_URL` (REST base URL) and `VITE_SOCKET_URL` (Socket.IO URL, f
 
 **Standalone demo**: `NoHarm.html` / `NoHarm-standalone.html` — CDN-loaded React + Babel, no bundler. Not the active development target.
 
+**Import aliases** (`vite.config.js`): `@components` → `src/components`, `@ui` → `src/ui`.
+
+**Stale docs warning**: `README.md` and `AGENTS.md` are leftover Expo boilerplate. This project is **not** Expo — it's Vite + React + Capacitor. Ignore their Expo instructions.
+
 ### Layer diagram
 
 ```
 screens/          ← React UI, one folder per domain
-  └─ import from ─→ ui/          ← shared primitives (Icon, Btn, Card, …)
+  └─ import from ─→ ui/          ← low-level primitives (Icon, Avatar, Btn, Card, Field, …) + cx
+                  → components/  ← composite widgets (Screen, Header, TabBar, BottomSheet, Toast, StreakRing, …) + format helpers
                   → store/       ← React hooks: data fetch + cache + WS subscriptions
                   → services/    ← domain logic (no React)
                       api/       ← REST calls
@@ -53,7 +58,8 @@ services/ import from connectors/
 | `src/main.jsx` | Mounts `<App>`, imports `theme.css` |
 | `src/theme.css` | CSS custom properties for all four theme variants |
 | `src/data/` | Split mock files: `user`, `badges`, `chats`, `friends`, `streak` |
-| `src/ui/index.js` | Re-exports all UI primitives (`Icon`, `Avatar`, `Btn`, `Card`, `Field`, `Banner`, `Toast`, `BottomSheet`, `StreakRing`, `BadgeMedallion`, `Header`, `TabBar`, `Skeleton`, `GeoBackground`, `Screen`, `cx`) |
+| `src/ui/index.js` | Low-level primitives: `Icon`, `Avatar`/`OnlineDot`, `Btn`, `Card`, `Field`, `Skeleton`, `GeoBackground`, `Divider`, `SectionLabel`, plus `cx` helper |
+| `src/components/index.js` | Composite widgets: `Screen`, `Header`, `Banner`, `Toast`, `BottomSheet`, `TabBar`, `StreakRing`/`BadgeMedallion`, `EmptyState`, `Logo`, `GoogleButton`, `PersonRow`, `SegTabs`, plus format helpers from `utils.js` (`hashHue`, `fmtTime`, `fmtLongDate`, `fmtRelDate`, `fmtShortDay`) |
 | `src/connectors/` | Transport layer (see diagram above) |
 | `src/services/api/` | `auth`, `badge`, `chat`, `friendship`, `message`, `streak`, `user`, `device` |
 | `src/services/ws/` | `chat`, `friendship`, `presence` |

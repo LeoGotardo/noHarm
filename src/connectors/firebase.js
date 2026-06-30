@@ -1,6 +1,11 @@
 // Firebase app init. Import auth from here rather than initialising elsewhere.
 import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signOut,
+} from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -43,5 +48,7 @@ export async function fbLogin() {
  * @returns {Promise<true | Error>}
  */
 export async function fbLogout() {
-  return signOut(auth).then(() => true).catch((error) => error);
+  return signOut(auth)
+    .then(() => true)
+    .catch((error) => error);
 }

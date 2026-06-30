@@ -1,32 +1,42 @@
-import { Fragment, useState, useEffect, useRef } from 'react'
-import { Card, SectionLabel, Divider } from '@ui'
-import { Screen, Header, EmptyState } from '@components'
-import { getUser } from '../../services/api/user.js'
-import { ChatRow } from './ChatRow.jsx'
+import { EmptyState, Header, Screen } from "@components";
+import { Card, Divider, SectionLabel } from "@ui";
+import { Fragment, useEffect, useRef, useState } from "react";
+import { getUser } from "../../services/api/user.js";
+import { ChatRow } from "./ChatRow.jsx";
 
 export function ChatList({ chats, meId, onOpen, onOpenProfile }) {
-  const [users, setUsers] = useState({})
-  const fetched = useRef(new Set())
+  const [users, setUsers] = useState({});
+  const fetched = useRef(new Set());
+
+  const STATUS_CONSTANTS = import.meta.env.VITE_STATUS_CONSTANTS;
 
   useEffect(() => {
-    chats.forEach(c => {
-      const id = c.sender === meId ? c.reciver : c.sender
-      if (!id || fetched.current.has(id)) return
-      fetched.current.add(id)
-      getUser(id).then(u => setUsers(prev => ({ ...prev, [id]: u }))).catch(() => {})
-    })
-  }, [chats, meId])
+    chats.forEach((c) => {
+      const id = c.sender === meId ? c.reciver : c.sender;
+      if (!id || fetched.current.has(id)) return;
+      fetched.current.add(id);
+      getUser(id)
+        .then((u) => setUsers((prev) => ({ ...prev, [id]: u })))
+        .catch(() => {});
+    });
+  }, [chats, meId]);
 
-  const active = chats.filter(c => c.status !== 0)
-  const ended  = chats.filter(c => c.status === 0)
+  const active = chats.filter((c) => c.status === STATUS_CONSTANTS.enabled);
+  const ended = chats.filter((c) => c.status === STATUS_CONSTANTS.disabled);
 
   return (
     <Screen geo="chat" padTop={56}>
-      <Header large title="Messages" sub={`${active.length} conversation${active.length !== 1 ? 's' : ''}`} />
-      <div style={{ padding: '16px 20px 0' }}>
+      <Header
+        large
+        title="Messages"
+        sub={`${active.length} conversation${active.length !== 1 ? "s" : ""}`}
+      />
+      <div style={{ padding: "16px 20px 0" }}>
         {chats.length === 0 ? (
           <EmptyState
-            icon="chat" iconSize={32} round
+            icon="chat"
+            iconSize={32}
+            round
             title="No conversations yet"
             sub="Message a friend to start a supportive chat."
           />
@@ -36,18 +46,32 @@ export function ChatList({ chats, meId, onOpen, onOpenProfile }) {
               {active.map((c, i) => (
                 <Fragment key={c.id}>
                   {i > 0 && <Divider margin="0 8px" />}
-                  <ChatRow c={c} meId={meId} users={users} onOpen={onOpen} onOpenProfile={onOpenProfile} />
+                  <ChatRow
+                    c={c}
+                    meId={meId}
+                    users={users}
+                    onOpen={onOpen}
+                    onOpenProfile={onOpenProfile}
+                  />
                 </Fragment>
               ))}
             </Card>
             {ended.length > 0 && (
               <>
-                <SectionLabel style={{ padding: '20px 6px 8px' }}>Ended</SectionLabel>
+                <SectionLabel style={{ padding: "20px 6px 8px" }}>
+                  Ended
+                </SectionLabel>
                 <Card pad={6} style={{ opacity: 0.72 }}>
                   {ended.map((c, i) => (
                     <Fragment key={c.id}>
                       {i > 0 && <Divider margin="0 8px" />}
-                      <ChatRow c={c} meId={meId} users={users} onOpen={onOpen} onOpenProfile={onOpenProfile} />
+                      <ChatRow
+                        c={c}
+                        meId={meId}
+                        users={users}
+                        onOpen={onOpen}
+                        onOpenProfile={onOpenProfile}
+                      />
                     </Fragment>
                   ))}
                 </Card>
@@ -57,5 +81,5 @@ export function ChatList({ chats, meId, onOpen, onOpenProfile }) {
         )}
       </div>
     </Screen>
-  )
+  );
 }

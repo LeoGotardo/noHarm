@@ -26,9 +26,11 @@ async function request(method, path, body, retry = true, params) {
   let url = BASE_URL + path;
   if (params && Object.keys(params).length > 0) {
     const qs = new URLSearchParams(
-      Object.entries(params).filter(([, v]) => v != null).map(([k, v]) => [k, String(v)])
+      Object.entries(params)
+        .filter(([, v]) => v != null)
+        .map(([k, v]) => [k, String(v)]),
     ).toString();
-    if (qs) url += '?' + qs;
+    if (qs) url += "?" + qs;
   }
 
   const res = await fetch(url, {
