@@ -1,5 +1,5 @@
-import { useEffect } from 'react'
-import { checkinReminder } from '../services/checkinReminder.js'
+import { useEffect } from "react";
+import { checkinReminder } from "../services/checkinReminder.js";
 
 /**
  * Schedule or cancel the daily check-in reminder based on user prefs.
@@ -10,9 +10,9 @@ import { checkinReminder } from '../services/checkinReminder.js'
 export function useCheckinReminder(enabled) {
   useEffect(() => {
     if (enabled) {
-      checkinReminder.schedule()
+      checkinReminder.schedule();
     } else {
-      checkinReminder.cancel()
+      checkinReminder.cancel();
     }
-  }, [enabled])
+  }, [enabled]);
 }

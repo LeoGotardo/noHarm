@@ -8,7 +8,11 @@ export async function getBadge(badgeId) {
   return api.get(`/badges/${badgeId}`);
 }
 
-export async function getAllUserBadges(paginated = false, page = 1, pageSize = 20) {
+export async function getAllUserBadges(
+  paginated = false,
+  page = 1,
+  pageSize = 20,
+) {
   return api.get(`/user-badges/`, { paginated, page, pageSize });
 }
 

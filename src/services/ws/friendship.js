@@ -1,4 +1,4 @@
-import { getSocket } from '../../connectors/socket.js'
+import { getSocket } from "../../connectors/socket.js";
 
 // --- Listen ---
 
@@ -8,9 +8,9 @@ import { getSocket } from '../../connectors/socket.js'
  * @returns {() => void} unsubscribe
  */
 export function onFriendRequest(handler) {
-  const socket = getSocket()
-  socket.on('friend_request', handler)
-  return () => socket.off('friend_request', handler)
+  const socket = getSocket();
+  socket.on("friend_request", handler);
+  return () => socket.off("friend_request", handler);
 }
 
 /**
@@ -19,9 +19,9 @@ export function onFriendRequest(handler) {
  * @returns {() => void} unsubscribe
  */
 export function onFriendAccept(handler) {
-  const socket = getSocket()
-  socket.on('friend_accept', handler)
-  return () => socket.off('friend_accept', handler)
+  const socket = getSocket();
+  socket.on("friend_accept", handler);
+  return () => socket.off("friend_accept", handler);
 }
 
 /**
@@ -30,9 +30,9 @@ export function onFriendAccept(handler) {
  * @returns {() => void} unsubscribe
  */
 export function onFriendReject(handler) {
-  const socket = getSocket()
-  socket.on('friend_reject', handler)
-  return () => socket.off('friend_reject', handler)
+  const socket = getSocket();
+  socket.on("friend_reject", handler);
+  return () => socket.off("friend_reject", handler);
 }
 
 /**
@@ -41,9 +41,9 @@ export function onFriendReject(handler) {
  * @returns {() => void} unsubscribe
  */
 export function onFriendRemove(handler) {
-  const socket = getSocket()
-  socket.on('friend_remove', handler)
-  return () => socket.off('friend_remove', handler)
+  const socket = getSocket();
+  socket.on("friend_remove", handler);
+  return () => socket.off("friend_remove", handler);
 }
 
 /**
@@ -52,9 +52,9 @@ export function onFriendRemove(handler) {
  * @returns {() => void} unsubscribe
  */
 export function onFriendBlock(handler) {
-  const socket = getSocket()
-  socket.on('friend_block', handler)
-  return () => socket.off('friend_block', handler)
+  const socket = getSocket();
+  socket.on("friend_block", handler);
+  return () => socket.off("friend_block", handler);
 }
 
 /**
@@ -63,7 +63,7 @@ export function onFriendBlock(handler) {
  * @returns {() => void} unsubscribe
  */
 export function onFriendUnblock(handler) {
-  const socket = getSocket()
-  socket.on('friend_unblock', handler)
-  return () => socket.off('friend_unblock', handler)
+  const socket = getSocket();
+  socket.on("friend_unblock", handler);
+  return () => socket.off("friend_unblock", handler);
 }

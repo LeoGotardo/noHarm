@@ -1,4 +1,4 @@
-const supported = () => 'Notification' in window
+const supported = () => "Notification" in window;
 
 export const notif = {
   /**
@@ -6,15 +6,15 @@ export const notif = {
    * @returns {Promise<boolean>} true if granted
    */
   async requestPermission() {
-    if (!supported()) return false
-    if (Notification.permission === 'granted') return true
-    if (Notification.permission === 'denied') return false
-    const result = await Notification.requestPermission()
-    return result === 'granted'
+    if (!supported()) return false;
+    if (Notification.permission === "granted") return true;
+    if (Notification.permission === "denied") return false;
+    const result = await Notification.requestPermission();
+    return result === "granted";
   },
 
   get granted() {
-    return supported() && Notification.permission === 'granted'
+    return supported() && Notification.permission === "granted";
   },
 
   /**
@@ -27,8 +27,8 @@ export const notif = {
    * @param {string} [tag]  - deduplicates notifications with the same tag
    */
   send(title, body, tag) {
-    if (!this.granted) return
-    if (document.visibilityState === 'visible') return
-    new Notification(title, { body, tag, icon: '/icon.png' })
+    if (!this.granted) return;
+    if (document.visibilityState === "visible") return;
+    new Notification(title, { body, tag, icon: "/icon.png" });
   },
-}
+};

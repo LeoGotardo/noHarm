@@ -1,32 +1,34 @@
-import { chat as chatSocket, getSocket } from '../../connectors/socket.js'
+import { chat as chatSocket, getSocket } from "../../connectors/socket.js";
 
 // --- Emit ---
 
 /** Join a chat room to start receiving its events. */
-export const joinChat = (chatId) => chatSocket.join(chatId)
+export const joinChat = (chatId) => chatSocket.join(chatId);
 
 /** Leave a chat room. */
-export const leaveChat = (chatId) => chatSocket.leave(chatId)
+export const leaveChat = (chatId) => chatSocket.leave(chatId);
 
 /**
  * Send a message to a chat.
  * @param {string} chatId
  * @param {string} content - Max 2000 chars.
  */
-export const sendMessage = (chatId, content) => chatSocket.send(chatId, content)
+export const sendMessage = (chatId, content) =>
+  chatSocket.send(chatId, content);
 
 /**
  * Mark all unread messages in a chat as read (bulk).
  * @param {string} chatId
  */
-export const markRead = (chatId) => chatSocket.markRead(chatId)
+export const markRead = (chatId) => chatSocket.markRead(chatId);
 
 /**
  * Emit typing indicator.
  * @param {string} chatId
  * @param {boolean} isTyping
  */
-export const setTyping = (chatId, isTyping) => chatSocket.typing(chatId, isTyping)
+export const setTyping = (chatId, isTyping) =>
+  chatSocket.typing(chatId, isTyping);
 
 // --- Listen ---
 
@@ -36,9 +38,9 @@ export const setTyping = (chatId, isTyping) => chatSocket.typing(chatId, isTypin
  * @returns {() => void} unsubscribe
  */
 export function onMessage(handler) {
-  const socket = getSocket()
-  socket.on('new_message', handler)
-  return () => socket.off('new_message', handler)
+  const socket = getSocket();
+  socket.on("new_message", handler);
+  return () => socket.off("new_message", handler);
 }
 
 /**
@@ -47,9 +49,9 @@ export function onMessage(handler) {
  * @returns {() => void} unsubscribe
  */
 export function onMessagesRead(handler) {
-  const socket = getSocket()
-  socket.on('messages_read', handler)
-  return () => socket.off('messages_read', handler)
+  const socket = getSocket();
+  socket.on("messages_read", handler);
+  return () => socket.off("messages_read", handler);
 }
 
 /**
@@ -58,9 +60,9 @@ export function onMessagesRead(handler) {
  * @returns {() => void} unsubscribe
  */
 export function onTypingIndicator(handler) {
-  const socket = getSocket()
-  socket.on('typing_indicator', handler)
-  return () => socket.off('typing_indicator', handler)
+  const socket = getSocket();
+  socket.on("typing_indicator", handler);
+  return () => socket.off("typing_indicator", handler);
 }
 
 /**
@@ -69,7 +71,7 @@ export function onTypingIndicator(handler) {
  * @returns {() => void} unsubscribe
  */
 export function onChatError(handler) {
-  const socket = getSocket()
-  socket.on('chat_error', handler)
-  return () => socket.off('chat_error', handler)
+  const socket = getSocket();
+  socket.on("chat_error", handler);
+  return () => socket.off("chat_error", handler);
 }

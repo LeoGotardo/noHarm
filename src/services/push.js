@@ -1,16 +1,18 @@
-import { Capacitor } from '@capacitor/core'
-import { PushNotifications } from '@capacitor/push-notifications'
+import { Capacitor } from "@capacitor/core";
+import { PushNotifications } from "@capacitor/push-notifications";
 
-const isNative = Capacitor.isNativePlatform()
+const isNative = Capacitor.isNativePlatform();
 
 export const push = {
-  get isNative() { return isNative },
+  get isNative() {
+    return isNative;
+  },
 
   /** Request push notification permission. Returns true if granted. */
   async requestPermission() {
-    if (!isNative) return false
-    const { receive } = await PushNotifications.requestPermissions()
-    return receive === 'granted'
+    if (!isNative) return false;
+    const { receive } = await PushNotifications.requestPermissions();
+    return receive === "granted";
   },
 
   /**
@@ -20,19 +22,25 @@ export const push = {
    * @returns {Promise<() => void>} cleanup function
    */
   async register(onToken, onError = console.error) {
-    if (!isNative) return () => {}
+    if (!isNative) return () => {};
 
-    const regListener = await PushNotifications.addListener('registration', ({ value }) => {
-      onToken(value)
-    })
-    const errListener = await PushNotifications.addListener('registrationError', onError)
+    const regListener = await PushNotifications.addListener(
+      "registration",
+      ({ value }) => {
+        onToken(value);
+      },
+    );
+    const errListener = await PushNotifications.addListener(
+      "registrationError",
+      onError,
+    );
 
-    await PushNotifications.register()
+    await PushNotifications.register();
 
     return () => {
-      regListener.remove()
-      errListener.remove()
-    }
+      regListener.remove();
+      errListener.remove();
+    };
   },
 
   /**
@@ -42,9 +50,12 @@ export const push = {
    * @returns {Promise<() => void>} cleanup
    */
   async onForeground(handler) {
-    if (!isNative) return () => {}
-    const listener = await PushNotifications.addListener('pushNotificationReceived', handler)
-    return () => listener.remove()
+    if (!isNative) return () => {};
+    const listener = await PushNotifications.addListener(
+      "pushNotificationReceived",
+      handler,
+    );
+    return () => listener.remove();
   },
 
   /**
@@ -53,8 +64,11 @@ export const push = {
    * @returns {Promise<() => void>} cleanup
    */
   async onTap(handler) {
-    if (!isNative) return () => {}
-    const listener = await PushNotifications.addListener('pushNotificationActionPerformed', handler)
-    return () => listener.remove()
+    if (!isNative) return () => {};
+    const listener = await PushNotifications.addListener(
+      "pushNotificationActionPerformed",
+      handler,
+    );
+    return () => listener.remove();
   },
-}
+};

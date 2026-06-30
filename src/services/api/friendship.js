@@ -1,14 +1,26 @@
 import { api } from "../../connectors/api.js";
 
-export async function getFriendships(paginated = false, page = 1, pageSize = 20) {
+export async function getFriendships(
+  paginated = false,
+  page = 1,
+  pageSize = 20,
+) {
   return api.get(`/friendships`, { paginated, page, pageSize });
 }
 
-export async function getPendingFriendships(paginated = false, page = 1, pageSize = 20) {
+export async function getPendingFriendships(
+  paginated = false,
+  page = 1,
+  pageSize = 20,
+) {
   return api.get(`/friendships/pending`, { paginated, page, pageSize });
 }
 
-export async function getSentFriendships(paginated = false, page = 1, pageSize = 20) {
+export async function getSentFriendships(
+  paginated = false,
+  page = 1,
+  pageSize = 20,
+) {
   return api.get(`/friendships/sent`, { paginated, page, pageSize });
 }
 

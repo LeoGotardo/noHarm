@@ -8,7 +8,11 @@ export async function getStreakRecord() {
   return api.get(`/streaks/record`);
 }
 
-export async function getStreakHistory(paginated = false, page = 1, pageSize = 20) {
+export async function getStreakHistory(
+  paginated = false,
+  page = 1,
+  pageSize = 20,
+) {
   return api.get(`/streaks/history`, { paginated, page, pageSize });
 }
 
