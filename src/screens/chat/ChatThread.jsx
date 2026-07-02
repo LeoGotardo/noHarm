@@ -1,7 +1,7 @@
 import { hashHue } from "@components";
 import { Avatar, Btn, GeoBackground, Icon } from "@ui";
 import { useEffect, useRef, useState } from "react";
-import { acceptChat, startChat } from "../../services/api/chat.js";
+import { acceptChat, rejectChat, startChat } from "../../services/api/chat.js";
 import { sendMessage as apiSend } from "../../services/api/message.js";
 import { getUser } from "../../services/api/user.js";
 import {
@@ -95,6 +95,15 @@ export function ChatThread({ onBack, chat: initialChat, meId, onOpenProfile }) {
       const updated = await acceptChat(chat.id);
       setChat(updated);
     } catch {}
+  };
+
+  const reject = async () => {
+    if (chat.id) {
+      try {
+        await rejectChat(chat.id);
+      } catch {}
+    }
+    onBack();
   };
 
   const username = otherUser?.username ?? "…";
@@ -278,7 +287,7 @@ export function ChatThread({ onBack, chat: initialChat, meId, onOpenProfile }) {
               to start a conversation.
             </div>
             <div style={{ display: "flex", gap: 10 }}>
-              <Btn kind="outline" full onClick={onBack}>
+              <Btn kind="outline" full onClick={reject}>
                 Ignore
               </Btn>
               <Btn kind="primary" full icon="check" onClick={accept}>

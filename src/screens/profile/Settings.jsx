@@ -1,6 +1,7 @@
 import { BottomSheet, Header, Screen } from "@components";
 import { Btn, Card, Divider, Field, Icon, SectionLabel } from "@ui";
 import { useState } from "react";
+import { deleteMe } from "../../services/api/user.js";
 import { LinkRow } from "./LinkRow.jsx";
 import { ToggleRow } from "./ToggleRow.jsx";
 
@@ -231,9 +232,14 @@ export function Settings({
             full
             disabled={confirmText !== "DELETE"}
             loading={deleting}
-            onClick={() => {
+            onClick={async () => {
               setDeleting(true);
-              setTimeout(onDeleted, 1100);
+              try {
+                await deleteMe();
+              } catch {
+                // Account may already be gone; proceed to the farewell screen
+              }
+              onDeleted();
             }}
           >
             Delete forever

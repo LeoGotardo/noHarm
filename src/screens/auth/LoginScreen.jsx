@@ -1,6 +1,7 @@
 import { GoogleButton, Header, Logo, Screen } from "@components";
 import { Icon } from "@ui";
 import { useState } from "react";
+import { errorMessage } from "../../connectors/api.js";
 import { signIn } from "../../services/api/auth.js";
 
 export function LoginScreen({ onBack, onDone }) {
@@ -23,12 +24,11 @@ export function LoginScreen({ onBack, onDone }) {
       }
       onDone();
     } catch (e) {
-      const msg = e?.body?.detail ?? e?.message ?? null;
       if (e?.status === 403)
         setError("This account has been suspended. Please contact support.");
       else if (e?.status === 404)
         setError("No account found. Try signing up instead.");
-      else setError(msg ?? "Something went wrong. Please try again.");
+      else setError(errorMessage(e));
     } finally {
       setLoading(false);
     }

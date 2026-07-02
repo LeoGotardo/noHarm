@@ -17,6 +17,7 @@ export function PublicProfile({
   onMessage,
   onAdd,
   onAccept,
+  onReject,
   onRemove,
   onBlock,
 }) {
@@ -198,7 +199,15 @@ export function PublicProfile({
           )}
           {rel === "pending_in" && (
             <div style={{ display: "flex", gap: 10 }}>
-              <Btn kind="outline" size="lg" full onClick={() => setRel("none")}>
+              <Btn
+                kind="outline"
+                size="lg"
+                full
+                onClick={() => {
+                  setRel("none");
+                  onReject?.();
+                }}
+              >
                 Decline
               </Btn>
               <Btn

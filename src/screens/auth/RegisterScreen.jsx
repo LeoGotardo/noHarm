@@ -6,6 +6,7 @@ import {
 } from "@components";
 import { Avatar, Field, Icon } from "@ui";
 import { useState } from "react";
+import { errorMessage } from "../../connectors/api.js";
 import { signUp } from "../../services/api/auth.js";
 
 export function RegisterScreen({ onBack, onDone }) {
@@ -32,12 +33,11 @@ export function RegisterScreen({ onBack, onDone }) {
       }
       onDone();
     } catch (e) {
-      const msg = e?.body?.detail ?? e?.message ?? null;
       if (e?.status === 409)
         setError("That username is already taken. Please choose another.");
       else if (e?.status === 422)
         setError("Invalid username. Use only letters, numbers, _ or -.");
-      else setError(msg ?? "Something went wrong. Please try again.");
+      else setError(errorMessage(e));
     } finally {
       setLoading(false);
     }

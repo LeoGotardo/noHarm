@@ -1,7 +1,18 @@
-import { Banner, BottomSheet, Screen, TabBar, Toast } from "@components";
+import { Banner, BottomSheet, hashHue, Screen, TabBar, Toast } from "@components";
 import { Btn, Icon } from "@ui";
 import { useEffect, useMemo, useState } from "react";
+import { errorMessage } from "./connectors/api.js";
 import { tokens } from "./connectors/tokens.js";
+import { signOut } from "./services/api/auth.js";
+import { unregisterDeviceToken } from "./services/api/device.js";
+import {
+  acceptFriendship,
+  blockFriendship,
+  rejectFriendship,
+  removeFriendship,
+  sendFriendRequest,
+} from "./services/api/friendship.js";
+import { getUsers } from "./services/api/user.js";
 import {
   TweakRadio,
   TweakSection,
@@ -350,6 +361,42 @@ export default function App() {
   const reqReceived = reqRecvData.friendships ?? [];
   const reqSent = reqSentData.friendships ?? [];
 
+  // Pool of users for friend search (paginated list, filtered client-side)
+  const [userPool, setUserPool] = useState([]);
+
+  // Resolve the friendship id linking the current user to `userId`, if any
+  const findFriendshipId = (userId) => {
+    const f = friends.find((x) => x.sender === userId || x.reciver === userId);
+    if (f) return f.id;
+    const rin = reqReceived.find((x) => x.sender === userId);
+    if (rin) return rin.id;
+    const rout = reqSent.find((x) => x.reciver === userId);
+    if (rout) return rout.id;
+    return null;
+  };
+
+  const searchPool = useMemo(
+    () =>
+      userPool
+        .filter((u) => u.id !== me?.id)
+        .map((u) => {
+          const isFriend = friends.some(
+            (f) => f.sender === u.id || f.reciver === u.id,
+          );
+          const isPending =
+            reqSent.some((r) => r.reciver === u.id) ||
+            reqReceived.some((r) => r.sender === u.id);
+          return {
+            id: u.id,
+            username: u.username,
+            profile_picture: u.profile_picture ?? null,
+            hue: hashHue(u.username),
+            rel: isFriend ? "friend" : isPending ? "pending" : "none",
+          };
+        }),
+    [userPool, friends, reqSent, reqReceived, me],
+  );
+
   // Count unread messages sent by the other user across all chats
   const chatUnread = useMemo(
     () =>
@@ -432,7 +479,11 @@ export default function App() {
         : isRecv
           ? "pending_in"
           : "none";
-    push("publicProfile", { userId, relation });
+    push("publicProfile", {
+      userId,
+      relation,
+      friendshipId: findFriendshipId(userId),
+    });
   };
 
   const openChat = (chatId) => {
@@ -481,9 +532,22 @@ export default function App() {
     }
   }, [banner]);
 
+  // Load the user directory once in-app, for friend search
+  useEffect(() => {
+    if (phase !== "app") return;
+    getUsers()
+      .then((r) => setUserPool(r.items ?? r.users ?? []))
+      .catch(() => {});
+  }, [phase]);
+
   // ── Streak actions ────────────────────────────────────────────────────────
   const onCheckIn = async () => {
-    await checkIn();
+    try {
+      await checkIn();
+    } catch (e) {
+      showToast(errorMessage(e, "Couldn't check in"), "bell");
+      return;
+    }
     setPulseKey((k) => k + 1);
     if (motion) burstConfetti();
     showToast(`Checked in — day ${days} ✓`);
@@ -491,7 +555,12 @@ export default function App() {
   };
 
   const onCheckinConfirm = async (relapses) => {
-    await performCheckin(relapses);
+    try {
+      await performCheckin(relapses);
+    } catch (e) {
+      showToast(errorMessage(e, "Couldn't check in"), "bell");
+      return;
+    }
     setPulseKey((k) => k + 1);
     if (relapses.length === 0) {
       if (motion) burstConfetti();
@@ -504,14 +573,24 @@ export default function App() {
 
   const onRelapseConfirm = async () => {
     setRelapseOpen(false);
-    await doRelapse();
+    try {
+      await doRelapse();
+    } catch (e) {
+      showToast(errorMessage(e, "Couldn't save that right now"), "bell");
+      return;
+    }
     setPulseKey((k) => k + 1);
     showToast("A new streak begins. Be gentle with yourself.", "heart");
   };
 
   const onStartConfirm = async () => {
     setStartOpen(false);
-    await startFrom(startDate || todayISO());
+    try {
+      await startFrom(startDate || todayISO());
+    } catch (e) {
+      showToast(errorMessage(e, "Couldn't start your streak"), "bell");
+      return;
+    }
     setPulseKey((k) => k + 1);
     if (motion) burstConfetti();
     showToast("Your streak has begun. One day at a time.", "heart");
@@ -570,15 +649,30 @@ export default function App() {
               received={reqReceived}
               sent={reqSent}
               meId={me?.id}
-              onAccept={async () => {
-                await refetchFriends();
-                showToast("Friend added");
+              onAccept={async (fid) => {
+                try {
+                  await acceptFriendship(fid);
+                  await refetchFriends();
+                  showToast("Friend added");
+                } catch (e) {
+                  showToast(errorMessage(e, "Couldn't accept request"), "bell");
+                }
               }}
-              onDecline={async () => {
-                await refetchFriends();
+              onDecline={async (fid) => {
+                try {
+                  await rejectFriendship(fid);
+                  await refetchFriends();
+                } catch (e) {
+                  showToast(errorMessage(e, "Couldn't decline request"), "bell");
+                }
               }}
-              onCancel={async () => {
-                await refetchFriends();
+              onCancel={async (fid) => {
+                try {
+                  await removeFriendship(fid);
+                  await refetchFriends();
+                } catch (e) {
+                  showToast(errorMessage(e, "Couldn't cancel request"), "bell");
+                }
               }}
               onOpenProfile={openProfile}
             />
@@ -588,10 +682,16 @@ export default function App() {
           body = (
             <FriendSearch
               onBack={pop}
-              pool={[]}
+              pool={searchPool}
               onOpenProfile={openProfile}
-              onSendRequest={async () => {
-                showToast("Request sent");
+              onSendRequest={async (userId) => {
+                try {
+                  await sendFriendRequest(userId);
+                  showToast("Request sent");
+                  await refetchFriends();
+                } catch (e) {
+                  showToast(errorMessage(e, "Couldn't send request"), "bell");
+                }
               }}
             />
           );
@@ -607,19 +707,52 @@ export default function App() {
                 messagePerson(top.props.userId);
               }}
               onAdd={async () => {
-                showToast("Request sent");
+                try {
+                  await sendFriendRequest(top.props.userId);
+                  showToast("Request sent");
+                  await refetchFriends();
+                } catch (e) {
+                  showToast(errorMessage(e, "Couldn't send request"), "bell");
+                }
               }}
               onAccept={async () => {
-                await refetchFriends();
-                showToast("Friend added");
+                try {
+                  if (top.props.friendshipId)
+                    await acceptFriendship(top.props.friendshipId);
+                  await refetchFriends();
+                  showToast("Friend added");
+                } catch (e) {
+                  showToast(errorMessage(e, "Couldn't accept request"), "bell");
+                }
+              }}
+              onReject={async () => {
+                try {
+                  if (top.props.friendshipId)
+                    await rejectFriendship(top.props.friendshipId);
+                  await refetchFriends();
+                } catch (e) {
+                  showToast(errorMessage(e, "Couldn't decline request"), "bell");
+                }
               }}
               onRemove={async () => {
-                await refetchFriends();
-                showToast("Friend removed");
+                try {
+                  if (top.props.friendshipId)
+                    await removeFriendship(top.props.friendshipId);
+                  await refetchFriends();
+                  showToast("Friend removed");
+                } catch (e) {
+                  showToast(errorMessage(e, "Couldn't remove friend"), "bell");
+                }
               }}
               onBlock={async () => {
-                await refetchFriends();
-                showToast("User blocked");
+                try {
+                  if (top.props.friendshipId)
+                    await blockFriendship(top.props.friendshipId);
+                  await refetchFriends();
+                  showToast("User blocked");
+                } catch (e) {
+                  showToast(errorMessage(e, "Couldn't block user"), "bell");
+                }
               }}
             />
           );
@@ -665,11 +798,26 @@ export default function App() {
               onToggleMode={() =>
                 setTweak("mode", mode === "dark" ? "light" : "dark")
               }
-              onLogout={() => {
+              onLogout={async () => {
+                // Unregister this device from FCM before dropping the session
+                const fcm = localStorage.getItem("nh_fcm");
+                if (fcm) {
+                  try {
+                    await unregisterDeviceToken(fcm);
+                  } catch {}
+                  localStorage.removeItem("nh_fcm");
+                }
+                try {
+                  await signOut();
+                } catch {
+                  tokens.clear();
+                }
                 setStack([]);
                 setPhase("splash");
               }}
               onDeleted={() => {
+                localStorage.removeItem("nh_fcm");
+                tokens.clear();
                 setStack([]);
                 setPhase("deleted");
               }}
