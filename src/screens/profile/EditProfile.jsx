@@ -1,6 +1,7 @@
 import { Header, Screen, hashHue } from "@components";
 import { Avatar, Field, Icon } from "@ui";
 import { useState } from "react";
+import { errorMessage } from "../../connectors/api.js";
 import { putMe } from "../../services/api/user.js";
 
 export function EditProfile({ me, onBack, onSave }) {
@@ -23,11 +24,10 @@ export function EditProfile({ me, onBack, onSave }) {
       await putMe(username.trim(), me?.profile_picture ?? null);
       onSave();
     } catch (e) {
-      const msg = e?.body?.detail ?? e?.message ?? null;
       if (e?.status === 409) setError("That username is already taken.");
       else if (e?.status === 422)
         setError("Invalid username. Use only letters, numbers, _ or -.");
-      else setError(msg ?? "Could not save. Please try again.");
+      else setError(errorMessage(e, "Could not save. Please try again."));
     } finally {
       setSaving(false);
     }

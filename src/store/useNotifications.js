@@ -56,6 +56,8 @@ export function useNotifications(meId, prefs = {}) {
           if (cancelled) return;
           try {
             await registerDeviceToken(token);
+            // Persist so logout can unregister this device from FCM
+            localStorage.setItem("nh_fcm", token);
           } catch {}
         });
         cleanups.push(unregister);
