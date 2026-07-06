@@ -2,6 +2,7 @@ import { Banner, BottomSheet, hashHue, Screen, TabBar, Toast } from "@components
 import { Btn, Icon } from "@ui";
 import { useEffect, useMemo, useState } from "react";
 import { errorMessage } from "./connectors/api.js";
+import { connect as connectSocket, disconnect as disconnectSocket } from "./connectors/socket.js";
 import { tokens } from "./connectors/tokens.js";
 import { signOut } from "./services/api/auth.js";
 import { unregisterDeviceToken } from "./services/api/device.js";
@@ -38,6 +39,7 @@ import { EditProfile } from "./screens/profile/EditProfile.jsx";
 import { MyProfile } from "./screens/profile/MyProfile.jsx";
 import { Settings } from "./screens/profile/Settings.jsx";
 import { checkinReminder } from "./services/checkinReminder.js";
+import { cacheClearAll } from "./store/cache.js";
 import { useBadges } from "./store/useBadges.js";
 import { useChats } from "./store/useChats.js";
 import { useCheckinReminder } from "./store/useCheckinReminder.js";
@@ -48,7 +50,7 @@ import { useStreak } from "./store/useStreak.js";
 import { useUser } from "./store/useUser.js";
 
 // ── Domain constants (see CLAUDE.md for full status code reference) ───────────
-const STATUS_CONSTANTS = import.meta.env.VITE_STATUS_CONSTANTS;
+import { STATUS_CONSTANTS } from "./services/constants.js";
 
 // ── Theme defaults ────────────────────────────────────────────────────────────
 const TWEAK_DEFAULTS = {
@@ -347,7 +349,7 @@ export default function App() {
     requestsSent: reqSentData,
     refetch: refetchFriends,
   } = useFriends();
-  const { chats: chatData } = useChats();
+  const { chats: chatData, markChatRead } = useChats(me?.id);
   const { badges: badgeData } = useBadges();
 
   // ── Derived data ──────────────────────────────────────────────────────────
@@ -398,18 +400,10 @@ export default function App() {
   );
 
   // Count unread messages sent by the other user across all chats
+  // Sum of unread across all chats (backend already excludes my own messages).
   const chatUnread = useMemo(
-    () =>
-      chatList.reduce((n, c) => {
-        const msgs = c.messages?.messages ?? [];
-        return (
-          n +
-          msgs.filter(
-            (m) => m.status === STATUS_CONSTANTS.unread && m.sender !== me?.id,
-          ).length
-        );
-      }, 0),
-    [chatList, me],
+    () => chatList.reduce((n, c) => n + (c.unread_count ?? 0), 0),
+    [chatList],
   );
 
   // Merge API badge list with earned status derived from current streak days
@@ -426,8 +420,8 @@ export default function App() {
     liveBadges.find((b) => !b.earned) ?? liveBadges[liveBadges.length - 1];
   const milestone = nextBadge?.milestone ?? 0;
 
-  const startLabel = streak?.start
-    ? new Date(streak.start).toLocaleDateString("en-US", {
+  const startLabel = streak?.start_at
+    ? new Date(streak.start_at).toLocaleDateString("en-US", {
         month: "long",
         day: "numeric",
         year: "numeric",
@@ -446,6 +440,27 @@ export default function App() {
   const [phase, setPhase] = useState(() =>
     tokens.getAccess() ? "app" : "splash",
   );
+
+  // Open the realtime socket during the FIRST render (before any subscribe
+  // effect below runs) so restored sessions have a live socket for every WS
+  // listener to attach to. Without this the socket object never existed and all
+  // onMessage / presence / friend subscriptions silently no-op'd.
+  useState(() => {
+    const token = tokens.getAccess();
+    if (token) connectSocket(token);
+    return null;
+  });
+
+  // React to login/logout during the session: connect on entering the app,
+  // tear down when the session ends (logout reloads the page; delete does not).
+  useEffect(() => {
+    if (phase === "app") {
+      const token = tokens.getAccess();
+      if (token) connectSocket(token);
+    } else if (phase === "splash" || phase === "deleted") {
+      disconnectSocket();
+    }
+  }, [phase]);
   const { prefs: notifPrefs, set: setNotifPref } = useNotifPrefs();
   const { requestPermission: enableNotifications, granted: notifGranted } =
     useNotifications(phase === "app" ? me?.id : null, notifPrefs);
@@ -610,8 +625,9 @@ export default function App() {
       <RegisterScreen
         onBack={() => setPhase("splash")}
         onDone={() => {
-          setPhase("app");
-          resetTo("home");
+          // Reboot so store hooks fetch fresh for the just-authed account.
+          cacheClearAll();
+          window.location.reload();
         }}
       />
     );
@@ -620,8 +636,9 @@ export default function App() {
       <LoginScreen
         onBack={() => setPhase("splash")}
         onDone={() => {
-          setPhase("app");
-          resetTo("home");
+          // Reboot so store hooks fetch fresh for the just-authed account.
+          cacheClearAll();
+          window.location.reload();
         }}
       />
     );
@@ -764,6 +781,7 @@ export default function App() {
               chat={top.props.chat}
               meId={me?.id}
               onOpenProfile={openProfile}
+              onRead={(chatId) => markChatRead(chatId)}
             />
           );
           break;
@@ -812,12 +830,15 @@ export default function App() {
                 } catch {
                   tokens.clear();
                 }
-                setStack([]);
-                setPhase("splash");
+                // Drop this account's cached data, then reboot so every store
+                // hook re-initialises empty (no stale data on next login).
+                cacheClearAll();
+                window.location.reload();
               }}
               onDeleted={() => {
                 localStorage.removeItem("nh_fcm");
                 tokens.clear();
+                cacheClearAll();
                 setStack([]);
                 setPhase("deleted");
               }}
@@ -839,12 +860,12 @@ export default function App() {
             <Dashboard
               me={me}
               days={days}
+              streakStart={streak?.start_at ?? null}
               hasStreak={!!streak}
               checkedIn={checkedIn}
               milestone={milestone}
               startLabel={startLabel}
               personalRecord={personalRecord}
-              totalStreaks={0}
               nextBadgeName={nextBadge?.name ?? ""}
               pulseKey={pulseKey}
               onCheckIn={onCheckIn}
@@ -966,7 +987,7 @@ export default function App() {
             onChange={resetTo}
             badges={{
               friends: reqReceived.length || undefined,
-              chat: chatUnread || undefined,
+              chat: chatUnread ? (chatUnread > 99 ? "99+" : chatUnread) : undefined,
             }}
           />
         )}

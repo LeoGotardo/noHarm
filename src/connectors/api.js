@@ -1,3 +1,4 @@
+import { reauth as reauthSocket } from "./socket.js";
 import { tokens } from "./tokens.js";
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? "";
@@ -86,6 +87,8 @@ async function request(method, path, body, retry = true, params) {
     });
     const refreshed = await parseResponse(refreshRes);
     tokens.set(refreshed);
+    // Reconnect the socket with the fresh access token (old one is expiring).
+    reauthSocket(tokens.getAccess());
 
     return request(method, path, body, false, params);
   }

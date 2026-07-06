@@ -1,8 +1,8 @@
 import { fmtTime, hashHue } from "@components";
 import { Avatar } from "@ui";
+import { STATUS_CONSTANTS } from "../../services/constants.js";
 
 export function ChatRow({ c, meId, users, onOpen, onOpenProfile }) {
-  const STATUS_CONSTANTS = import.meta.env.VITE_STATUS_CONSTANTS;
 
   const otherId = c.sender === meId ? c.reciver : c.sender;
   const u = users[otherId];
@@ -10,12 +10,11 @@ export function ChatRow({ c, meId, users, onOpen, onOpenProfile }) {
   const hue = hashHue(u?.username ?? otherId ?? "");
   const src = u?.profile_picture ?? null;
   const pending = c.status === STATUS_CONSTANTS.pending;
-  const lastMsg = c.lastMessage ?? c.messages?.messages?.slice(-1)[0];
+  // Backend provides last_message + unread_count per chat (GET /chats).
+  const lastMsg = c.last_message ?? c.lastMessage;
   const lastText = lastMsg?.message ?? "";
   const lastTime = fmtTime(lastMsg?.send_at ?? lastMsg?.created_at);
-  const unread = (c.messages?.messages ?? []).filter(
-    (m) => m.status === STATUS_CONSTANTS.unread,
-  ).length.status;
+  const unread = c.unread_count ?? 0;
   return (
     <div
       onClick={() => onOpen(c.id)}

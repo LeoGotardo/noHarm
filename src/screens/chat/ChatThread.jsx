@@ -1,8 +1,11 @@
 import { hashHue } from "@components";
 import { Avatar, Btn, GeoBackground, Icon } from "@ui";
 import { useEffect, useRef, useState } from "react";
-import { acceptChat, rejectChat, startChat } from "../../services/api/chat.js";
-import { sendMessage as apiSend } from "../../services/api/message.js";
+import { acceptChat, rejectChat } from "../../services/api/chat.js";
+import {
+  readAllMessages,
+  sendMessage as apiSend,
+} from "../../services/api/message.js";
 import { getUser } from "../../services/api/user.js";
 import {
   joinChat,
@@ -11,11 +14,17 @@ import {
   onTypingIndicator,
 } from "../../services/ws/chat.js";
 import { useChatThread } from "../../store/useChats.js";
+import { STATUS_CONSTANTS } from "../../services/constants.js";
 import { Bubble } from "./Bubble.jsx";
 import { TypingBubble } from "./TypingBubble.jsx";
 
-export function ChatThread({ onBack, chat: initialChat, meId, onOpenProfile }) {
-  const STATUS_CONSTANTS = import.meta.env.VITE_STATUS_CONSTANTS;
+export function ChatThread({
+  onBack,
+  chat: initialChat,
+  meId,
+  onOpenProfile,
+  onRead,
+}) {
 
   const [chat, setChat] = useState(initialChat);
   const [otherUser, setOtherUser] = useState(null);
@@ -48,9 +57,18 @@ export function ChatThread({ onBack, chat: initialChat, meId, onOpenProfile }) {
     try {
       joinChat(chat.id);
     } catch {}
+    // Mark read: WS notifies the other user live; REST is the source of truth
+    // and works even when the socket is down. Refresh statuses + clear the
+    // list badge once persisted.
     try {
       markRead(chat.id);
     } catch {}
+    readAllMessages(chat.id)
+      .then(() => {
+        refetch();
+        onRead?.(chat.id);
+      })
+      .catch(() => {});
     let unsub;
     try {
       unsub = onTypingIndicator(({ chatId, userId, isTyping }) => {
@@ -74,18 +92,27 @@ export function ChatThread({ onBack, chat: initialChat, meId, onOpenProfile }) {
     setInput("");
     setSending(true);
     try {
-      let chatId = chat.id;
-      if (!chatId) {
-        const newChat = await startChat(otherId);
-        setChat(newChat);
-        chatId = newChat.id;
-        try {
-          joinChat(chatId);
-        } catch {}
+      // Existing chat → send by id. No chat yet → send by user; backend creates
+      // the chat and returns the message carrying its parent `chat` id.
+      const sent = chat.id
+        ? await apiSend({ chatId: chat.id, content })
+        : await apiSend({ recipientId: otherId, content });
+      if (!chat.id && sent?.chat) {
+        // Adopt the freshly created chat so the thread joins its room and
+        // useChatThread reloads history for the new id.
+        setChat((c) => ({
+          ...c,
+          id: sent.chat,
+          status: STATUS_CONSTANTS.enabled,
+        }));
+      } else {
+        await refetch();
       }
-      await apiSend(chatId, content);
-      await refetch();
-    } catch {}
+    } catch (err) {
+      // Surface the failure and put the text back so it isn't lost
+      console.error("[ChatThread] send failed:", err);
+      setInput(content);
+    }
     setSending(false);
   };
 

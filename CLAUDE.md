@@ -14,7 +14,7 @@ npm run build    # production build → dist/
 npm run preview  # serve dist/ locally
 ```
 
-No test runner, no lint script. Open `http://localhost:5173` after `npm run dev`.
+No test runner, no lint script. Open `http://localhost:5173` after `npm run dev`. `TESTING.md` is a manual QA checklist (Portuguese) organised by domain in use-flow order — update it when adding/changing user-facing flows.
 
 Env vars: `VITE_API_URL` (REST base URL) and `VITE_SOCKET_URL` (Socket.IO URL, falls back to `VITE_API_URL`).
 
@@ -26,9 +26,9 @@ Env vars: `VITE_API_URL` (REST base URL) and `VITE_SOCKET_URL` (Socket.IO URL, f
 
 **Standalone demo**: `NoHarm.html` / `NoHarm-standalone.html` — CDN-loaded React + Babel, no bundler. Not the active development target.
 
-**Import aliases** (`vite.config.js`): `@components` → `src/components`, `@ui` → `src/ui`.
+**Import aliases** (`vite.config.js`): `@components` → `src/components`, `@ui` → `src/ui`. Note `tsconfig.json` also declares `@/*` → `src/*`, but vite does **not** resolve it — `@/…` imports build-break. Use only `@components`/`@ui` or relative paths.
 
-**Stale docs warning**: `README.md` and `AGENTS.md` are leftover Expo boilerplate. This project is **not** Expo — it's Vite + React + Capacitor. Ignore their Expo instructions.
+**Stale docs warning**: `README.md`, `AGENTS.md`, and `scripts/reset-project.js` are leftover Expo boilerplate. This project is **not** Expo — it's Vite + React + Capacitor. Ignore their Expo instructions.
 
 ### Layer diagram
 
