@@ -1,56 +1,63 @@
-# Welcome to your Expo app 👋
+# NoHarm
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+NoHarm is an addiction recovery tracker. The core loop: register → start a streak → daily check-in → earn milestone badges → connect with friends for accountability → 1-on-1 chat.
 
-## Get started
+## Tech stack
 
-1. Install dependencies
+- **Vite + React 19** SPA (no router library — custom stack-on-tabs navigation)
+- **Capacitor** wraps the web build for iOS/Android (FCM push notifications, scheduled local reminders)
+- **Firebase Auth** for identity, backed by an app-issued JWT (access + refresh tokens)
+- **Socket.IO** for realtime chat, presence, and friend events
 
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Getting started
 
 ```bash
-npm run reset-project
+npm install
+npm run dev      # Vite dev server with hot reload → http://localhost:5173
+npm run build     # production build → dist/
+npm run preview   # serve dist/ locally
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+There is no test runner or lint script configured. `TESTING.md` is a manual QA checklist (in Portuguese) for exercising every user-facing flow.
 
-### Other setup steps
+### Environment variables
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+| Variable          | Purpose                                               |
+| ----------------- | ----------------------------------------------------- |
+| `VITE_API_URL`    | REST API base URL                                     |
+| `VITE_SOCKET_URL` | Socket.IO URL (falls back to `VITE_API_URL` if unset) |
 
-## Learn more
+## Project structure
 
-To learn more about developing your project with Expo, look at the following resources:
+```
+src/
+  app.jsx          # Root component: nav state machine, theme wiring, routing
+  main.jsx         # Mounts <App>, imports theme.css
+  theme.css        # CSS custom properties for the four theme variants
+  screens/         # React UI, one folder per domain (auth, home, friends, chat, badges, profile)
+  ui/               # Low-level primitives (Icon, Avatar, Btn, Card, Field, ...)
+  components/      # Composite widgets (Screen, Header, TabBar, StreakRing, ...)
+  store/            # React hooks: data fetch + cache + WS subscriptions
+  services/         # Domain logic (api/, ws/, notifications, push)
+  connectors/       # Transport layer: REST client, Socket.IO singleton, Firebase, token storage
+  data/             # Mock data (used before/without a live backend)
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+See `CLAUDE.md` for the full architecture breakdown and domain rules (streaks, friendship states, chat lifecycle, notification IDs), and `uploads/FRONTEND_DESIGN_BRIEF.md` for API shapes.
 
-## Join the community
+## Backend
 
-Join our community of developers creating universal apps.
+This app talks to [`noHarmBack`](../noHarmBack/), a separate sibling repository — a FastAPI + PostgreSQL service exposing the REST API (`VITE_API_URL`) and Socket.IO server (`VITE_SOCKET_URL`) this frontend consumes. See its `docs/README.md` for architecture, auth flow, and API details.
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## Mobile
+
+The web build is wrapped with Capacitor for iOS/Android (`capacitor.config.json`). Uses `@capacitor/push-notifications` for FCM/APNs and `@capacitor/local-notifications` for the scheduled daily check-in reminder.
+
+## Other files
+
+- `NoHarm.html` / `NoHarm-standalone.html` — a standalone CDN-loaded React+Babel demo, not the active development target.
+- This project was originally bootstrapped from an Expo template. `AGENTS.md` and `scripts/reset-project.js` are leftovers from that and no longer apply — the project is Vite + React + Capacitor, not Expo.
+
+## License
+
+MIT — see `LICENSE`.
