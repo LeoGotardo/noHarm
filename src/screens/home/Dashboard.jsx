@@ -1,16 +1,109 @@
+import { useEffect, useState } from "react";
 import { Screen, StreakRing, hashHue } from "@components";
 import { Avatar, Btn, Card, Icon } from "@ui";
 import { StatTile } from "./StatTile.jsx";
 
+function useElapsed(start) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!start) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [start]);
+  if (!start) return null;
+  const from = new Date(start);
+  const to = new Date(now);
+  if (to <= from)
+    return { years: 0, months: 0, days: 0, hours: 0, minutes: 0, seconds: 0 };
+
+  let seconds = to.getSeconds() - from.getSeconds();
+  let minutes = to.getMinutes() - from.getMinutes();
+  let hours = to.getHours() - from.getHours();
+  let days = to.getDate() - from.getDate();
+  let months = to.getMonth() - from.getMonth();
+  let years = to.getFullYear() - from.getFullYear();
+
+  if (seconds < 0) (seconds += 60), minutes--;
+  if (minutes < 0) (minutes += 60), hours--;
+  if (hours < 0) (hours += 24), days--;
+  if (days < 0) {
+    // borrow days from the previous month
+    days += new Date(to.getFullYear(), to.getMonth(), 0).getDate();
+    months--;
+  }
+  if (months < 0) (months += 12), years--;
+
+  return { years, months, days, hours, minutes, seconds };
+}
+
+function StreakTimer({ start }) {
+  const t = useElapsed(start) ?? {
+    years: 0,
+    months: 0,
+    days: 0,
+    hours: 0,
+    minutes: 0,
+    seconds: 0,
+  };
+  // Always show d/h/m/s; prepend y/mo once a larger unit becomes non-zero.
+  const parts = [];
+  if (t.years > 0) parts.push([t.years, "y"]);
+  if (t.years > 0 || t.months > 0) parts.push([t.months, "mo"]);
+  parts.push([t.days, "d"], [t.hours, "h"], [t.minutes, "m"], [t.seconds, "s"]);
+  const big = parts.length > 4 ? 26 : 34;
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "baseline",
+        justifyContent: "center",
+        flexWrap: "wrap",
+        gap: "4px 8px",
+        maxWidth: 200,
+      }}
+    >
+      {parts.map(([val, unit], i) => (
+        <div
+          key={unit}
+          style={{ display: "flex", alignItems: "baseline", gap: 1 }}
+        >
+          <span
+            style={{
+              fontFamily: "var(--font-display)",
+              fontWeight: "var(--display-weight)",
+              fontSize: big,
+              lineHeight: 1,
+              color: "var(--ink)",
+              letterSpacing: -0.5,
+              fontVariantNumeric: "tabular-nums",
+            }}
+          >
+            {i === 0 ? val : String(val).padStart(2, "0")}
+          </span>
+          <span
+            style={{
+              fontSize: 13,
+              fontWeight: 700,
+              color: "var(--ink-3)",
+            }}
+          >
+            {unit}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function Dashboard({
   me,
   days,
+  streakStart,
   hasStreak,
   checkedIn,
   milestone,
   startLabel,
   personalRecord,
-  totalStreaks,
   nextBadgeName,
   onCheckIn,
   onRelapse,
@@ -115,7 +208,8 @@ export function Dashboard({
             <StreakRing
               days={days}
               milestone={milestone}
-              label={days === 1 ? "clean day" : "clean days"}
+              display={<StreakTimer start={streakStart} />}
+              label="clean and counting"
               sub={
                 days === 0 ? "A fresh start begins now" : `Since ${startLabel}`
               }
@@ -238,14 +332,6 @@ export function Dashboard({
                 }}
               />
               <StatTile value={personalRecord} label="Personal best" />
-              <div
-                style={{
-                  width: 1,
-                  background: "var(--border)",
-                  margin: "4px 0",
-                }}
-              />
-              <StatTile value={totalStreaks} label="Total streaks" />
             </Card>
           </div>
 
@@ -280,7 +366,7 @@ export function Dashboard({
                   Streak history
                 </div>
                 <div style={{ fontSize: 12.5, color: "var(--ink-3)" }}>
-                  {totalStreaks} streaks · best {personalRecord} days
+                  best {personalRecord} days
                 </div>
               </div>
               <Icon name="chevR" size={18} color="var(--ink-3)" />

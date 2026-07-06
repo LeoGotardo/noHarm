@@ -26,8 +26,12 @@ export async function getMessage(messageId) {
   return api.get(`/messages/${messageId}`);
 }
 
-export async function sendMessage(chatId, content) {
-  return api.post("/messages", { chatId, content });
+// Send a message either to an existing chat (chatId) or straight to a user
+// (recipientId) — the backend creates the chat on first message. Pass exactly
+// one of chatId / recipientId; the backend 422s on both or neither.
+export async function sendMessage({ chatId, recipientId, content }) {
+  const body = chatId ? { chatId, content } : { recipientId, content };
+  return api.post("/messages", body);
 }
 
 export async function readMessage(messageId) {

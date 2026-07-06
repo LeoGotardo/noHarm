@@ -1,14 +1,13 @@
 import { EmptyState, Header, Screen } from "@components";
 import { Card, Divider, SectionLabel } from "@ui";
 import { Fragment, useEffect, useRef, useState } from "react";
+import { STATUS_CONSTANTS } from "../../services/constants.js";
 import { getUser } from "../../services/api/user.js";
 import { ChatRow } from "./ChatRow.jsx";
 
 export function ChatList({ chats, meId, onOpen, onOpenProfile }) {
   const [users, setUsers] = useState({});
   const fetched = useRef(new Set());
-
-  const STATUS_CONSTANTS = import.meta.env.VITE_STATUS_CONSTANTS;
 
   useEffect(() => {
     chats.forEach((c) => {

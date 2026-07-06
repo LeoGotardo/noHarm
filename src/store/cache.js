@@ -24,6 +24,15 @@ export function cacheClear(key) {
   localStorage.removeItem(PREFIX + key);
 }
 
+/** Wipes every cached entry (all keys under the nh_cache_ prefix). */
+export function cacheClearAll() {
+  try {
+    for (const k of Object.keys(localStorage)) {
+      if (k.startsWith(PREFIX)) localStorage.removeItem(k);
+    }
+  } catch {}
+}
+
 /** Returns true if cache exists and is younger than maxAgeMs. */
 export function cacheValid(key, maxAgeMs) {
   const c = cacheRead(key);
