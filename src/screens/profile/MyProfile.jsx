@@ -1,4 +1,5 @@
 import { BadgeMedallion, hashHue, Header, Screen } from "@components";
+import { milestoneDays } from "../../services/badges.js";
 import { Avatar, Btn, Card, Icon } from "@ui";
 
 export function MyProfile({
@@ -149,7 +150,7 @@ export function MyProfile({
                   background: "var(--surface)",
                 }}
               >
-                <BadgeMedallion milestone={b.milestone} earned size={40} />
+                <BadgeMedallion milestone={milestoneDays(b)} earned size={40} />
               </div>
             ))}
             {earnedBadges.length === 0 && (

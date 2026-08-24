@@ -144,8 +144,10 @@ export function Settings({
         <div>
           <SectionLabel>Account</SectionLabel>
           <Card pad={8}>
-            <LinkRow icon="lock" label="Privacy & safety" onClick={() => {}} />
-            <LinkRow icon="heart" label="Crisis resources" onClick={() => {}} />
+            {/* No destination screens exist yet — marked "Soon" instead of
+                looking tappable and doing nothing. */}
+            <LinkRow icon="lock" label="Privacy & safety" soon />
+            <LinkRow icon="heart" label="Crisis resources" soon />
             <LinkRow icon="logout" label="Log out" onClick={onLogout} last />
           </Card>
         </div>

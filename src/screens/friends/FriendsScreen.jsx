@@ -62,22 +62,68 @@ export function FriendsScreen({
         title="Friends"
         sub={`${enriched.length} in your circle`}
         right={
-          <button
-            onClick={onOpenSearch}
-            style={{
-              width: 42,
-              height: 42,
-              borderRadius: 13,
-              background: "var(--surface)",
-              border: "1px solid var(--border)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-            }}
-          >
-            <Icon name="plus" size={22} color="var(--ink)" />
-          </button>
+          <>
+            {/* Requests live here too, not only behind the received-requests
+                card — otherwise the "Sent" tab is unreachable with an empty
+                inbox. */}
+            <button
+              aria-label="Friend requests"
+              onClick={onOpenRequests}
+              style={{
+                position: "relative",
+                width: 42,
+                height: 42,
+                borderRadius: 13,
+                background: "var(--surface)",
+                border: "1px solid var(--border)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+              }}
+            >
+              <Icon name="bell" size={20} color="var(--ink)" />
+              {requestCount > 0 && (
+                <span
+                  style={{
+                    position: "absolute",
+                    top: -4,
+                    right: -4,
+                    minWidth: 18,
+                    height: 18,
+                    padding: "0 5px",
+                    borderRadius: 99,
+                    background: "var(--accent)",
+                    color: "#fff",
+                    fontSize: 11,
+                    fontWeight: 700,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  {requestCount}
+                </span>
+              )}
+            </button>
+            <button
+              aria-label="Add friends"
+              onClick={onOpenSearch}
+              style={{
+                width: 42,
+                height: 42,
+                borderRadius: 13,
+                background: "var(--surface)",
+                border: "1px solid var(--border)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+              }}
+            >
+              <Icon name="plus" size={22} color="var(--ink)" />
+            </button>
+          </>
         }
       />
 

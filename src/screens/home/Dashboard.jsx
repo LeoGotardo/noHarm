@@ -114,6 +114,12 @@ export function Dashboard({
 }) {
   const isRecord = days >= personalRecord;
   const toRecord = personalRecord - days;
+  // null when the next badge's milestone isn't a day count — the hint is
+  // dropped rather than rendered as NaN.
+  const toMilestone =
+    typeof milestone === "number" && Number.isFinite(milestone)
+      ? Math.max(0, milestone - days)
+      : null;
   return (
     <Screen geo="home" pulseKey={pulseKey} padTop={64}>
       <div
@@ -252,16 +258,23 @@ export function Dashboard({
           >
             {isRecord ? (
               <>You're in record territory — keep going.</>
-            ) : (
+            ) : toMilestone != null && nextBadgeName ? (
               <>
                 <strong style={{ color: "var(--primary)", fontWeight: 700 }}>
-                  {milestone - days} days
+                  {toMilestone} {toMilestone === 1 ? "day" : "days"}
                 </strong>{" "}
                 to your{" "}
                 <strong style={{ color: "var(--ink)", fontWeight: 600 }}>
                   {nextBadgeName}
                 </strong>{" "}
                 badge · {toRecord} to your record
+              </>
+            ) : (
+              <>
+                <strong style={{ color: "var(--primary)", fontWeight: 700 }}>
+                  {toRecord} {toRecord === 1 ? "day" : "days"}
+                </strong>{" "}
+                to your personal record
               </>
             )}
           </div>

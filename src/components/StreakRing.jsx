@@ -95,7 +95,13 @@ export function StreakRing({
   );
 }
 
+/**
+ * @param {number|null} milestone day count, or null when the badge's milestone
+ *   isn't expressible in days (the API sends a date-time) — the face then falls
+ *   back to an icon instead of printing the raw value.
+ */
 export function BadgeMedallion({ milestone, earned, size = 84 }) {
+  const days = typeof milestone === "number" && Number.isFinite(milestone) ? milestone : null;
   const ringColor = earned ? "var(--primary)" : "var(--ink-3)";
   const faceBg = earned ? "var(--primary-soft)" : "var(--surface-2)";
   const txt = earned ? "var(--primary)" : "var(--ink-3)";
@@ -137,29 +143,35 @@ export function BadgeMedallion({ milestone, earned, size = 84 }) {
           justifyContent: "center",
         }}
       >
-        <div
-          style={{
-            fontFamily: "var(--font-display)",
-            fontWeight: 800,
-            fontSize: size * 0.26,
-            color: txt,
-            lineHeight: 1,
-          }}
-        >
-          {milestone >= 365 ? "1" : milestone}
-        </div>
-        <div
-          style={{
-            fontSize: size * 0.105,
-            fontWeight: 700,
-            color: txt,
-            letterSpacing: 1,
-            textTransform: "uppercase",
-            marginTop: 1,
-          }}
-        >
-          {milestone >= 365 ? "year" : milestone === 1 ? "day" : "days"}
-        </div>
+        {days == null ? (
+          <Icon name="badges" size={size * 0.36} color={txt} sw={1.6} />
+        ) : (
+          <>
+            <div
+              style={{
+                fontFamily: "var(--font-display)",
+                fontWeight: 800,
+                fontSize: size * 0.26,
+                color: txt,
+                lineHeight: 1,
+              }}
+            >
+              {days >= 365 ? "1" : days}
+            </div>
+            <div
+              style={{
+                fontSize: size * 0.105,
+                fontWeight: 700,
+                color: txt,
+                letterSpacing: 1,
+                textTransform: "uppercase",
+                marginTop: 1,
+              }}
+            >
+              {days >= 365 ? "year" : days === 1 ? "day" : "days"}
+            </div>
+          </>
+        )}
       </div>
       {!earned && (
         <div

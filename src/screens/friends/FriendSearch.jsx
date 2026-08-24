@@ -1,8 +1,15 @@
 import { EmptyState, Header, PersonRow, Screen } from "@components";
 import { Card, Divider, Field, Icon } from "@ui";
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 
-export function FriendSearch({ onBack, pool, onOpenProfile, onSendRequest }) {
+export function FriendSearch({
+  onBack,
+  pool,
+  poolComplete = true,
+  onLoadMore,
+  onOpenProfile,
+  onSendRequest,
+}) {
   const [q, setQ] = useState("");
   const [sentTo, setSentTo] = useState({});
   const trimmed = q.trim().toLowerCase();
@@ -10,6 +17,24 @@ export function FriendSearch({ onBack, pool, onOpenProfile, onSendRequest }) {
     trimmed.length < 2
       ? []
       : pool.filter((p) => p.username.toLowerCase().includes(trimmed));
+
+  // There is no search endpoint, so the directory is filtered locally. When the
+  // loaded slice has no match we widen it a page at a time until something
+  // turns up or the directory runs out — otherwise anyone past the first page
+  // would be unfindable.
+  const searching = trimmed.length >= 2 && results.length === 0 && !poolComplete;
+  useEffect(() => {
+    if (!searching || !onLoadMore) return;
+    let cancelled = false;
+    (async () => {
+      const more = await onLoadMore();
+      if (cancelled || !more) return;
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [searching, pool.length, onLoadMore]);
+
   return (
     <Screen geo="friends" padTop={56}>
       <Header title="Add friends" onBack={onBack} />
@@ -34,6 +59,14 @@ export function FriendSearch({ onBack, pool, onOpenProfile, onSendRequest }) {
                 Usernames are private — only exact matches show.
               </>
             }
+          />
+        ) : searching ? (
+          <EmptyState
+            icon="search"
+            iconSize={32}
+            pad="50px 30px"
+            title="Searching…"
+            sub="Looking through the directory."
           />
         ) : results.length === 0 ? (
           <EmptyState

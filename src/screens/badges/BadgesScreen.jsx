@@ -1,9 +1,17 @@
 import { BadgeMedallion, Header, Screen } from "@components";
 import { Card } from "@ui";
+import {
+  badgeDescription,
+  badgeProgress,
+  daysToGo,
+  milestoneDays,
+} from "../../services/badges.js";
 
 export function BadgesScreen({ badges, currentDays, onOpen }) {
   const earned = badges.filter((b) => b.earned);
   const next = badges.find((b) => !b.earned);
+  const nextProgress = next ? badgeProgress(next, currentDays) : null;
+  const nextRemaining = next ? daysToGo(next, currentDays) : null;
   return (
     <Screen geo="badges" padTop={56}>
       <Header
@@ -16,7 +24,7 @@ export function BadgesScreen({ badges, currentDays, onOpen }) {
         <div style={{ padding: "14px 20px 0" }}>
           <Card style={{ display: "flex", alignItems: "center", gap: 16 }}>
             <BadgeMedallion
-              milestone={next.milestone}
+              milestone={milestoneDays(next)}
               earned={false}
               size={64}
             />
@@ -31,31 +39,46 @@ export function BadgesScreen({ badges, currentDays, onOpen }) {
               >
                 {next.name}
               </div>
-              <div style={{ marginTop: 9 }}>
-                <div
-                  style={{
-                    height: 7,
-                    borderRadius: 99,
-                    background: "var(--ring-track)",
-                    overflow: "hidden",
-                  }}
-                >
+              {/* A day count and a progress bar are only meaningful when the
+                  milestone reads as a number — see services/badges.js. */}
+              {nextProgress != null ? (
+                <div style={{ marginTop: 9 }}>
                   <div
                     style={{
-                      height: "100%",
-                      width: `${Math.min(100, (currentDays / next.milestone) * 100)}%`,
-                      background: "var(--primary)",
+                      height: 7,
                       borderRadius: 99,
-                      transition: "width 1s cubic-bezier(.3,.8,.3,1)",
+                      background: "var(--ring-track)",
+                      overflow: "hidden",
                     }}
-                  />
+                  >
+                    <div
+                      style={{
+                        height: "100%",
+                        width: `${nextProgress * 100}%`,
+                        background: "var(--primary)",
+                        borderRadius: 99,
+                        transition: "width 1s cubic-bezier(.3,.8,.3,1)",
+                      }}
+                    />
+                  </div>
+                  <div
+                    style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 6 }}
+                  >
+                    {nextRemaining} {nextRemaining === 1 ? "day" : "days"} to go
+                  </div>
                 </div>
+              ) : (
                 <div
-                  style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 6 }}
+                  style={{
+                    fontSize: 12.5,
+                    color: "var(--ink-3)",
+                    marginTop: 7,
+                    lineHeight: 1.45,
+                  }}
                 >
-                  {next.milestone - currentDays} days to go
+                  {badgeDescription(next)}
                 </div>
-              </div>
+              )}
             </div>
           </Card>
         </div>
@@ -99,7 +122,7 @@ export function BadgesScreen({ badges, currentDays, onOpen }) {
               }}
             >
               <BadgeMedallion
-                milestone={b.milestone}
+                milestone={milestoneDays(b)}
                 earned={!!b.earned}
                 size={82}
               />

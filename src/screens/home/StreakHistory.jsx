@@ -112,7 +112,7 @@ export function StreakHistory({ onBack, currentDays, currentStart, empty }) {
           </Card>
         )}
 
-        {empty && past.length === 0 ? (
+        {past.length === 0 ? (
           <EmptyState
             icon="flame"
             iconBg="var(--primary-soft)"
@@ -120,7 +120,11 @@ export function StreakHistory({ onBack, currentDays, currentStart, empty }) {
             iconSw={1.4}
             round
             pad="60px 30px"
-            title="Your first streak is still going strong!"
+            title={
+              empty
+                ? "No streaks yet"
+                : "Your first streak is still going strong!"
+            }
             sub="Past streaks will appear here. For now, focus on today."
           />
         ) : (
