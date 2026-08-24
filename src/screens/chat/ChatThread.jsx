@@ -12,6 +12,7 @@ import {
   leaveChat,
   markRead,
   onTypingIndicator,
+  setTyping,
 } from "../../services/ws/chat.js";
 import { useChatThread } from "../../store/useChats.js";
 import { STATUS_CONSTANTS } from "../../services/constants.js";
@@ -30,8 +31,12 @@ export function ChatThread({
   const [otherUser, setOtherUser] = useState(null);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
-  const [typing, setTyping] = useState(false);
+  const [typing, setPeerTyping] = useState(false);
   const scrollRef = useRef(null);
+  // Outgoing typing indicator: emitted on the first keystroke, then held down
+  // by a rolling timer so we send one "start" and one "stop" per burst.
+  const typingSentRef = useRef(false);
+  const typingTimerRef = useRef(null);
 
   const otherId = chat.sender === meId ? chat.reciver : chat.sender;
   const { messages: msgData, loading, refetch } = useChatThread(chat.id);
@@ -72,10 +77,11 @@ export function ChatThread({
     let unsub;
     try {
       unsub = onTypingIndicator(({ chatId, userId, isTyping }) => {
-        if (chatId === chat.id && userId !== meId) setTyping(isTyping);
+        if (chatId === chat.id && userId !== meId) setPeerTyping(isTyping);
       });
     } catch {}
     return () => {
+      stopTyping();
       try {
         leaveChat(chat.id);
       } catch {}
@@ -86,10 +92,39 @@ export function ChatThread({
     };
   }, [chat.id]);
 
+  /** Tell the other participant we stopped typing (idempotent). */
+  const stopTyping = () => {
+    clearTimeout(typingTimerRef.current);
+    if (!typingSentRef.current) return;
+    typingSentRef.current = false;
+    if (!chat.id) return;
+    try {
+      setTyping(chat.id, false);
+    } catch {}
+  };
+
+  const onInputChange = (value) => {
+    setInput(value);
+    if (!chat.id) return;
+    if (!value.trim()) {
+      stopTyping();
+      return;
+    }
+    if (!typingSentRef.current) {
+      typingSentRef.current = true;
+      try {
+        setTyping(chat.id, true);
+      } catch {}
+    }
+    clearTimeout(typingTimerRef.current);
+    typingTimerRef.current = setTimeout(stopTyping, 2500);
+  };
+
   const send = async () => {
     if (!input.trim() || sending) return;
     const content = input.trim();
     setInput("");
+    stopTyping();
     setSending(true);
     try {
       // Existing chat → send by id. No chat yet → send by user; backend creates
@@ -336,7 +371,8 @@ export function ChatThread({
             >
               <input
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
+                onChange={(e) => onInputChange(e.target.value)}
+                onBlur={stopTyping}
                 onKeyDown={(e) => e.key === "Enter" && send()}
                 placeholder="Message…"
                 style={{

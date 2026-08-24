@@ -1,10 +1,14 @@
 import { Banner, BottomSheet, hashHue, Screen, TabBar, Toast } from "@components";
 import { Btn, Icon } from "@ui";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { errorMessage } from "./connectors/api.js";
-import { connect as connectSocket, disconnect as disconnectSocket } from "./connectors/socket.js";
+import {
+  connect as connectSocket,
+  disconnect as disconnectSocket,
+  reauth as reauthSocket,
+} from "./connectors/socket.js";
 import { tokens } from "./connectors/tokens.js";
-import { signOut } from "./services/api/auth.js";
+import { refreshToken, signOut } from "./services/api/auth.js";
 import { unregisterDeviceToken } from "./services/api/device.js";
 import {
   acceptFriendship,
@@ -14,6 +18,7 @@ import {
   sendFriendRequest,
 } from "./services/api/friendship.js";
 import { getUsers } from "./services/api/user.js";
+import { milestoneDays, withEarnedState } from "./services/badges.js";
 import {
   TweakRadio,
   TweakSection,
@@ -60,17 +65,12 @@ const TWEAK_DEFAULTS = {
   accentName: "warm",
 };
 
+// How many directory entries to pull per page while building the search pool.
+const USER_PAGE_SIZE = 100;
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
-}
-
-function todayLabel() {
-  return new Date().toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
 }
 
 function burstConfetti() {
@@ -350,7 +350,7 @@ export default function App() {
     refetch: refetchFriends,
   } = useFriends();
   const { chats: chatData, markChatRead } = useChats(me?.id);
-  const { badges: badgeData } = useBadges();
+  const { badges: badgeData, userBadges } = useBadges();
 
   // ── Derived data ──────────────────────────────────────────────────────────
   const chatList = chatData.chats ?? [];
@@ -363,8 +363,12 @@ export default function App() {
   const reqReceived = reqRecvData.friendships ?? [];
   const reqSent = reqSentData.friendships ?? [];
 
-  // Pool of users for friend search (paginated list, filtered client-side)
+  // Pool of users for friend search. The directory is paginated and there is no
+  // server-side search, so the pool starts at the first page and grows on
+  // demand while the user is searching (see loadMoreUsers).
   const [userPool, setUserPool] = useState([]);
+  const [userPoolDone, setUserPoolDone] = useState(false);
+  const poolCursor = useRef({ page: 0, loading: false, done: false });
 
   // Resolve the friendship id linking the current user to `userId`, if any
   const findFriendshipId = (userId) => {
@@ -406,19 +410,15 @@ export default function App() {
     [chatList],
   );
 
-  // Merge API badge list with earned status derived from current streak days
-  const liveBadges = badgeList.map((b) => {
-    const milestoneDays =
-      typeof b.milestone === "number"
-        ? b.milestone
-        : Math.floor(new Date(b.milestone).getTime() / 86_400_000);
-    const earned = days >= milestoneDays;
-    return { ...b, earned: earned ? (b.given_at ?? todayLabel()) : null };
-  });
+  // Earned state is what the backend granted (GET /user-badges/), never a
+  // comparison against `milestone` — the grant rule belongs to the server.
+  const liveBadges = withEarnedState(badgeList, userBadges);
   const badgeCount = liveBadges.filter((b) => b.earned).length;
   const nextBadge =
     liveBadges.find((b) => !b.earned) ?? liveBadges[liveBadges.length - 1];
-  const milestone = nextBadge?.milestone ?? 0;
+  // `milestone` is an integer day count. Null only if a badge ever arrives
+  // with something else in it — screens then hide the countdown, not print NaN.
+  const milestone = nextBadge ? milestoneDays(nextBadge) : null;
 
   const startLabel = streak?.start_at
     ? new Date(streak.start_at).toLocaleDateString("en-US", {
@@ -427,9 +427,11 @@ export default function App() {
         year: "numeric",
       })
     : "—";
-  const personalRecord = record
+  // GET /streaks/record returns the closed streak itself, so the fields are
+  // `start_at` / `end_at` — the short names read as undefined and made this NaN.
+  const personalRecord = record?.start_at
     ? Math.floor(
-        (new Date(record.end ?? Date.now()) - new Date(record.start)) /
+        (new Date(record.end_at ?? Date.now()) - new Date(record.start_at)) /
           86_400_000,
       )
     : 0;
@@ -441,13 +443,39 @@ export default function App() {
     tokens.getAccess() ? "app" : "splash",
   );
 
+  // What the socket connector does when the server refuses the handshake. It
+  // stays out of connectors/socket.js on purpose: api.js already imports that
+  // module, so reaching back for refresh/sign-out from inside it would close an
+  // import cycle. Defined above the first connect() below — the initialiser
+  // runs during this render.
+  const socketAuthHandlers = useMemo(
+    () => ({
+      // invalid_token: the access token expired mid-session. Refresh, then hand
+      // the new one to the socket; the connector retries once and no more.
+      onAuthExpired: async () => {
+        const fresh = await refreshToken();
+        reauthSocket(fresh.accessToken);
+      },
+      // account_unavailable, or a refresh that failed: this session is over.
+      // Back to the splash rather than the "account is gone" screen — banned
+      // and blocked land here too, and only one of the three is a deletion.
+      onSessionEnd: () => {
+        tokens.clear();
+        cacheClearAll();
+        setStack([]);
+        setPhase("splash");
+      },
+    }),
+    [],
+  );
+
   // Open the realtime socket during the FIRST render (before any subscribe
   // effect below runs) so restored sessions have a live socket for every WS
   // listener to attach to. Without this the socket object never existed and all
   // onMessage / presence / friend subscriptions silently no-op'd.
   useState(() => {
     const token = tokens.getAccess();
-    if (token) connectSocket(token);
+    if (token) connectSocket(token, socketAuthHandlers);
     return null;
   });
 
@@ -456,11 +484,11 @@ export default function App() {
   useEffect(() => {
     if (phase === "app") {
       const token = tokens.getAccess();
-      if (token) connectSocket(token);
+      if (token) connectSocket(token, socketAuthHandlers);
     } else if (phase === "splash" || phase === "deleted") {
       disconnectSocket();
     }
-  }, [phase]);
+  }, [phase, socketAuthHandlers]);
   const { prefs: notifPrefs, set: setNotifPref } = useNotifPrefs();
   const { requestPermission: enableNotifications, granted: notifGranted } =
     useNotifications(phase === "app" ? me?.id : null, notifPrefs);
@@ -547,13 +575,46 @@ export default function App() {
     }
   }, [banner]);
 
-  // Load the user directory once in-app, for friend search
+  /**
+   * Pull the next page of the user directory into the search pool.
+   * @returns {Promise<boolean>} true while more pages remain
+   */
+  const loadMoreUsers = useCallback(async () => {
+    const cursor = poolCursor.current;
+    if (cursor.done || cursor.loading) return !cursor.done;
+    cursor.loading = true;
+    try {
+      const next = cursor.page + 1;
+      const res = await getUsers(true, next, USER_PAGE_SIZE);
+      const items = res.items ?? res.users ?? [];
+      cursor.page = next;
+      setUserPool((prev) => [...prev, ...items]);
+      const lastPage =
+        items.length < USER_PAGE_SIZE ||
+        (res.totalPages != null && next >= res.totalPages);
+      if (lastPage) {
+        cursor.done = true;
+        setUserPoolDone(true);
+      }
+      return !cursor.done;
+    } catch {
+      cursor.done = true;
+      setUserPoolDone(true);
+      return false;
+    } finally {
+      cursor.loading = false;
+    }
+  }, []);
+
+  // Seed the first page as soon as the app opens, so search feels instant for
+  // the common case.
   useEffect(() => {
     if (phase !== "app") return;
-    getUsers()
-      .then((r) => setUserPool(r.items ?? r.users ?? []))
-      .catch(() => {});
-  }, [phase]);
+    poolCursor.current = { page: 0, loading: false, done: false };
+    setUserPool([]);
+    setUserPoolDone(false);
+    loadMoreUsers();
+  }, [phase, loadMoreUsers]);
 
   // ── Streak actions ────────────────────────────────────────────────────────
   const onCheckIn = async () => {
@@ -565,7 +626,7 @@ export default function App() {
     }
     setPulseKey((k) => k + 1);
     if (motion) burstConfetti();
-    showToast(`Checked in — day ${days} ✓`);
+    showToast(`Checked in — day ${days + 1} ✓`);
     if (reminderEnabled) checkinReminder.reschedule();
   };
 
@@ -700,6 +761,8 @@ export default function App() {
             <FriendSearch
               onBack={pop}
               pool={searchPool}
+              poolComplete={userPoolDone}
+              onLoadMore={loadMoreUsers}
               onOpenProfile={openProfile}
               onSendRequest={async (userId) => {
                 try {

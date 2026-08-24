@@ -17,6 +17,13 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
+/** 'YYYY-MM-DD' of a server timestamp, or null. */
+function isoDate(value) {
+  if (!value) return null;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+}
+
 export function daysBetween(isoA, isoB) {
   const a = new Date(isoA + "T00:00:00");
   const b = new Date(isoB + "T00:00:00");
@@ -68,10 +75,18 @@ export function useStreak() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const lastCheckinDate = cacheRead(KEY_CHECKIN)?.data ?? null;
+  // The device cache is only a fast path — `streak.last_checkin` from the API is
+  // authoritative, so a fresh device (or a cleared cache) doesn't look like a
+  // missed day.
   const today = todayISO();
-  const needsCheckin = !!streak && lastCheckinDate !== today;
+  const lastCheckinDate =
+    cacheRead(KEY_CHECKIN)?.data ?? isoDate(streak?.last_checkin) ?? null;
   const checkedIn = lastCheckinDate === today;
+  // Only prompt when there is a real gap to fill in. A streak that has never
+  // been checked into has nothing to reconcile, so the dashboard's own check-in
+  // button handles it instead of the modal covering the screen.
+  const needsCheckin =
+    !!streak && lastCheckinDate != null && lastCheckinDate !== today;
   const missedDays = lastCheckinDate
     ? Math.max(1, daysBetween(lastCheckinDate, today))
     : 1;
@@ -144,7 +159,10 @@ export function useStreak() {
       cacheWrite(KEY_CHECKIN, today);
       return updated;
     } catch (e) {
+      // Rethrow: the caller shows the celebration toast, and it must not fire
+      // when the check-in never reached the server.
       setError(e);
+      throw e;
     }
   }, [lastCheckinDate, today]);
 
@@ -190,7 +208,9 @@ export function useStreak() {
       cacheWrite(KEY_CHECKIN, today);
       return newStreak;
     } catch (e) {
+      // Rethrow so a failed reset never shows the compassionate success toast.
       setError(e);
+      throw e;
     }
   }, [today]);
 

@@ -1,6 +1,12 @@
 import { BadgeMedallion, Header, Screen } from "@components";
 import { Btn, Icon } from "@ui";
 import { useEffect, useState } from "react";
+import {
+  badgeDescription,
+  badgeProgress,
+  daysToGo,
+  milestoneDays,
+} from "../../services/badges.js";
 
 export function BadgeDetail({ onBack, badge, currentDays, justUnlocked }) {
   const earned = !!badge.earned;
@@ -11,7 +17,9 @@ export function BadgeDetail({ onBack, badge, currentDays, justUnlocked }) {
       return () => clearTimeout(t);
     }
   }, [justUnlocked]);
-  const pct = Math.min(100, (currentDays / badge.milestone) * 100);
+  const days = milestoneDays(badge);
+  const progress = badgeProgress(badge, currentDays);
+  const remaining = daysToGo(badge, currentDays);
   return (
     <Screen geo="badgeDetail" padTop={56} pulseKey={justUnlocked ? 1 : 0}>
       <Header title="" onBack={onBack} />
@@ -43,11 +51,7 @@ export function BadgeDetail({ onBack, badge, currentDays, justUnlocked }) {
               />
             ))}
           <div style={{ animation: justUnlocked ? "nhPop .6s both" : "none" }}>
-            <BadgeMedallion
-              milestone={badge.milestone}
-              earned={earned}
-              size={150}
-            />
+            <BadgeMedallion milestone={days} earned={earned} size={150} />
           </div>
         </div>
 
@@ -78,16 +82,18 @@ export function BadgeDetail({ onBack, badge, currentDays, justUnlocked }) {
         >
           {badge.name}
         </div>
-        <div
-          style={{
-            fontSize: 14.5,
-            fontWeight: 600,
-            color: "var(--primary)",
-            marginTop: 4,
-          }}
-        >
-          {badge.milestone} clean {badge.milestone === 1 ? "day" : "days"}
-        </div>
+        {days != null && (
+          <div
+            style={{
+              fontSize: 14.5,
+              fontWeight: 600,
+              color: "var(--primary)",
+              marginTop: 4,
+            }}
+          >
+            {days} clean {days === 1 ? "day" : "days"}
+          </div>
+        )}
         <div
           style={{
             fontSize: 15,
@@ -97,7 +103,7 @@ export function BadgeDetail({ onBack, badge, currentDays, justUnlocked }) {
             maxWidth: 300,
           }}
         >
-          {badge.desc}
+          {badgeDescription(badge)}
         </div>
 
         {earned ? (
@@ -118,7 +124,7 @@ export function BadgeDetail({ onBack, badge, currentDays, justUnlocked }) {
             <Icon name="check" size={16} color="var(--primary)" sw={2.6} />{" "}
             Earned {badge.earned}
           </div>
-        ) : (
+        ) : progress != null ? (
           <div style={{ marginTop: 24, width: "100%", maxWidth: 280 }}>
             <div
               style={{
@@ -131,7 +137,7 @@ export function BadgeDetail({ onBack, badge, currentDays, justUnlocked }) {
               <div
                 style={{
                   height: "100%",
-                  width: `${pct}%`,
+                  width: `${progress * 100}%`,
                   background: "var(--primary)",
                   borderRadius: 99,
                   transition: "width 1s",
@@ -140,10 +146,21 @@ export function BadgeDetail({ onBack, badge, currentDays, justUnlocked }) {
             </div>
             <div style={{ fontSize: 13, color: "var(--ink-3)", marginTop: 9 }}>
               <strong style={{ color: "var(--ink)" }}>
-                {badge.milestone - currentDays} days
+                {remaining} {remaining === 1 ? "day" : "days"}
               </strong>{" "}
               to go · keep showing up
             </div>
+          </div>
+        ) : (
+          <div
+            style={{
+              marginTop: 24,
+              fontSize: 13,
+              color: "var(--ink-3)",
+              lineHeight: 1.5,
+            }}
+          >
+            Keep showing up — you'll earn this one along the way.
           </div>
         )}
       </div>

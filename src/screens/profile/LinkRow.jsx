@@ -1,9 +1,11 @@
 import { Icon } from "@ui";
 
-export function LinkRow({ icon, label, onClick, danger, last }) {
+export function LinkRow({ icon, label, onClick, danger, last, soon }) {
   return (
     <button
-      onClick={onClick}
+      onClick={soon ? undefined : onClick}
+      disabled={soon}
+      aria-disabled={soon || undefined}
       style={{
         display: "flex",
         alignItems: "center",
@@ -13,7 +15,8 @@ export function LinkRow({ icon, label, onClick, danger, last }) {
         border: "none",
         width: "100%",
         textAlign: "left",
-        cursor: "pointer",
+        cursor: soon ? "default" : "pointer",
+        opacity: soon ? 0.55 : 1,
         borderBottom: last ? "none" : "1px solid var(--border)",
       }}
     >
@@ -44,7 +47,24 @@ export function LinkRow({ icon, label, onClick, danger, last }) {
       >
         {label}
       </div>
-      {!danger && <Icon name="chevR" size={17} color="var(--ink-3)" />}
+      {soon ? (
+        <span
+          style={{
+            fontSize: 10.5,
+            fontWeight: 700,
+            letterSpacing: 0.4,
+            textTransform: "uppercase",
+            color: "var(--ink-3)",
+            background: "var(--surface-2)",
+            padding: "3px 8px",
+            borderRadius: 99,
+          }}
+        >
+          Soon
+        </span>
+      ) : (
+        !danger && <Icon name="chevR" size={17} color="var(--ink-3)" />
+      )}
     </button>
   );
 }
