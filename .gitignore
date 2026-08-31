@@ -47,3 +47,11 @@ example
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# Service-account keys. One of these was sitting loose in this repo — untracked
+# and unignored, so a single `git add .` would have committed an admin
+# credential for the whole Firebase project into the front-end repository.
+# They belong outside the working tree entirely; this is the second line of
+# defence, not the first.
+*firebase-adminsdk*.json
+*service-account*.json

@@ -27,11 +27,33 @@ supetão, não falha.
 ## Como a suíte contorna o login com Google
 
 `RegisterScreen` / `LoginScreen` abrem um popup do Google, que o Google bloqueia
-em automação. Mas `POST /auth/login` e `/auth/register` só recebem `{uid, email}`
-— não verificam o ID token do Firebase. Então cada teste registra uma conta
-descartável via REST, escreve `nh_access` / `nh_refresh` no `localStorage` e
-recarrega a página: é exatamente o estado em que o app fica após um login real.
-A conta é apagada no teardown.
+em automação. E `POST /auth/login` / `/auth/register` não recebem mais `{uid,
+email}`: recebem `{idToken}` e mandam para `firebase_admin.auth.verify_id_token`
+— uid, email, `email_verified` e foto saem das claims verificadas, não do corpo
+da requisição. Mandar `{uid, email}` hoje é `422`; mandar um token de outro
+projeto é `401`.
+
+O que torna a suíte possível é o **modo emulador do próprio firebase-admin**:
+com `FIREBASE_AUTH_EMULATOR_HOST` setado, ele pula a checagem de assinatura e de
+expiração, mas continua exigindo `aud == <project_id>`, `iss ==
+https://securetoken.google.com/<project_id>` e um `sub` não vazio. `fakeIdToken()`
+em `helpers/api.js` monta um JWT de três segmentos com essas claims — assinatura
+qualquer, já que ninguém a confere nesse modo.
+
+> **Aviso:** `FIREBASE_AUTH_EMULATOR_HOST` é bypass total de autenticação —
+> qualquer um autentica como qualquer um. Vale só para dev e teste
+> (`docker/compose.yaml` do backend). Nunca em produção. O backend loga um aviso
+> no boot quando a variável está setada.
+
+Cada teste registra uma conta descartável via REST com um desses tokens, escreve
+`nh_access` / `nh_refresh` no `localStorage` e recarrega a página: é exatamente o
+estado em que o app fica após um login real. A conta é apagada no teardown.
+
+O `project_id` esperado vem de `E2E_FIREBASE_PROJECT_ID` (default `noharm-6cc9d`)
+e precisa bater com o `FIREBASE_PROJECT_ID` do backend. Se não bater, o register
+volta `401`; se o container do backend estiver sem `FIREBASE_AUTH_EMULATOR_HOST`,
+o token falha na verificação de assinatura e volta `401` — ou `503`
+`AUTH_UNAVAILABLE`, se ele também não tiver credencial de service account.
 
 Consequência: nenhuma conta sua é usada. O banco ainda acumula as contas descartáveis,
 porque o backend só faz soft delete — ver "Estado que a suíte deixa no banco".
@@ -113,6 +135,13 @@ malformado — não como o contrato esperado.
 
 **`X-Forwarded-For` só vale vindo de `TRUSTED_PROXIES`.** Ver a seção de rate
 limit acima.
+
+**`/auth/login` e `/auth/register` recebem `{idToken}`.** Antes recebiam
+`{uid, email}` e acreditavam neles — como o uid do Firebase é público
+(`UserResponse.id` aparece na lista de amigos e na busca), dava para logar como
+qualquer usuário. Agora o backend verifica o ID token e tira a identidade das
+claims. `src/connectors/firebase.js` devolve `idToken` junto do resultado do
+popup, e `src/services/api/auth.js` manda só ele.
 
 **Entrega de eventos do socket não depende mais da sala do chat.** `new_message`,
 `messages_read` e `message_read` vão para a sala pessoal `user_<id>` de cada

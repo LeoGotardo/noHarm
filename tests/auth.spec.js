@@ -7,7 +7,7 @@
  * here only up to the popup boundary.
  */
 import { test, expect, openApp, tab } from "./helpers/fixtures.js";
-import { api, as, createUser } from "./helpers/api.js";
+import { api, as, createUser, fakeIdToken } from "./helpers/api.js";
 
 test.describe("Auth / Onboarding", () => {
   test('Splash — "Get started" abre Register, "I already have an account" abre Login', async ({
@@ -54,10 +54,23 @@ test.describe("Auth / Onboarding", () => {
 
       // Same identity can log back in and get a fresh token pair
       const relogin = await api.post("/auth/login", {
-        body: { uid: user.uid, email: user.email },
+        body: { idToken: user.idToken },
       });
       expect(relogin.accessToken).toBeTruthy();
       expect(relogin.refreshToken).toBeTruthy();
+
+      // The UID alone buys nothing — it is a public value the API hands out in
+      // friend lists and search, so it must not be accepted as proof.
+      await expect(
+        api.post("/auth/login", { body: { uid: user.uid, email: user.email } }),
+      ).rejects.toMatchObject({ status: 422 });
+
+      // Nor does a token minted for another Firebase project.
+      await expect(
+        api.post("/auth/login", {
+          body: { idToken: fakeIdToken(user.uid, user.email, { aud: "other-project" }) },
+        }),
+      ).rejects.toMatchObject({ status: 401 });
     } finally {
       await api.delete("/users/me", as(user));
     }
