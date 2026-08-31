@@ -24,15 +24,24 @@ export { provider };
 
 /**
  * Open Google sign-in popup.
- * @returns {Promise<{ success: true, credential: import('firebase/auth').OAuthCredential, token: string, user: import('firebase/auth').User } | { success: false, errorCode: string, errorMessage: string, email: string, credential: import('firebase/auth').OAuthCredential }>}
+ *
+ * `idToken` is the only field the API accepts as proof of identity: a JWT
+ * signed by Google and scoped to this Firebase project. The UID travels inside
+ * it — sending the UID on its own would be sending a public value and asking
+ * the backend to take our word for it.
+ *
+ * @returns {Promise<{ success: true, credential: import('firebase/auth').OAuthCredential, token: string, idToken: string, user: import('firebase/auth').User } | { success: false, errorCode: string, errorMessage: string, email: string, credential: import('firebase/auth').OAuthCredential }>}
  */
 export async function fbLogin() {
   return signInWithPopup(auth, provider)
-    .then((result) => {
+    .then(async (result) => {
       const credential = GoogleAuthProvider.credentialFromResult(result);
       const token = credential.accessToken;
       const user = result.user;
-      return { success: true, credential, token, user };
+      // Fresh from the SDK's cache, refreshed automatically when close to
+      // expiry — the backend allows only a few seconds of clock skew.
+      const idToken = await user.getIdToken();
+      return { success: true, credential, token, idToken, user };
     })
     .catch((error) => {
       const errorCode = error.code;

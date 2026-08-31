@@ -13,6 +13,9 @@ Lista de funções do app para testar manualmente. Organizada por domínio, na o
 - [x] 🤖 **Splash** — "Get Started" abre Register; "Login" abre Login
 - [ ] **Register** — criar conta (Firebase + JWT); botão voltar retorna ao splash; sucesso → app/home _(popup do Google — manual; a criação de conta via API é testada)_
 - [ ] **Login** — entrar; botão voltar retorna ao splash; sucesso → app/home _(popup do Google — manual; o login via API é testado)_
+- [ ] **ID token chega ao backend** — no login real, o request de `/auth/login`
+      leva `{idToken}` e o backend responde 200. Vale só verificar uma vez após
+      trocar credencial de Firebase: um token do projeto errado devolve `401`
 - [x] 🤖 **Persistência de sessão** — reload com token salvo entra direto no app
 - [x] 🤖 **Logout** (Settings) — volta ao splash, limpa a stack
 - [x] 🤖 **Delete account** (Settings) — tela "Your account is gone" → "Start over" volta ao splash
@@ -90,6 +93,9 @@ Handlers antes em stub, agora chamando o backend:
 
 ## Mudanças de contrato do backend já absorvidas
 
+- `/auth/login` e `/auth/register` recebem `{idToken}` (ID token do Firebase),
+  não mais `{uid, email}` — o backend verifica o token e tira uid/email/foto/
+  `email_verified` das claims. O front manda `user.getIdToken()`
 - `milestone` (badges) virou **inteiro** — contagem de dias limpos, não date-time
 - badges são concedidos pelo backend em `POST /streaks/start` e `/streaks/checkin`
 - `POST /streaks/end` encerra o streak e já abre o próximo (aceita `end_at` retroativo)
@@ -105,9 +111,10 @@ Handlers antes em stub, agora chamando o backend:
 ## Proxy (backend privado)
 
 Implementado — ver [`PROXY.md`](PROXY.md). O app passou a falar com a própria
-origem: `VITE_API_URL=/api`, `VITE_SOCKET_URL` vazia, e `api/[...path].ts` /
-`api/ws.ts` encaminham para o backend com o token OIDC do projeto. O `npm run dev`
-proxia as mesmas rotas, então a suíte E2E roda sem `vercel dev`.
+origem: `VITE_API_URL=/api`, `VITE_SOCKET_URL` vazia, e o nginx do container
+encaminha `/api` (sem o prefixo) e `/ws` para o backend em `127.0.0.1:8080`. O
+`npm run dev` proxia as mesmas rotas, então a suíte E2E roda contra o dev server
+sem precisar subir o container.
 
 Efeito colateral: CORS deixou de existir para o tráfego web (mesma origem, sem
 preflight), e `ALLOWED_ORIGINS` no backend para de importar para a SPA.

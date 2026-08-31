@@ -1,12 +1,53 @@
 /**
  * Thin REST client for seeding backend state from tests.
  *
- * Auth shortcut: POST /auth/login and /auth/register take a raw Firebase UID +
- * email — the backend does not verify a Firebase ID token. That lets tests mint
- * real JWTs without driving the Google popup, which Playwright cannot automate.
+ * Auth shortcut: POST /auth/login and /auth/register verify a Firebase ID
+ * token, and nothing here can produce one signed by Google. The dev backend
+ * therefore runs with FIREBASE_AUTH_EMULATOR_HOST set (see
+ * ../../../noHarmBack/docker/compose.yaml), which skips the signature check
+ * while still enforcing the project, issuer and subject claims. `fakeIdToken`
+ * below is shaped to satisfy exactly that — which is what lets a test mint an
+ * identity without driving the Google popup, which Playwright cannot automate.
+ *
+ * If registration starts coming back 401, that env var is missing from the
+ * backend container.
  */
 
+import { createHmac } from "node:crypto";
+
 export const API_URL = process.env.E2E_API_URL ?? "http://localhost:8080";
+
+/**
+ * Firebase project the minted tokens claim to come from. Must match the
+ * backend's FIREBASE_PROJECT_ID — a mismatch is a 401, even in emulator mode.
+ */
+const PROJECT_ID = process.env.E2E_FIREBASE_PROJECT_ID ?? "noharm-6cc9d";
+
+const b64url = (input) =>
+  Buffer.from(input).toString("base64url");
+
+/** An ID token the backend accepts while it runs in emulator mode. */
+export function fakeIdToken(uid, email, { emailVerified = true, aud = PROJECT_ID } = {}) {
+  const now = Math.floor(Date.now() / 1000);
+  const header = b64url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
+  const claims = b64url(
+    JSON.stringify({
+      iss: `https://securetoken.google.com/${aud}`,
+      aud,
+      sub: uid,
+      iat: now,
+      exp: now + 3600,
+      email,
+      email_verified: emailVerified,
+    }),
+  );
+  // The signature is never checked in emulator mode; it exists so the token has
+  // the three segments every JWT parser expects.
+  const signature = createHmac("sha256", "not-checked")
+    .update(`${header}.${claims}`)
+    .digest("base64url");
+  return `${header}.${claims}.${signature}`;
+}
 
 /**
  * Rate limiting: every test starts from a cleared counter — see
@@ -75,22 +116,25 @@ function newUid(tag) {
 /**
  * Register a throwaway account and return its identity + live tokens.
  * The backend uses the Firebase UID as the user id, so `id === uid`.
+ *
+ * The uid and email reach the backend inside the token, not beside it: they are
+ * read from the verified claims, so sending them in the body would do nothing.
  */
 export async function createUser(tag = "u") {
   const uid = newUid(tag);
+  const email = `${uid}@e2e-noharm.example.com`;
   const res = await api.post("/auth/register", {
     body: {
-      uid,
-      email: `${uid}@e2e-noharm.example.com`,
+      idToken: fakeIdToken(uid, email),
       username: uid,
-      emailVerified: true,
     },
   });
   return {
     id: uid,
     uid,
     username: uid,
-    email: `${uid}@e2e-noharm.example.com`,
+    email,
+    idToken: fakeIdToken(uid, email),
     accessToken: res.accessToken,
     refreshToken: res.refreshToken,
   };

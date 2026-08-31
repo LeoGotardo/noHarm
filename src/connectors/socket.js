@@ -3,10 +3,11 @@ import { io } from "socket.io-client";
 // Server origin for the socket. The socket.io mount path is passed separately
 // as `path` below — putting "/ws" in the URL would make it a namespace and 404.
 //
-// Empty means "this origin", which is what the web build wants now that the
-// proxy lives in the same deployment. The VITE_API_URL fallback is guarded:
-// that value is a relative path (`/api`), and socket.io reads a leading slash
-// as a namespace, so it would silently connect to the wrong place.
+// Empty means "this origin", which is what the web build wants: nginx serves
+// the bundle and proxies the socket from the same host. The VITE_API_URL
+// fallback is guarded: that value is a relative path (`/api`), and socket.io
+// reads a leading slash as a namespace, so it would silently connect to the
+// wrong place.
 const RAW_SOCKET_ORIGIN =
   import.meta.env.VITE_SOCKET_URL ?? import.meta.env.VITE_API_URL ?? "";
 const SOCKET_ORIGIN = RAW_SOCKET_ORIGIN.startsWith("/")
@@ -41,6 +42,10 @@ export function connect(accessToken, handlers = {}) {
     // Server only serves the websocket transport — polling 404s.
     transports: ["websocket"],
     reconnection: true,
+    // Five was sized for a serverless relay that tore every socket down when
+    // the function hit its max duration, making reconnects routine. nginx holds
+    // the upgrade for as long as the socket lives (proxy_read_timeout 3600s),
+    // so a disconnect now means the backend or the network actually went away.
     reconnectionAttempts: 5,
     reconnectionDelay: 2000,
   });

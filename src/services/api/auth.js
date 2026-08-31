@@ -3,7 +3,7 @@ import { fbLogin, fbLogout } from "../../connectors/firebase.js";
 import { tokens } from "../../connectors/tokens.js";
 
 /**
- * Sign in via Google popup, then exchange Firebase UID for app JWT tokens.
+ * Sign in via Google popup, then exchange the Firebase ID token for app JWTs.
  * Stores access + refresh tokens in localStorage on success.
  * @returns {Promise<void | { success: false, errorCode: string, errorMessage: string }>}
  */
@@ -14,31 +14,29 @@ export async function signIn() {
     return userData;
   }
 
-  const { user } = userData;
-  const { uid, email } = user;
-
-  const result = await api.post("/auth/login", { uid, email });
+  // Identity is whatever the backend reads out of the verified token — nothing
+  // this side sends about who the user is would be believed anyway.
+  const result = await api.post("/auth/login", { idToken: userData.idToken });
   tokens.set(result);
 }
 
 /**
- * Register via Google popup, then create account on the API with Firebase user data.
+ * Register via Google popup, then create the account from the verified token.
  * Stores access + refresh tokens in localStorage on success.
+ *
+ * Only the username comes from this app. Email, profile picture and the
+ * email-verified flag are read from the token's claims server-side: sending
+ * them would let a patched client mark itself verified.
+ *
  * @returns {Promise<object | { success: false, errorCode: string, errorMessage: string }>}
  */
 export async function signUp(username) {
   const userData = await fbLogin();
   if (!userData.success) return userData;
 
-  const { user } = userData;
-  const { uid, email, photoURL, emailVerified } = user;
-
   const result = await api.post("/auth/register", {
-    uid,
+    idToken: userData.idToken,
     username,
-    email,
-    photoURL,
-    emailVerified,
   });
 
   tokens.set(result);

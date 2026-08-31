@@ -16,7 +16,9 @@ npm run preview  # serve dist/ locally
 
 No test runner, no lint script. Open `http://localhost:5173` after `npm run dev`. `TESTING.md` is a manual QA checklist (Portuguese) organised by domain in use-flow order — update it when adding/changing user-facing flows.
 
-Env vars: `VITE_API_URL` (REST base URL) and `VITE_SOCKET_URL` (Socket.IO URL, falls back to `VITE_API_URL`).
+Env vars: `VITE_API_URL` (REST base URL) and `VITE_SOCKET_URL` (Socket.IO URL, falls back to `VITE_API_URL`). Both are **relative and empty** for the web build — see Deployment below. Every `VITE_*` is inlined by Vite at build time, so changing one needs a rebuild, not a restart.
+
+`npm run dev`'s proxy in `vite.config.js` mirrors the nginx routes (`/api` stripped, `/ws` passed through), which is what lets the app use the same relative URLs in dev and in production.
 
 ## Architecture
 
@@ -24,11 +26,9 @@ Env vars: `VITE_API_URL` (REST base URL) and `VITE_SOCKET_URL` (Socket.IO URL, f
 
 **Mobile**: Capacitor wraps the web build for iOS/Android. `@capacitor/push-notifications` for FCM/APNs, `@capacitor/local-notifications` for scheduled reminders.
 
-**Standalone demo**: `NoHarm.html` / `NoHarm-standalone.html` — CDN-loaded React + Babel, no bundler. Not the active development target.
-
 **Import aliases** (`vite.config.js`): `@components` → `src/components`, `@ui` → `src/ui`. Note `tsconfig.json` also declares `@/*` → `src/*`, but vite does **not** resolve it — `@/…` imports build-break. Use only `@components`/`@ui` or relative paths.
 
-**Stale docs warning**: `README.md`, `AGENTS.md`, and `scripts/reset-project.js` are leftover Expo boilerplate. This project is **not** Expo — it's Vite + React + Capacitor. Ignore their Expo instructions.
+**Stale docs warning**: `README.md` is leftover Expo boilerplate. This project is **not** Expo — it's Vite + React + Capacitor. Ignore its Expo instructions. (`AGENTS.md` and `scripts/reset-project.js`, the other two, have been removed.)
 
 ### Layer diagram
 
@@ -40,7 +40,6 @@ screens/          ← React UI, one folder per domain
                   → services/    ← domain logic (no React)
                       api/       ← REST calls
                       ws/        ← Socket.IO event handlers
-                  → data/        ← split mock data files (badges, chats, friends, streak, user)
 
 store/ hooks call services/ which call connectors/
 services/ import from connectors/
@@ -57,7 +56,6 @@ services/ import from connectors/
 | `src/app.jsx` | Root component: nav state machine, theme wiring, screen routing, global state |
 | `src/main.jsx` | Mounts `<App>`, imports `theme.css` |
 | `src/theme.css` | CSS custom properties for all four theme variants |
-| `src/data/` | Split mock files: `user`, `badges`, `chats`, `friends`, `streak` |
 | `src/ui/index.js` | Low-level primitives: `Icon`, `Avatar`/`OnlineDot`, `Btn`, `Card`, `Field`, `Skeleton`, `GeoBackground`, `Divider`, `SectionLabel`, plus `cx` helper |
 | `src/components/index.js` | Composite widgets: `Screen`, `Header`, `Banner`, `Toast`, `BottomSheet`, `TabBar`, `StreakRing`/`BadgeMedallion`, `EmptyState`, `Logo`, `GoogleButton`, `PersonRow`, `SegTabs`, plus format helpers from `utils.js` (`hashHue`, `fmtTime`, `fmtLongDate`, `fmtRelDate`, `fmtShortDay`) |
 | `src/connectors/` | Transport layer (see diagram above) |
@@ -82,6 +80,43 @@ services/ import from connectors/
 | `src/screens/badges/` | `BadgesScreen`, `BadgeDetail` |
 | `src/screens/profile/` | `MyProfile`, `EditProfile`, `Settings` |
 | `src/dev/TweaksPanel.jsx` | Dev overlay: `useTweaks`, `TweaksPanel`, `TweakSection`, `TweakRadio`, `TweakToggle` |
+
+## Deployment
+
+The app is served by nginx from inside a single container that also runs the
+FastAPI backend — config in `noHarmBack/docker/`, and the AWS stack that runs
+it in `noHarmBack/infra/` (ECS Fargate behind an ALB). nginx serves the bundle,
+proxies `/api/*` to the backend with the prefix stripped, and passes `/ws/*`
+through for the Socket.IO upgrade. The bundle is therefore **same-origin with
+the API**, which is why `VITE_API_URL` is `/api` and `VITE_SOCKET_URL` is empty.
+
+Deployed, TLS ends at the load balancer and the container serves plain `:80`
+(`TLS_MODE=alb`); `compose.prod.yaml` keeps the other shape, where nginx holds
+the certificate. Neither changes anything the bundle sees — the browser's leg is
+https either way, and the routes are the same file in both.
+
+Two consequences worth knowing before debugging:
+
+- **CORS does not apply to the web build.** Same origin, no preflight. The
+  Capacitor app is the only cross-origin client (`capacitor://localhost` on iOS,
+  `http://localhost` on Android) and the one that needs `ALLOWED_ORIGINS` on the
+  backend to include it. A restrictive value breaks mobile REST and leaves the
+  socket working — an asymmetric failure that is confusing without this note.
+- **CSP lives in nginx**, not in the app: `noHarmBack/docker/security_headers.conf`.
+  Anything the app loads cross-origin (Google Fonts, Firebase sign-in) has to be
+  listed there or it is blocked with no symptom but a console error.
+
+The image builds the bundle itself (stage 1 of `noHarmBack/docker/Dockerfile`),
+so `VITE_*` values arrive as `--build-arg`. Its build context is the **parent of
+both repos** — `noHarm/` and `noHarmBack/` must sit side by side. The deploy
+workflow (`noHarmBack/.github/workflows/deploy.yml`) therefore checks out this
+repo alongside the backend and passes every `VITE_*` as a build arg; a value
+added here has to be added there too, or it compiles to `undefined` and shows up
+as a feature that quietly does nothing.
+
+**A change here only ships on a backend deploy.** There is no separate
+front-end pipeline: pushing to this repo builds nothing. The image is rebuilt by
+the backend's workflow, which checks out this repo's `main`.
 
 ## Navigation model
 
@@ -119,7 +154,7 @@ Notification IDs must not collide: checkinReminder uses 1001; message notifs use
 
 ## Domain rules
 
-See `uploads/FRONTEND_DESIGN_BRIEF.md` for full API shapes. Key invariants:
+See `noHarmBack/docs/FRONTEND_DESIGN_BRIEF.md` for full API shapes. Key invariants:
 
 - **Streak**: one active at a time; expires without 24 h check-in; relapse resets to 0 and immediately starts a new streak.
 - **Friendship status codes**: 2=deleted, 3=blocked, 4=pending, 5=accepted, 6=rejected.
