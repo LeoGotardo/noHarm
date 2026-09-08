@@ -18,7 +18,7 @@ npm run build     # production build → dist/
 npm run preview   # serve dist/ locally
 ```
 
-There is no test runner or lint script configured. `TESTING.md` is a manual QA checklist (in Portuguese) for exercising every user-facing flow.
+There is no lint script configured. `npm run test:e2e` runs the Playwright suite in `tests/` (needs the backend on `:8080`); `TESTING.md` is the manual QA checklist for every user-facing flow, with 🤖 marking what the suite already covers.
 
 ### Environment variables
 
@@ -40,10 +40,10 @@ src/
   store/            # React hooks: data fetch + cache + WS subscriptions
   services/         # Domain logic (api/, ws/, notifications, push)
   connectors/       # Transport layer: REST client, Socket.IO singleton, Firebase, token storage
-  data/             # Mock data (used before/without a live backend)
+  dev/              # TweaksPanel dev overlay (theme direction/mode/motion)
 ```
 
-See `CLAUDE.md` for the full architecture breakdown and domain rules (streaks, friendship states, chat lifecycle, notification IDs), and `uploads/FRONTEND_DESIGN_BRIEF.md` for API shapes.
+See `CLAUDE.md` for the full architecture breakdown and domain rules (streaks, friendship states, chat lifecycle, notification IDs), and `../noHarmBack/docs/FRONTEND_DESIGN_BRIEF.md` for API shapes.
 
 ## Backend
 
@@ -55,8 +55,7 @@ The web build is wrapped with Capacitor for iOS/Android (`capacitor.config.json`
 
 ## Other files
 
-- `NoHarm.html` / `NoHarm-standalone.html` — a standalone CDN-loaded React+Babel demo, not the active development target.
-- This project was originally bootstrapped from an Expo template. `AGENTS.md` and `scripts/reset-project.js` are leftovers from that and no longer apply — the project is Vite + React + Capacitor, not Expo.
+- This project was originally bootstrapped from an Expo template. Those leftovers (`AGENTS.md`, `scripts/reset-project.js`, the standalone CDN demo HTML) have been removed — the project is Vite + React + Capacitor, not Expo.
 
 ## License
 

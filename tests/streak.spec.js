@@ -5,6 +5,7 @@ import {
   currentStreak,
   daysAgo,
   endStreak,
+  listUserBadges,
   startStreak,
   todayISO,
 } from "./helpers/api.js";
@@ -34,13 +35,13 @@ const dayCheckbox = (page, n = 0) =>
   page.locator('div[style*="max-height: 320px"] > div > button').nth(n);
 
 test.describe("Home / Streak", () => {
-  test("Estado inicial — sem streak mostra 'Begin your journey'", async ({ appA, page }) => {
+  test("Initial state — with no streak it shows 'Begin your journey'", async ({ appA, page }) => {
     await expect(page.getByText("Begin your journey")).toBeVisible();
     await expect(page.getByRole("button", { name: /Start my streak/ })).toBeVisible();
     await expect(page.getByText("I relapsed")).toBeHidden();
   });
 
-  test("Start streak — sheet com data (máx = hoje), confirma e persiste no backend", async ({
+  test("Start streak — sheet with a date (max = today), confirms and persists on the backend", async ({
     appA,
     page,
     userA,
@@ -52,7 +53,6 @@ test.describe("Home / Streak", () => {
     await expect(dateInput).toHaveValue(todayISO());
     await expect(dateInput).toHaveAttribute("max", todayISO());
 
-    // Backdate 5 days: startFrom() also fires one checkin per elapsed day
     await dateInput.fill(daysAgo(5));
     await page.getByRole("button", { name: "Begin my streak" }).click();
 
@@ -64,7 +64,38 @@ test.describe("Home / Streak", () => {
     expect(streak.start_at.slice(0, 10)).toBe(daysAgo(5));
   });
 
-  test("Start streak — Cancel fecha o sheet sem criar streak", async ({
+  test("Start streak — a long backdate does not blow the rate limit", async ({
+    appA,
+    page,
+    userA,
+  }) => {
+    // Thirty days, deliberately past the ten that POST /streaks/checkin allows
+    // per minute. startFrom() used to send one check-in per elapsed day, so the
+    // eleventh came back 429 — *after* the streak had been created. The error
+    // aborted before the state was saved, leaving the screen on the empty state
+    // while the server held a streak nobody could see, and a retry answered 409
+    // STREAK_ALREADY_ACTIVE. The badges looked missing for the same reason: the
+    // server had granted them, the aborted flow never fetched them.
+    //
+    // The five-day case above stayed under the limit, which is why the suite
+    // was green through all of it.
+    await page.getByRole("button", { name: /Start my streak/ }).click();
+    await page.locator('input[type="date"]').fill(daysAgo(30));
+    await page.getByRole("button", { name: "Begin my streak" }).click();
+
+    await expect(page.getByText("Your streak has begun")).toBeVisible();
+    await expect(page.getByText(/rate limit|Too many/i)).toBeHidden();
+
+    const streak = await currentStreak(userA);
+    expect(streak).not.toBeNull();
+    expect(streak.start_at.slice(0, 10)).toBe(daysAgo(30));
+
+    // Thirty clean days reach several seeded milestones, and the grant happens
+    // server-side inside POST /streaks/start — the screen only has to show it.
+    expect((await listUserBadges(userA)).length).toBeGreaterThan(0);
+  });
+
+  test("Start streak — Cancel closes the sheet without creating a streak", async ({
     appA,
     page,
     userA,
@@ -76,7 +107,7 @@ test.describe("Home / Streak", () => {
     expect(await currentStreak(userA)).toBeNull();
   });
 
-  test("Dashboard com streak — mostra dias, personal best e histórico", async ({
+  test("Dashboard with a streak — shows days, personal best and history", async ({
     page,
     userA,
   }) => {
@@ -92,7 +123,7 @@ test.describe("Home / Streak", () => {
     await expect(page.getByText("Since ")).toBeVisible();
   });
 
-  test("Check-in modal (auto) — aparece quando há dias em aberto e 'All clean!' registra o dia", async ({
+  test("Check-in modal (auto) — appears when there are open days and 'All clean!' records the day", async ({
     page,
     userA,
   }) => {
@@ -148,7 +179,7 @@ test.describe("Home / Streak", () => {
     expect(fresh.start_at.slice(0, 10)).toBe(daysAgo(1));
   });
 
-  test("Check-in — streak sem check-in anterior usa o botão, não o modal", async ({
+  test("Check-in — a streak with no previous check-in uses the button, not the modal", async ({
     page,
     userA,
   }) => {
@@ -166,7 +197,7 @@ test.describe("Home / Streak", () => {
     expect(streak.last_checkin).not.toBeNull();
   });
 
-  test("Check-in — falha do servidor não mostra toast de sucesso", async ({
+  test("Check-in — a server failure does not show a success toast", async ({
     page,
     userA,
   }) => {
@@ -176,7 +207,7 @@ test.describe("Home / Streak", () => {
       route.fulfill({
         status: 500,
         contentType: "application/json",
-        body: '{"message":"Não foi possível registrar o check-in"}',
+        body: '{"message":"Could not record the check-in"}',
       }),
     );
 
@@ -185,13 +216,13 @@ test.describe("Home / Streak", () => {
     // errorMessage() surfaces the backend message; the point is that *an error*
     // is shown and the celebration toast is not.
     await expect(
-      page.getByText("Não foi possível registrar o check-in"),
+      page.getByText("Could not record the check-in"),
     ).toBeVisible();
     await expect(page.getByText("Checked in — day")).toBeHidden();
     await expect(page.getByText("Checked in today")).toBeHidden();
   });
 
-  test("Relapse — sheet compassivo, reseta para 0 e abre novo streak", async ({
+  test("Relapse — compassionate sheet, resets to 0 and opens a new streak", async ({
     page,
     userA,
   }) => {
@@ -211,7 +242,7 @@ test.describe("Home / Streak", () => {
     expect(fresh.start_at.slice(0, 10)).toBe(todayISO());
   });
 
-  test("Relapse — falha do servidor não mostra o toast compassivo", async ({
+  test("Relapse — a server failure does not show the compassionate toast", async ({
     page,
     userA,
   }) => {
@@ -236,7 +267,7 @@ test.describe("Home / Streak", () => {
     ).toBeVisible();
   });
 
-  test("Relapse — 'Not now' fecha sem alterar o streak", async ({ page, userA }) => {
+  test("Relapse — 'Not now' closes without changing the streak", async ({ page, userA }) => {
     await startStreak(userA, 6);
     await openApp(page, userA, { checkedInToday: true });
 
@@ -248,7 +279,7 @@ test.describe("Home / Streak", () => {
     expect(streak.start_at.slice(0, 10)).toBe(daysAgo(6));
   });
 
-  test("Streak history — streak ativo aparece como ACTIVE", async ({ page, userA }) => {
+  test("Streak history — the active streak shows as ACTIVE", async ({ page, userA }) => {
     await startStreak(userA, 3);
     await openApp(page, userA, { checkedInToday: true });
 
@@ -257,7 +288,7 @@ test.describe("Home / Streak", () => {
     await expect(page.getByText(/^Since .* · going strong$/)).toBeVisible();
   });
 
-  test("Streak history — sem streaks passados não mostra o cabeçalho", async ({
+  test("Streak history — with no past streaks the header is not shown", async ({
     page,
     userA,
   }) => {
@@ -269,7 +300,7 @@ test.describe("Home / Streak", () => {
     await expect(page.getByText("Past streaks", { exact: true })).toBeHidden();
   });
 
-  test("Streak history — lista streaks encerrados e o record", async ({
+  test("Streak history — lists ended streaks and the record", async ({
     page,
     userA,
   }) => {
@@ -299,7 +330,7 @@ test.describe("Home / Streak", () => {
     await expect(page.locator("text=/^20$/").first()).toBeVisible();
   });
 
-  test("Confete — dispara com motion ligado (padrão)", async ({ appA, page }) => {
+  test("Confetti — fires with motion on (default)", async ({ appA, page }) => {
     await expect(page.locator(".nh-root")).toHaveAttribute("data-reduce-motion", "no");
 
     await page.getByRole("button", { name: /Start my streak/ }).click();

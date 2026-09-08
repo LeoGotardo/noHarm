@@ -44,6 +44,19 @@ export async function getUser(id) {
 }
 
 /**
+ * Fetch a user's public activity numbers (day streak + badges earned).
+ *
+ * Friends only: for anyone else the backend answers `{ visible: false }` with
+ * null numbers rather than an error, so the screen can show its placeholder
+ * without special-casing a status code.
+ * @param {string} id
+ * @returns {Promise<{visible: boolean, day_streak: number|null, badges_earned: number|null}>}
+ */
+export async function getUserStats(id) {
+  return api.get(`/users/${id}/stats`);
+}
+
+/**
  * Fetch paginated list of users.
  * @param {boolean} paginated
  * @param {number} page

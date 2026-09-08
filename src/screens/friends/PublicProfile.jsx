@@ -6,7 +6,7 @@ import {
 } from "@components";
 import { Avatar, Btn, Card, Icon, Skeleton } from "@ui";
 import { useEffect, useState } from "react";
-import { getUser } from "../../services/api/user.js";
+import { getUser, getUserStats } from "../../services/api/user.js";
 import { cacheRead, cacheWrite } from "../../store/cache.js";
 import { SheetAction } from "./SheetAction.jsx";
 
@@ -27,6 +27,11 @@ export function PublicProfile({
   const [rel, setRel] = useState(relation);
   const [menu, setMenu] = useState(false);
   const [loading, setLoading] = useState(!user);
+  // Activity numbers live behind their own endpoint: they are friends-only, and
+  // the profile itself is not. Null while loading, and `visible: false` when the
+  // viewer is not a friend — both render as the placeholder, never as a 0 that
+  // would read as "this person lost their streak".
+  const [stats, setStats] = useState(null);
 
   useEffect(() => {
     if (!userId) return;
@@ -43,6 +48,25 @@ export function PublicProfile({
       })
       .finally(() => setLoading(false));
   }, [userId]);
+
+  // Not cached: a friend's streak changes daily, and a stale number here is
+  // worse than a placeholder. Re-read whenever the relationship changes too —
+  // accepting a request is exactly when these become visible.
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    setStats(null);
+    getUserStats(userId)
+      .then((s) => {
+        if (!cancelled) setStats(s);
+      })
+      .catch(() => {
+        if (!cancelled) setStats({ visible: false });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, rel]);
 
   const username = user?.username ?? "...";
   const hue = hashHue(user?.username);
@@ -140,7 +164,7 @@ export function PublicProfile({
                 lineHeight: 1,
               }}
             >
-              {rel === "friend" ? "—" : "?"}
+              {stats?.visible ? stats.day_streak : rel === "friend" ? "—" : "?"}
             </div>
             <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 5 }}>
               day streak
@@ -164,7 +188,7 @@ export function PublicProfile({
                 lineHeight: 1,
               }}
             >
-              —
+              {stats?.visible ? stats.badges_earned : "—"}
             </div>
             <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 5 }}>
               badges earned

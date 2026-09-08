@@ -21,7 +21,7 @@ const openSettings = async (page) => {
 };
 
 test.describe("Profile", () => {
-  test("My profile — username, data de entrada, streak, record e contagem de badges", async ({
+  test("My profile — username, join date, streak, record and badge count", async ({
     page,
     userA,
   }) => {
@@ -66,7 +66,7 @@ test.describe("Profile", () => {
     expect(me.username).toBe(newName);
   });
 
-  test("Edit profile — email é somente leitura e username curto bloqueia o Save", async ({
+  test("Edit profile — email is read-only and a short username blocks Save", async ({
     appA,
     page,
     userA,
@@ -95,7 +95,71 @@ test.describe("Profile", () => {
     await expect(page.locator(".nh-root")).toHaveAttribute("data-mode", "light");
   });
 
-  test("Settings — prefs de notificação começam desligadas sem permissão", async ({
+  test("Settings — dark mode paints the document, not just the column", async ({
+    appA,
+    page,
+  }) => {
+    await openSettings(page);
+    await toggleRow(page, "Dark mode").click();
+    await expect(page.locator(".nh-root")).toHaveAttribute("data-mode", "dark");
+
+    // Screens fade in (nhScreenIn); during the fade what shows through is the
+    // document background. If it stays light, every screen change flashes white
+    // in dark mode.
+    await expect(page.locator("html")).toHaveAttribute("data-mode", "dark");
+
+    const painted = await page.evaluate(() => {
+      const html = document.documentElement;
+      return {
+        token: getComputedStyle(html).getPropertyValue("--bg").trim(),
+        body: getComputedStyle(document.body).backgroundColor,
+        column: getComputedStyle(document.querySelector(".nh-root"))
+          .backgroundColor,
+      };
+    });
+
+    // A transparent background does not count: the browser paints its white
+    // canvas underneath. The token has to resolve on <html> — it only existed on
+    // .nh-root, a descendant of body, and custom properties do not travel up.
+    expect(painted.token).not.toBe("");
+    expect(painted.body).not.toBe("rgba(0, 0, 0, 0)");
+    expect(painted.body).toBe(painted.token);
+    expect(painted.column).toBe(painted.token);
+  });
+
+  test("Settings — the theme choice survives a reload, with no light flash", async ({
+    appA,
+    page,
+  }) => {
+    await openSettings(page);
+    await toggleRow(page, "Dark mode").click();
+    await expect(page.locator(".nh-root")).toHaveAttribute("data-mode", "dark");
+
+    // The inline script in index.html applies the theme before first paint, so
+    // <html> starts out dark — before React mounts.
+    await page.reload();
+    await expect(page.locator("html")).toHaveAttribute("data-mode", "dark");
+    await expect(page.locator(".nh-root")).toHaveAttribute("data-mode", "dark");
+  });
+
+  test("Settings — an invalid stored theme falls back to the default", async ({
+    appA,
+    page,
+  }) => {
+    await page.evaluate(() =>
+      localStorage.setItem(
+        "nh_tweaks",
+        JSON.stringify({ direction: "nope", mode: "meia-noite" }),
+      ),
+    );
+    await page.reload();
+
+    await expect(page.locator("html")).toHaveAttribute("data-mode", "light");
+    await expect(page.locator("html")).toHaveAttribute("data-dir", "sage");
+    await expect(page.locator(".nh-root")).toHaveAttribute("data-mode", "light");
+  });
+
+  test("Settings — notification prefs start off without permission", async ({
     appA,
     page,
   }) => {
@@ -123,7 +187,7 @@ test.describe("Profile", () => {
     }
   });
 
-  test("Settings — permissão concedida liga o master e persiste as prefs", async ({
+  test("Settings — granted permission turns on the master and persists the prefs", async ({
     page,
     userA,
   }) => {
@@ -143,7 +207,7 @@ test.describe("Profile", () => {
       .toBe(true);
   });
 
-  test("Settings — links sem destino aparecem como 'Soon', não como toque morto", async ({
+  test("Settings — links with no destination show as 'Soon', not as dead taps", async ({
     appA,
     page,
   }) => {

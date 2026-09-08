@@ -1,4 +1,4 @@
-/** TESTING.md → "Navegação / Tabs" e "Theming (TweaksPanel)" */
+/** TESTING.md → "Navigation / Tabs" and "Theming (TweaksPanel)" */
 import { test, expect, openApp, tab, tabBadge } from "./helpers/fixtures.js";
 import { makeFriends, sendMessage, startStreak } from "./helpers/api.js";
 
@@ -10,8 +10,8 @@ async function openTweaks(page) {
   await expect(page.locator(".twk-panel")).toBeVisible();
 }
 
-test.describe("Navegação / Tabs", () => {
-  test("TabBar — alterna entre as cinco abas", async ({ appA, page }) => {
+test.describe("Navigation / Tabs", () => {
+  test("TabBar — switches between the five tabs", async ({ appA, page }) => {
     await expect(page.getByText("Begin your journey")).toBeVisible();
 
     await tab(page, "Friends").click();
@@ -59,7 +59,7 @@ test.describe("Navegação / Tabs", () => {
     await expect(tab(page, "Home")).toBeVisible();
   });
 
-  test("resetTo — trocar de aba limpa a stack", async ({ appA, page }) => {
+  test("resetTo — switching tabs clears the stack", async ({ appA, page }) => {
     await tab(page, "Friends").click();
     await page.getByRole("button", { name: /Find friends/ }).click();
     await expect(page.getByText("Add friends")).toBeVisible();
@@ -71,7 +71,7 @@ test.describe("Navegação / Tabs", () => {
     await expect(page.getByText("current streak")).toBeVisible();
   });
 
-  test("Animação de transição — nhScreenIn na troca de tela", async ({
+  test("Transition animation — nhScreenIn on screen change", async ({
     appA,
     page,
   }) => {
@@ -84,7 +84,7 @@ test.describe("Navegação / Tabs", () => {
 });
 
 test.describe("Theming (TweaksPanel)", () => {
-  test("Direção — sage ↔ dawn", async ({ appA, page }) => {
+  test("Direction — sage ↔ dawn", async ({ appA, page }) => {
     await expect(page.locator(".nh-root")).toHaveAttribute("data-dir", "sage");
 
     await openTweaks(page);

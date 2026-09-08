@@ -90,14 +90,14 @@ async function openSearchResult(page, username) {
 }
 
 test.describe("Friends", () => {
-  test("Lista vazia — estado 'Recovery is easier together'", async ({ appA, page }) => {
+  test("Empty list — the 'Recovery is easier together' state", async ({ appA, page }) => {
     await openFriends(page);
     await expect(page.getByText("Recovery is easier together")).toBeVisible();
     await expect(page.getByRole("button", { name: /Find friends/ })).toBeVisible();
     await expect(page.getByText("0 in your circle")).toBeVisible();
   });
 
-  test("Lista de amigos — mostra amigo aceito e contagem", async ({
+  test("Friends list — shows an accepted friend and the count", async ({
     page,
     userA,
     userB,
@@ -136,7 +136,7 @@ test.describe("Friends", () => {
     expect(friendships.friendships.some((f) => f.status === 5)).toBe(true);
   });
 
-  test("Friend requests — aba 'Sent' é alcançável com a caixa vazia e Cancel remove", async ({
+  test("Friend requests — the 'Sent' tab is reachable with an empty inbox and Cancel removes", async ({
     page,
     userA,
     userB,
@@ -158,7 +158,7 @@ test.describe("Friends", () => {
     expect(sent.friendships).toHaveLength(0);
   });
 
-  test("Friend search — encontra conta fora da primeira página do diretório", async ({
+  test("Friend search — finds an account beyond the first page of the directory", async ({
     page,
     userA,
     userB,
@@ -177,7 +177,7 @@ test.describe("Friends", () => {
     await expect(page.getByRole("button", { name: /Add friend/ })).toBeVisible();
   });
 
-  test("Friend search — busca por username e envia request", async ({
+  test("Friend search — searches by username and sends a request", async ({
     page,
     userA,
     userB,
@@ -201,7 +201,7 @@ test.describe("Friends", () => {
     expect(sent.friendships[0].reciver).toBe(userB.id);
   });
 
-  test("Friend search — sem resultados", async ({ page, userA, userB }) => {
+  test("Friend search — no results", async ({ page, userA, userB }) => {
     await stubUserDirectory(page, [userB]);
     await openApp(page, userA, { checkedInToday: true });
     await openFriends(page);
@@ -210,7 +210,7 @@ test.describe("Friends", () => {
     await expect(page.getByText("No one found")).toBeVisible();
   });
 
-  test("GET /users — contrato do diretório que alimenta a busca", async ({
+  test("GET /users — contract of the directory backing search", async ({
     userA,
     userB,
   }) => {
@@ -229,10 +229,10 @@ test.describe("Friends", () => {
     // A live account is reachable through the directory the search pool walks.
     const ids = new Set(res.items.map((u) => u.id));
     const found = ids.has(userB.id) || res.totalPages > 1;
-    expect(found, "userB deve estar no diretório ou haver mais páginas").toBe(true);
+    expect(found, "userB must be in the directory or more pages must exist").toBe(true);
   });
 
-  test("Public profile — relação 'none' → Add friend → 'Request sent'", async ({
+  test("Public profile — 'none' relationship → Add friend → 'Request sent'", async ({
     page,
     userA,
     userB,
@@ -251,7 +251,7 @@ test.describe("Friends", () => {
     await expect(page.getByRole("button", { name: "Request sent" })).toBeDisabled();
   });
 
-  test("Public profile — amigo: Message, Remove friend (toast) e Block (toast)", async ({
+  test("Public profile — friend: Message, Remove friend (toast) and Block (toast)", async ({
     page,
     userA,
     userB,
@@ -276,7 +276,7 @@ test.describe("Friends", () => {
     expect(after.friendships.filter((f) => f.status === 5)).toHaveLength(0);
   });
 
-  test("Public profile — Block move a amizade para status blocked", async ({
+  test("Public profile — Block moves the friendship to blocked status", async ({
     page,
     userA,
     userB,
@@ -293,7 +293,7 @@ test.describe("Friends", () => {
     await expect(page.getByRole("button", { name: "Blocked" })).toBeDisabled();
   });
 
-  test("Public profile — request recebido mostra Accept/Decline", async ({
+  test("Public profile — a received request shows Accept/Decline", async ({
     page,
     userA,
     userB,

@@ -1,9 +1,8 @@
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html, body { margin: 0; height: 100%; }
+html, body { margin: 0; height: 100%; background: var(--bg, oklch(0.972 0.008 140)); }
 body {
   font-family: 'Figtree', system-ui, sans-serif;
   min-height: 100vh; min-height: 100dvh; overflow: hidden;
-  background: var(--bg, oklch(0.972 0.008 140));
 }
 #root { width: 100%; height: 100vh; height: 100dvh; display: flex; justify-content: center; }
 img { -webkit-user-drag: none; }
@@ -11,6 +10,7 @@ button { font-family: inherit; }
 
 /* ── Theme tokens ─────────────────────────────────────── */
 .nh-root {
+  background: var(--bg);
   --font-body: 'Figtree', system-ui, sans-serif;
   --font-display: 'Figtree', system-ui, sans-serif;
   --display-weight: 800;
@@ -23,7 +23,8 @@ button { font-family: inherit; }
 }
 
 /* SAGE — light */
-.nh-root[data-dir="sage"][data-mode="light"] {
+[data-dir="sage"][data-mode="light"] {
+  color-scheme: light;
   --bg: oklch(0.972 0.008 140);
   --surface: oklch(0.995 0.004 140);
   --surface-2: oklch(0.955 0.012 140);
@@ -48,7 +49,8 @@ button { font-family: inherit; }
   --display-weight: 800;
 }
 /* SAGE — dark */
-.nh-root[data-dir="sage"][data-mode="dark"] {
+[data-dir="sage"][data-mode="dark"] {
+  color-scheme: dark;
   --bg: oklch(0.215 0.016 158);
   --surface: oklch(0.262 0.018 158);
   --surface-2: oklch(0.31 0.02 158);
@@ -73,7 +75,8 @@ button { font-family: inherit; }
   --display-weight: 800;
 }
 /* DAWN — light */
-.nh-root[data-dir="dawn"][data-mode="light"] {
+[data-dir="dawn"][data-mode="light"] {
+  color-scheme: light;
   --bg: oklch(0.968 0.014 68);
   --surface: oklch(0.995 0.006 68);
   --surface-2: oklch(0.948 0.018 64);
@@ -98,7 +101,8 @@ button { font-family: inherit; }
   --display-weight: 700;
 }
 /* DAWN — dark */
-.nh-root[data-dir="dawn"][data-mode="dark"] {
+[data-dir="dawn"][data-mode="dark"] {
+  color-scheme: dark;
   --bg: oklch(0.205 0.018 40);
   --surface: oklch(0.252 0.022 40);
   --surface-2: oklch(0.30 0.024 40);

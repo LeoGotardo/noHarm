@@ -1,180 +1,200 @@
-# Testes E2E — NoHarm
+# E2E tests — NoHarm
 
-Suíte Playwright que automatiza o checklist do [`TESTING.md`](../TESTING.md).
-Roda contra o app real (Vite em `:5173`) e o backend real (`:8080`).
+Playwright suite (71 tests) automating the checklist in
+[`TESTING.md`](../TESTING.md). Runs against the real app (Vite on `:5173`) and
+the real backend (`:8080`).
 
 ```bash
-npm run test:e2e            # roda tudo (headless)
-npm run test:e2e -- --ui    # modo interativo
-npm run test:e2e:report     # abre o último relatório HTML
-npx playwright test tests/chat.spec.js          # um arquivo
-npx playwright test -g "Relapse"                # por nome
+npm run test:e2e            # run everything (headless)
+npm run test:e2e -- --ui    # interactive mode
+npm run test:e2e:report     # open the last HTML report
+npx playwright test tests/chat.spec.js          # a single file
+npx playwright test -g "Relapse"                # by name
 ```
 
-Pré-requisitos: backend em `http://localhost:8080` (`docker compose up`) e nada
-mais — o Playwright sobe o `npm run dev` sozinho se ainda não estiver de pé.
-Sobrescreva com `E2E_API_URL`, `E2E_SOCKET_URL` e `E2E_WEB_URL`.
+Prerequisites: backend on `http://localhost:8080` (`docker compose up`) and
+nothing else — Playwright starts `npm run dev` itself if it isn't already up.
+Override with `E2E_API_URL`, `E2E_SOCKET_URL` and `E2E_WEB_URL`.
 
-O browser não fala mais direto com o backend: o app usa URLs relativas (`/api`,
-`/ws`) e o dev server proxia, espelhando o que `api/[...path].ts` e `api/ws.ts`
-fazem em produção (ver [`../PROXY.md`](../PROXY.md)). Os helpers em Node
-continuam batendo direto em `E2E_API_URL`, sem passar pelo proxy.
+> **If `:5173` is already taken by another project, the suite tests that other
+> project.** `reuseExistingServer` reuses whatever is listening on the port
+> without checking that it is this app — the failures look like bugs from here,
+> and the snapshot shows a screen that does not exist in this repo. When that
+> happens: `npm run dev -- --port 5180` and
+> `E2E_WEB_URL=http://localhost:5180 npm run test:e2e`.
 
-Durante os testes de socket o dev server loga
-`[vite] ws proxy socket error: ECONNRESET`: é o teardown fechando o socket de
-supetão, não falha.
+If the backend comes up from a stale image, run `docker compose up -d --build`:
+without the rebuild the container runs a previous `CMD`, without
+`alembic upgrade head`, and — since nothing else creates schema at startup — the
+database stays empty and every test fails at registration.
 
-## Como a suíte contorna o login com Google
+The browser no longer talks to the backend directly: the app uses relative URLs
+(`/api`, `/ws`) and the dev server proxy (`vite.config.js`) mirrors the routes
+nginx serves in production (`noHarmBack/docker/app_locations.conf`). The Node
+helpers still hit `E2E_API_URL` directly, bypassing the proxy.
 
-`RegisterScreen` / `LoginScreen` abrem um popup do Google, que o Google bloqueia
-em automação. E `POST /auth/login` / `/auth/register` não recebem mais `{uid,
-email}`: recebem `{idToken}` e mandam para `firebase_admin.auth.verify_id_token`
-— uid, email, `email_verified` e foto saem das claims verificadas, não do corpo
-da requisição. Mandar `{uid, email}` hoje é `422`; mandar um token de outro
-projeto é `401`.
+During the socket tests the dev server logs
+`[vite] ws proxy socket error: ECONNRESET`: that is teardown closing the socket
+abruptly, not a failure.
 
-O que torna a suíte possível é o **modo emulador do próprio firebase-admin**:
-com `FIREBASE_AUTH_EMULATOR_HOST` setado, ele pula a checagem de assinatura e de
-expiração, mas continua exigindo `aud == <project_id>`, `iss ==
-https://securetoken.google.com/<project_id>` e um `sub` não vazio. `fakeIdToken()`
-em `helpers/api.js` monta um JWT de três segmentos com essas claims — assinatura
-qualquer, já que ninguém a confere nesse modo.
+## How the suite works around Google login
 
-> **Aviso:** `FIREBASE_AUTH_EMULATOR_HOST` é bypass total de autenticação —
-> qualquer um autentica como qualquer um. Vale só para dev e teste
-> (`docker/compose.yaml` do backend). Nunca em produção. O backend loga um aviso
-> no boot quando a variável está setada.
+`RegisterScreen` / `LoginScreen` open a Google popup, which Google blocks under
+automation. And `POST /auth/login` / `/auth/register` no longer take
+`{uid, email}`: they take `{idToken}` and pass it to
+`firebase_admin.auth.verify_id_token` — uid, email, `email_verified` and photo
+come from the verified claims, not from the request body. Sending
+`{uid, email}` today is a `422`; sending a token from another project is a `401`.
 
-Cada teste registra uma conta descartável via REST com um desses tokens, escreve
-`nh_access` / `nh_refresh` no `localStorage` e recarrega a página: é exatamente o
-estado em que o app fica após um login real. A conta é apagada no teardown.
+What makes the suite possible is **firebase-admin's own emulator mode**: with
+`FIREBASE_AUTH_EMULATOR_HOST` set, it skips the signature and expiry checks but
+still requires `aud == <project_id>`,
+`iss == https://securetoken.google.com/<project_id>` and a non-empty `sub`.
+`fakeIdToken()` in `helpers/api.js` builds a three-segment JWT with those
+claims — any signature will do, since nobody verifies it in this mode.
 
-O `project_id` esperado vem de `E2E_FIREBASE_PROJECT_ID` (default `noharm-6cc9d`)
-e precisa bater com o `FIREBASE_PROJECT_ID` do backend. Se não bater, o register
-volta `401`; se o container do backend estiver sem `FIREBASE_AUTH_EMULATOR_HOST`,
-o token falha na verificação de assinatura e volta `401` — ou `503`
-`AUTH_UNAVAILABLE`, se ele também não tiver credencial de service account.
+> **Warning:** `FIREBASE_AUTH_EMULATOR_HOST` is a total authentication bypass —
+> anyone can authenticate as anyone. It is for dev and test only (the backend's
+> `docker/compose.yaml`). Never in production. The backend logs a warning at boot
+> when the variable is set.
 
-Consequência: nenhuma conta sua é usada. O banco ainda acumula as contas descartáveis,
-porque o backend só faz soft delete — ver "Estado que a suíte deixa no banco".
+Each test registers a throwaway account over REST with one of these tokens,
+writes `nh_access` / `nh_refresh` into `localStorage` and reloads the page: that
+is exactly the state the app is in after a real login. The account is deleted at
+teardown.
 
-## Rate limit: por que existe um `FLUSH` de contadores
+The expected `project_id` comes from `E2E_FIREBASE_PROJECT_ID` (default
+`noharm-6cc9d`) and must match the backend's `FIREBASE_PROJECT_ID`. If it does
+not match, register returns `401`; if the backend container is missing
+`FIREBASE_AUTH_EMULATOR_HOST`, the token fails signature verification and
+returns `401` — or `503` `AUTH_UNAVAILABLE`, if it also has no service account
+credential.
 
-O backend limita **todas** as rotas a 60 requisições/minuto por IP, com janela de
-60 s guardada no Redis sob `rl:*`. Um carregamento de tela custa ~10 requisições,
-então a suíte inteira não cabe num balde só.
+Consequence: none of your own accounts are used. The database still accumulates
+the throwaway accounts, because the backend only soft-deletes — see "State the
+suite leaves in the database".
 
-A suíte antiga forjava um `X-Forwarded-For` por teste para ganhar um balde
-próprio. Isso só funcionava porque o header era aceito de qualquer origem — furo
-que o backend fechou: agora ele só é considerado se o peer estiver em
-`TRUSTED_PROXIES`. Forjar o header virou no-op (ou, pior, funciona só na sua
-máquina, onde a bridge do Docker está na lista).
+## Rate limit: why there is a counter `FLUSH`
 
-No lugar disso, `helpers/ratelimit.js` zera os contadores antes de cada teste,
-via uma fixture `auto` em `helpers/fixtures.js`:
+The backend limits **all** routes to 60 requests/minute per IP, with a 60 s
+window kept in Redis under `rl:*`. One screen load costs ~10 requests, so the
+whole suite does not fit in a single bucket.
+
+The old suite forged an `X-Forwarded-For` per test to get its own bucket. That
+only worked because the header was accepted from any origin — a hole the backend
+has closed: it is now only considered if the peer is in `TRUSTED_PROXIES`.
+Forging the header became a no-op (or, worse, works only on your machine, where
+the Docker bridge is on the list).
+
+Instead, `helpers/ratelimit.js` zeroes the counters before each test, via an
+`auto` fixture in `helpers/fixtures.js`:
 
 ```bash
 docker exec redis_cache redis-cli --scan --pattern 'rl:*' | xargs -r redis-cli DEL
 ```
 
-Apaga **só** `rl:*`, nunca `FLUSHDB`: o mesmo Redis guarda o registro de presença
-e os contadores de socket por usuário (`ws:conn:*`, que impõem
-`too_many_connections`), e um flush vindo de um worker corromperia esses dados
-para os outros no meio da execução. Apagar o contador de outro worker é inofensivo
-— só concede mais cota, nunca invalida asserção.
+It deletes **only** `rl:*`, never `FLUSHDB`: the same Redis holds the presence
+registry and the per-user socket counters (`ws:conn:*`, which enforce
+`too_many_connections`), and a flush from one worker would corrupt that data for
+the others mid-run. Deleting another worker's counter is harmless — it only
+grants more quota, it never invalidates an assertion.
 
-Rodando contra um backend remoto não há container para o `docker exec`: o reset é
-pulado com um aviso e a suíte segue num balde só. Use `E2E_REDIS_CONTAINER` se o
-container tiver outro nome.
+Running against a remote backend there is no container for `docker exec`: the
+reset is skipped with a warning and the suite runs in a single bucket. Use
+`E2E_REDIS_CONTAINER` if the container has a different name.
 
-## Testes marcados `test.fail()`
+## Tests marked `test.fail()`
 
-Nenhum, hoje. A convenção continua valendo para quando aparecer um bug de backend
-que não dá para consertar do lado do app: o teste descreve o comportamento
-**correto**, ganha `test.fail()` e um comentário `KNOWN BUG`, fica verde enquanto
-o bug existir e passa a falhar — avisando — no dia em que alguém consertar. Foi
-exatamente assim que os seis bugs abaixo apareceram como corrigidos.
+None today. The convention still holds for when a backend bug shows up that
+cannot be fixed from the app side: the test describes the **correct** behavior,
+gets `test.fail()` and a `KNOWN BUG` comment, stays green while the bug exists
+and starts failing — as a heads-up — the day someone fixes it. That is exactly
+how the six bugs below surfaced as fixed.
 
-## Achados
+## Findings
 
-### Backend — corrigidos
+### Backend — fixed
 
-Todos os bugs que a suíte catalogava foram resolvidos, e os testes correspondentes
-viraram asserções positivas:
+Every bug the suite catalogued has been resolved, and the corresponding tests
+became positive assertions:
 
-| Bug | Estado |
+| Bug | State |
 |---|---|
-| `POST /streaks/end` 500 sempre (relapse quebrado) | encerra o streak e abre um novo, inclusive com `end_at` retroativo |
-| `PUT /users/me` não persiste | persiste |
-| WS nunca emite `new_message` | emite, para envio REST e por socket |
-| `DELETE /badges` 500 deixando badge fantasma | apaga e some do `GET /badges` |
-| conta deletada seguia autenticável | `GET /users/me` responde 403 `Account not found.` |
-| badges nunca concedidos | concedidos em `POST /streaks/start` e `/streaks/checkin` |
+| `POST /streaks/end` always 500 (relapse broken) | ends the streak and opens a new one, including with a backdated `end_at` |
+| `PUT /users/me` does not persist | persists |
+| WS never emits `new_message` | emits, for both REST and socket sends |
+| `DELETE /badges` 500, leaving a ghost badge | deletes, and it disappears from `GET /badges` |
+| deleted account remained authenticable | `GET /users/me` returns 403 `Account not found.` |
+| badges never granted | granted on `POST /streaks/start` and `/streaks/checkin` |
 
-### Backend — abertos
+### Backend — open
 
-Nenhum.
+None.
 
-### Frontend — aberto
+### Frontend — open
 
-- **Códigos de recusa do socket não são tratados** (`src/connectors/socket.js`).
-  O backend passou a devolver o motivo real em `connect_error` —
+- **Socket refusal codes are not handled** (`src/connectors/socket.js`).
+  The backend now returns the real reason in `connect_error` —
   `missing_token`, `invalid_token`, `account_unavailable`,
-  `too_many_connections` — antes tudo virava `"Connection refused by server"`.
-  O handler ainda é um `console.warn` e o socket.io tenta 5 reconexões para
-  qualquer um dos quatro; em `account_unavailable` e `too_many_connections` isso
-  é ruído garantido. Sem cobertura de teste até o handler existir.
+  `too_many_connections` — where everything used to become
+  `"Connection refused by server"`. The handler is still a `console.warn` and
+  socket.io retries 5 reconnections for any of the four; for
+  `account_unavailable` and `too_many_connections` that is guaranteed noise. No
+  test coverage until the handler exists.
 
-### Mudanças de contrato
+### Contract changes
 
-**`milestone` virou inteiro.** Deixou de ser date-time e passou a ser contagem de
-dias limpos. `tests/badges.spec.js` foi reescrito em cima disso, e os comentários
-em `src/services/badges.js` e nas telas de badge foram atualizados. O tratamento
-defensivo de `milestoneDays()` continua lá, agora como guarda contra badge
-malformado — não como o contrato esperado.
+**`milestone` became an integer.** It stopped being a date-time and became a
+count of clean days. `tests/badges.spec.js` was rewritten on top of that, and the
+comments in `src/services/badges.js` and the badge screens were updated. The
+defensive handling in `milestoneDays()` is still there, now as a guard against a
+malformed badge — not as the expected contract.
 
-**`X-Forwarded-For` só vale vindo de `TRUSTED_PROXIES`.** Ver a seção de rate
-limit acima.
+**`X-Forwarded-For` only counts coming from `TRUSTED_PROXIES`.** See the rate
+limit section above.
 
-**`/auth/login` e `/auth/register` recebem `{idToken}`.** Antes recebiam
-`{uid, email}` e acreditavam neles — como o uid do Firebase é público
-(`UserResponse.id` aparece na lista de amigos e na busca), dava para logar como
-qualquer usuário. Agora o backend verifica o ID token e tira a identidade das
-claims. `src/connectors/firebase.js` devolve `idToken` junto do resultado do
-popup, e `src/services/api/auth.js` manda só ele.
+**`/auth/login` and `/auth/register` take `{idToken}`.** They used to take
+`{uid, email}` and trust them — and since the Firebase uid is public
+(`UserResponse.id` appears in the friend list and in search), you could log in as
+any user. The backend now verifies the ID token and takes identity from the
+claims. `src/connectors/firebase.js` returns `idToken` alongside the popup
+result, and `src/services/api/auth.js` sends only that.
 
-**Entrega de eventos do socket não depende mais da sala do chat.** `new_message`,
-`messages_read` e `message_read` vão para a sala pessoal `user_<id>` de cada
-participante, entregues uma única vez com ou sem `join_chat`. `join_chat` segue
-necessário **só** para `typing_indicator`, que continua indo para a sala do chat
-com `skip_sid` — por isso `tests/chat.spec.js` ainda chama `joinChat` antes de
-emitir `typing`.
+**Socket event delivery no longer depends on the chat room.** `new_message`,
+`messages_read` and `message_read` go to each participant's personal room
+`user_<id>`, delivered exactly once with or without `join_chat`. `join_chat` is
+still required **only** for `typing_indicator`, which still goes to the chat room
+with `skip_sid` — which is why `tests/chat.spec.js` still calls `joinChat` before
+emitting `typing`.
 
-**Presença é multi-dispositivo e cross-instância.** `get_online_status` lê de um
-registro no Redis; o formato de `online_status` não mudou.
+**Presence is multi-device and cross-instance.** `get_online_status` reads from a
+registry in Redis; the `online_status` format has not changed.
 
-**Limites por usuário no socket:** `send_message` 30/min, `typing` 60/min.
+**Per-user socket limits:** `send_message` 30/min, `typing` 60/min.
 
-### Frontend — corrigidos
+### Frontend — fixed
 
-| Problema | Correção |
+| Problem | Fix |
 |---|---|
-| `milestone` date-time tratado como dias → nenhum badge ganho | estado de conquista passou a vir de `GET /user-badges/` (`services/badges.js`, `store/useBadges.js`) |
-| `NaN days to go` e ISO cru no medalhão | `milestoneDays()` devolve `null` quando o milestone não é contagem de dias; a UI esconde a contagem |
-| descrição do badge não renderizava | `badgeDescription()` aceita `description` e `desc` |
-| busca de amigos só via 20 usuários | pool pagina sob demanda enquanto o usuário digita, com estado "Searching…" |
-| botão de check-in inalcançável | modal só abre quando há dias em aberto; `last_checkin` do servidor virou fonte de verdade |
-| falha de check-in/relapse virava toast de sucesso | `useStreak` re-lança o erro |
-| "Past streaks" sem streaks passados | cabeçalho só aparece com lista não-vazia |
-| typing nunca era enviado | `ChatThread` emite `setTyping` com debounce |
-| aba "Sent" inalcançável | botão de requests no header de Friends |
-| links mortos em Settings | marcados como "Soon" e desabilitados |
-| `personalRecord` era `NaN` | `GET /streaks/record` devolve `start_at`/`end_at`; `app.jsx` lia `start`/`end` |
+| date-time `milestone` treated as days → no badge ever earned | earned state now comes from `GET /user-badges/` (`services/badges.js`, `store/useBadges.js`) |
+| `NaN days to go` and raw ISO on the medallion | `milestoneDays()` returns `null` when the milestone is not a day count; the UI hides the count |
+| badge description did not render | `badgeDescription()` accepts `description` and `desc` |
+| friend search only saw 20 users | the pool paginates on demand as the user types, with a "Searching…" state |
+| check-in button unreachable | the modal only opens when there are open days; the server's `last_checkin` became the source of truth |
+| check-in/relapse failure showed a success toast | `useStreak` re-throws the error |
+| "Past streaks" with no past streaks | the header only appears with a non-empty list |
+| typing was never sent | `ChatThread` emits `setTyping` with a debounce |
+| "Sent" tab unreachable | requests button in the Friends header |
+| dead links in Settings | marked "Soon" and disabled |
+| `personalRecord` was `NaN` | `GET /streaks/record` returns `start_at`/`end_at`; `app.jsx` was reading `start`/`end` |
+| backdated streak ≥ 11 days: 429, streak did not appear and badges seemed not to arrive | `useStreak` sent one check-in per elapsed day; `/streaks/checkin` is 10/min, and the 11th blew up **after** creating the streak and aborted before `saveStreak()`. Check-ins are not counted (duration comes from `start_at`, and `updateLastCheckin` is an assignment), so it became **one** conditional check-in; the badges already came from the server on `start`. Regression: 30-day backdate in `streak.spec.js` |
+| dark mode flashed white on every screen change | theme tokens lived only on `.nh-root`, a descendant of `body` — `body { background: var(--bg, …) }` never resolved and painted the light fallback behind the `nhScreenIn` fade. Selectors became `[data-dir][data-mode]`, applied to `<html>` as well. Covered in `profile.spec.js` |
+| theme did not survive a reload | `direction`/`mode`/`motion` persist in `nh_tweaks`; an inline script in `index.html` applies them before first paint, with an allowlist of values |
 
-## Estado que a suíte deixa no banco
+## State the suite leaves in the database
 
-- Usuários: apagados no teardown. O backend faz soft delete, então as linhas
-  permanecem no banco e o diretório cresce a cada execução. Para expurgar:
+- Users: deleted at teardown. The backend soft-deletes, so the rows stay in the
+  database and the directory grows with each run. To purge:
 
   ```bash
   docker exec postgres_db psql -U root -d noharm-db -c "
@@ -189,18 +209,18 @@ registro no Redis; o formato de `online_status` não mudou.
     DELETE FROM tb_0 WHERE cl_0a LIKE 'e2e%';"
   ```
 
-- Badges: nenhum. `tests/badges.spec.js` cria seu catálogo no `beforeAll`, apaga no
-  `afterAll` e ainda varre sobras de execuções anteriores pelo prefixo `E2E `,
-  agora que o `DELETE` funciona.
+- Badges: none. `tests/badges.spec.js` creates its catalog in `beforeAll`, deletes
+  it in `afterAll` and also sweeps leftovers from previous runs by the `E2E `
+  prefix, now that the `DELETE` works.
 
-- Redis: contadores `ws:conn:<userId>` ficam com valor `0` e TTL de 24 h depois
-  que o socket fecha — o decremento está certo, a chave só não é apagada. Não
-  afeta `too_many_connections`; some sozinho.
+- Redis: `ws:conn:<userId>` counters are left at `0` with a 24 h TTL after the
+  socket closes — the decrement is correct, the key just isn't deleted. It does
+  not affect `too_many_connections`; it expires on its own.
 
-**Por que a busca de amigos usa diretório stubado.** O diretório real cresce a
-cada execução e o app pagina sob um teto de 30 req/min em `/users`. Assim que o
-total passa de uma página, uma conta recém-criada cai na página 2 e o teste vira
-uma corrida contra o rate limit. Os testes de busca fixam o pool com
-`stubUserDirectory`; o contrato do endpoint real fica coberto pelo teste
-`GET /users — contrato do diretório que alimenta a busca`, que não passa pelo
-browser.
+**Why friend search uses a stubbed directory.** The real directory grows with
+each run and the app paginates under a 30 req/min ceiling on `/users`. As soon as
+the total exceeds one page, a freshly created account lands on page 2 and the
+test becomes a race against the rate limit. The search tests pin the pool with
+`stubUserDirectory`; the real endpoint's contract stays covered by the
+`GET /users — contract of the directory backing search` test, which does not go
+through the browser.

@@ -10,7 +10,7 @@ import { test, expect, openApp, tab } from "./helpers/fixtures.js";
 import { api, as, createUser, fakeIdToken } from "./helpers/api.js";
 
 test.describe("Auth / Onboarding", () => {
-  test('Splash — "Get started" abre Register, "I already have an account" abre Login', async ({
+  test('Splash — "Get started" opens Register, "I already have an account" opens Login', async ({
     page,
   }) => {
     await page.goto("/");
@@ -31,7 +31,7 @@ test.describe("Auth / Onboarding", () => {
     await expect(page.getByRole("button", { name: "Get started" })).toBeVisible();
   });
 
-  test("Register — validação de username (mín. 3 chars) libera o botão Google", async ({
+  test("Register — username validation (min. 3 chars) enables the Google button", async ({
     page,
   }) => {
     await page.goto("/");
@@ -45,7 +45,7 @@ test.describe("Auth / Onboarding", () => {
     await expect(page.getByText("This is how friends will find you.")).toBeVisible();
   });
 
-  test("Register/Login via API — cria conta, emite JWT e resolve /users/me", async () => {
+  test("Register/Login via API — creates the account, issues a JWT and resolves /users/me", async () => {
     const user = await createUser("auth");
     try {
       const me = await api.get("/users/me", as(user));
@@ -76,7 +76,7 @@ test.describe("Auth / Onboarding", () => {
     }
   });
 
-  test("Persistência de sessão — reload com token salvo entra direto no app", async ({
+  test("Session persistence — reload with a saved token goes straight into the app", async ({
     page,
     userA,
   }) => {
@@ -89,13 +89,13 @@ test.describe("Auth / Onboarding", () => {
     await expect(page.getByRole("button", { name: "Get started" })).toBeHidden();
   });
 
-  test("Sem token — cai no splash", async ({ page }) => {
+  test("No token — lands on the splash", async ({ page }) => {
     await page.goto("/");
     await expect(page.getByRole("button", { name: "Get started" })).toBeVisible();
     await expect(tab(page, "Home")).toBeHidden();
   });
 
-  test("Logout — limpa tokens, volta ao splash", async ({ appA, page }) => {
+  test("Logout — clears tokens, returns to the splash", async ({ appA, page }) => {
     await tab(page, "Profile").click();
     await page.locator("#nh-screen button").first().click(); // gear → Settings
     await expect(page.getByText("Settings")).toBeVisible();
@@ -113,7 +113,7 @@ test.describe("Auth / Onboarding", () => {
     expect(stored.cacheKeys).toHaveLength(0);
   });
 
-  test('Delete account — confirmação "DELETE" → tela "Your account is gone" → Start over', async ({
+  test('Delete account — "DELETE" confirmation → farewell screen → Start over', async ({
     appA,
     page,
     userA,
@@ -124,19 +124,26 @@ test.describe("Auth / Onboarding", () => {
     await page.getByRole("button", { name: /Delete account/ }).click();
     await expect(page.getByText("Delete your account?")).toBeVisible();
 
-    const deleteForever = page.getByRole("button", { name: "Delete forever" });
-    await expect(deleteForever).toBeDisabled();
+    // The confirmation states the grace window rather than promising a deletion
+    // that does not happen yet. The backend keeps the row for
+    // ACCOUNT_DELETION_GRACE_DAYS and a cron purges it after; saying "forever"
+    // here, as this screen used to, was a promise the backend did not keep.
+    await expect(page.getByText(/erased for good after \d+ days/)).toBeVisible();
+
+    const confirmDelete = page.getByRole("button", { name: "Delete my account" });
+    await expect(confirmDelete).toBeDisabled();
 
     await page.getByPlaceholder("DELETE").fill("DELETE");
-    await expect(deleteForever).toBeEnabled();
-    await deleteForever.click();
+    await expect(confirmDelete).toBeEnabled();
+    await confirmDelete.click();
 
-    await expect(page.getByText("Your account is gone")).toBeVisible();
+    await expect(page.getByText("Your account is deleted")).toBeVisible();
+    await expect(page.getByText(/signing in brings your streak/)).toBeVisible();
     await page.getByRole("button", { name: "Start over" }).click();
     await expect(page.getByRole("button", { name: "Get started" })).toBeVisible();
 
-    // Backend-side the account is gone and its still-unexpired access token no
-    // longer resolves a profile.
+    // Backend-side the account reads as gone to everyone, grace window or not:
+    // its still-unexpired access token no longer resolves a profile.
     await expect(api.get("/users/me", as(userA))).rejects.toThrow(/403/);
   });
 });

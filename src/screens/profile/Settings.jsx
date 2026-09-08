@@ -5,6 +5,10 @@ import { deleteMe } from "../../services/api/user.js";
 import { LinkRow } from "./LinkRow.jsx";
 import { ToggleRow } from "./ToggleRow.jsx";
 
+// Mirrors the backend's ACCOUNT_DELETION_GRACE_DAYS. Only ever shown to the
+// user — the backend enforces the window and owns the real value.
+const GRACE_DAYS = Number(import.meta.env.VITE_DELETION_GRACE_DAYS) || 30;
+
 export function Settings({
   onBack,
   onLogout,
@@ -210,7 +214,12 @@ export function Settings({
               lineHeight: 1.5,
             }}
           >
-            This erases your streak, badges, friends and messages permanently.
+            Your streak, badges, friends and messages disappear right away, and
+            are erased for good after {GRACE_DAYS} days.
+            <br />
+            <br />
+            If you change your mind before then, signing in brings everything
+            back.
           </div>
         </div>
         <div style={{ margin: "18px 0 8px" }}>
@@ -244,7 +253,7 @@ export function Settings({
               onDeleted();
             }}
           >
-            Delete forever
+            Delete my account
           </Btn>
           <Btn
             kind="ghost"

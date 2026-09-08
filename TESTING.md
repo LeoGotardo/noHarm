@@ -1,132 +1,144 @@
-# NoHarm — Checklist de Testes
+# NoHarm — Test checklist
 
-Lista de funções do app para testar manualmente. Organizada por domínio, na ordem do fluxo de uso.
+List of app features to test manually. Organized by domain, in usage-flow order.
 
-> **Boa parte deste checklist já está automatizada** em `tests/` (Playwright, 67 testes).
-> Rode com `npm run test:e2e`. Os itens que a automação cobre estão marcados 🤖 —
-> os demais continuam sendo verificação manual (popup do Google, push nativo, etc.).
-> Os bugs que a suíte encontrou — de frontend e de backend — já foram corrigidos;
-> o histórico está em [`tests/README.md`](tests/README.md).
+> **Most of this checklist is already automated** in `tests/` (Playwright, 71 tests).
+> Run it with `npm run test:e2e`. Items the automation covers are marked 🤖 —
+> the rest remain manual verification (Google popup, native push, etc.).
+> The bugs the suite found — frontend and backend — have all been fixed;
+> the history is in [`tests/README.md`](tests/README.md).
 
 ## Auth / Onboarding
 
-- [x] 🤖 **Splash** — "Get Started" abre Register; "Login" abre Login
-- [ ] **Register** — criar conta (Firebase + JWT); botão voltar retorna ao splash; sucesso → app/home _(popup do Google — manual; a criação de conta via API é testada)_
-- [ ] **Login** — entrar; botão voltar retorna ao splash; sucesso → app/home _(popup do Google — manual; o login via API é testado)_
-- [ ] **ID token chega ao backend** — no login real, o request de `/auth/login`
-      leva `{idToken}` e o backend responde 200. Vale só verificar uma vez após
-      trocar credencial de Firebase: um token do projeto errado devolve `401`
-- [x] 🤖 **Persistência de sessão** — reload com token salvo entra direto no app
-- [x] 🤖 **Logout** (Settings) — volta ao splash, limpa a stack
-- [x] 🤖 **Delete account** (Settings) — tela "Your account is gone" → "Start over" volta ao splash
+- [x] 🤖 **Splash** — "Get Started" opens Register; "Login" opens Login
+- [ ] **Register** — create account (Firebase + JWT); back button returns to splash; success → app/home _(Google popup — manual; account creation via API is tested)_
+- [ ] **Login** — sign in; back button returns to splash; success → app/home _(Google popup — manual; login via API is tested)_
+- [ ] **ID token reaches the backend** — on a real login, the `/auth/login`
+      request carries `{idToken}` and the backend responds 200. Worth checking
+      only once after swapping Firebase credentials: a token from the wrong
+      project returns `401`
+- [x] 🤖 **Session persistence** — reload with a saved token goes straight into the app
+- [x] 🤖 **Logout** (Settings) — returns to splash, clears the stack
+- [x] 🤖 **Delete account** (Settings) — "Your account is gone" screen → "Start over" returns to splash
 
 ## Home / Streak
 
-- [x] 🤖 **Start streak** — bottom sheet; escolher data (máx = hoje); "Begin my streak" → confete + toast
-- [x] 🤖 **Check-in** — botão; confete (se motion on); toast "Checked in — day N"; reagenda reminder
-- [x] 🤖 **Check-in modal (auto)** — aparece quando `needsCheckin`; confirmar all-clean; marcar dia de setback encerra o streak naquela data
-- [x] 🤖 **Relapse** — sheet "A setback isn't the end"; reset para 0; toast compassivo; falha do servidor não celebra
-- [x] 🤖 **Streak history** — abre tela; dias atuais + data início; estado vazio quando `days === 0`
-- [x] 🤖 **Personal record** — calculado a partir de `GET /streaks/record` (`start_at`/`end_at`)
-- [x] 🤖 **Confete** — respeita reduce-motion (off quando motion = false)
+- [x] 🤖 **Start streak** — bottom sheet; pick a date (max = today); "Begin my streak" → confetti + toast
+- [x] 🤖 **Long backdated streak** — pick a date ~30 days ago: the streak starts,
+      the medals for past milestones appear and **no** rate-limit message shows up
+- [x] 🤖 **Check-in** — button; confetti (if motion on); "Checked in — day N" toast; reschedules reminder
+- [x] 🤖 **Check-in modal (auto)** — appears when `needsCheckin`; confirming all-clean; marking a setback day ends the streak on that date
+- [x] 🤖 **Relapse** — "A setback isn't the end" sheet; reset to 0; compassionate toast; a server failure does not celebrate
+- [x] 🤖 **Streak history** — opens the screen; current days + start date; empty state when `days === 0`
+- [x] 🤖 **Personal record** — computed from `GET /streaks/record` (`start_at`/`end_at`)
+- [x] 🤖 **Confetti** — respects reduce-motion (off when motion = false)
 
 ## Friends
 
-- [x] 🤖 **Friends list** — lista de amigos (status = accepted); contador de requests; badge no tab
-- [ ] **Friend requests** — recebidos/enviados 🤖; aceitar (toast "Friend added") 🤖; cancelar 🤖; **recusar** _(sem cobertura)_
-- [x] 🤖 **Friend search** — buscar; abrir perfil; enviar request (toast "Request sent")
-- [x] 🤖 **Public profile** — ver perfil; relação (friend / pending_out / pending_in / none); ações: message, add, accept, remove (toast "Friend removed"), block (toast "User blocked")
+- [x] 🤖 **Friends list** — friend list (status = accepted); request counter; tab badge
+- [ ] **Friend requests** — received/sent 🤖; accept ("Friend added" toast) 🤖; cancel 🤖; **reject** _(no coverage)_
+- [x] 🤖 **Friend search** — search; open profile; send request ("Request sent" toast)
+- [x] 🤖 **Public profile** — view profile; relationship (friend / pending_out / pending_in / none); actions: message, add, accept, remove ("Friend removed" toast), block ("User blocked" toast)
 
 ## Chat
 
-- [x] 🤖 **Chat list** — lista de conversas; contador de não-lidas (badge no tab)
-- [x] 🤖 **Chat thread** — abrir conversa; enviar mensagem; typing; mark_read (WS)
-- [x] 🤖 **Message person** — abre chat existente ou cria novo (a partir de friends/profile)
+- [x] 🤖 **Chat list** — conversation list; unread counter (tab badge)
+- [x] 🤖 **Chat thread** — open a conversation; send a message; typing; mark_read (WS)
+- [x] 🤖 **Message person** — opens an existing chat or creates a new one (from friends/profile)
 
 ## Badges
 
-- [x] 🤖 **Badges screen** — grid; status earned vindo de `GET /user-badges/`; contagem "N of M earned"
-- [ ] **Badge detail** — abre tela 🤖; descrição 🤖; dias restantes 🤖; data da conquista 🤖; flag `justUnlocked` _(sem cobertura)_
-- [x] 🤖 **Next badge / milestone** — próximo badge não-ganho exibido na home
+- [x] 🤖 **Badges screen** — grid; earned status from `GET /user-badges/`; "N of M earned" count
+- [ ] **Badge detail** — opens the screen 🤖; description 🤖; days remaining 🤖; earned date 🤖; `justUnlocked` flag _(no coverage)_
+- [x] 🤖 **Next badge / milestone** — next unearned badge shown on home
 
 ## Profile
 
-- [x] 🤖 **My profile** — badges ganhos, dias, record, contagem, data de entrada
-- [x] 🤖 **Edit profile** — salvar (toast "Profile updated") + refetch
-- [x] 🤖 **Settings** — toggle dark/light, logout, delete, notificações
+- [x] 🤖 **My profile** — earned badges, days, record, count, join date
+- [x] 🤖 **Edit profile** — save ("Profile updated" toast) + refetch
+- [x] 🤖 **Settings** — dark/light toggle, logout, delete, notifications
+- [x] 🤖 **Dark mode does not flash white** — switching screens in dark mode shows
+      no light flash between screens (the `nhScreenIn` fade exposes the document
+      background; it has to be dark too, not just the app column)
+- [x] 🤖 **Theme survives a reload** — pick dark, reload: comes back dark,
+      and starts dark (no light flash before the app mounts)
 
 ## Notifications
 
-- [ ] **Permissão** — "Enable notifications" (Settings) _(prompt do browser — manual)_
-- [ ] **Prefs** — master 🤖 e sub-toggles desabilitados sem permissão 🤖; ligar/desligar `messages`, `friendRequests`, `friendAccepted`, `checkinReminder` individualmente _(sem cobertura)_
-- [ ] **Check-in reminder** — agenda 9 PM diário quando master + pref ativos _(Capacitor LocalNotifications — manual, só nativo)_
-- [ ] **Banner in-app** — notif WS aparece como banner; tap navega (chat/etc) _(o backend já emite `new_message`; falta escrever o teste)_
-- [x] 🤖 **Toast** — feedback de ações (auto-dismiss em 2,2 s)
+- [ ] **Permission** — "Enable notifications" (Settings) _(browser prompt — manual)_
+- [ ] **Prefs** — master 🤖 and sub-toggles disabled without permission 🤖; turn `messages`, `friendRequests`, `friendAccepted`, `checkinReminder` on/off individually _(no coverage)_
+- [ ] **Check-in reminder** — schedules 9 PM daily when master + pref are on _(Capacitor LocalNotifications — manual, native only)_
+- [ ] **In-app banner** — WS notification shows as a banner; tapping navigates (chat/etc) _(the backend already emits `new_message`; the test is still to be written)_
+- [x] 🤖 **Toast** — action feedback (auto-dismiss after 2.2 s)
 
-## Navegação / Tabs
+## Navigation / Tabs
 
-- [x] 🤖 **TabBar** — home / friends / chat / badges / profile; badges de contador (friends, chat)
-- [x] 🤖 **Stack** — push / pop / resetTo; tabs escondem quando há overlay na stack
-- [x] 🤖 **Animação de transição** — `nhScreenIn` na troca de tela
+- [x] 🤖 **TabBar** — home / friends / chat / badges / profile; counter badges (friends, chat)
+- [x] 🤖 **Stack** — push / pop / resetTo; tabs hide when there is an overlay on the stack
+- [x] 🤖 **Transition animation** — `nhScreenIn` on screen change
 
-## Theming (TweaksPanel — canto inferior direito)
+## Theming (TweaksPanel — bottom-right corner)
 
-- [x] 🤖 **Direção** — sage ↔ dawn
-- [x] 🤖 **Modo** — light ↔ dark
-- [x] 🤖 **Motion** — liga/desliga fundo animado + confete
-- [ ] **Accent** — warm (default) _(sem alternativa no painel)_
+- [x] 🤖 **Direction** — sage ↔ dawn
+- [x] 🤖 **Mode** — light ↔ dark
+- [x] 🤖 **Motion** — toggles the animated background + confetti
+- [ ] **Accent** — warm (default) _(no alternative in the panel)_
 
 ---
 
-## Integrações de API — agora ligadas
+## API integrations — now wired up
 
-Handlers antes em stub, agora chamando o backend:
+Handlers previously stubbed, now calling the backend:
 
-- `FriendSearch` recebe `pool` real (`getUsers`) → busca filtra usuários
+- `FriendSearch` receives a real `pool` (`getUsers`) → search filters users
 - `onSendRequest` / `onAdd` → `sendFriendRequest`
 - `onAccept` / `onReject` / `onCancel` (requests + PublicProfile) → `acceptFriendship` / `rejectFriendship` / `removeFriendship`
 - `onRemove` / `onBlock` (PublicProfile) → `removeFriendship` / `blockFriendship`
 - Delete account (Settings) → `deleteMe`
-- Logout (Settings) → `signOut` + limpa tokens
-- Chat "Ignore" (request recebido) → `rejectChat`
-- Logout / delete account → `unregisterDeviceToken` (token FCM persistido em `nh_fcm`)
+- Logout (Settings) → `signOut` + clears tokens
+- Chat "Ignore" (received request) → `rejectChat`
+- Logout / delete account → `unregisterDeviceToken` (FCM token persisted in `nh_fcm`)
 
-## Mudanças de contrato do backend já absorvidas
+## Backend contract changes already absorbed
 
-- `/auth/login` e `/auth/register` recebem `{idToken}` (ID token do Firebase),
-  não mais `{uid, email}` — o backend verifica o token e tira uid/email/foto/
-  `email_verified` das claims. O front manda `user.getIdToken()`
-- `milestone` (badges) virou **inteiro** — contagem de dias limpos, não date-time
-- badges são concedidos pelo backend em `POST /streaks/start` e `/streaks/checkin`
-- `POST /streaks/end` encerra o streak e já abre o próximo (aceita `end_at` retroativo)
-- conta deletada: o access token antigo passa a receber `403 Account not found.`
-- `X-Forwarded-For` só é considerado vindo de um peer em `TRUSTED_PROXIES` — a suíte
-  parou de forjar IP e passou a zerar os contadores de rate limit entre testes
-- eventos `new_message` / `messages_read` / `message_read` vão para a sala pessoal
-  `user_<id>`; `join_chat` continua necessário **só** para `typing_indicator`
-- presença passou a ser multi-dispositivo e cross-instância (registro no Redis);
-  o formato de `online_status` não mudou
-- limites por usuário no socket: `send_message` 30/min, `typing` 60/min
+- `/auth/login` and `/auth/register` take `{idToken}` (the Firebase ID token),
+  no longer `{uid, email}` — the backend verifies the token and takes
+  uid/email/photo/`email_verified` from the claims. The front end sends
+  `user.getIdToken()`
+- `milestone` (badges) became an **integer** — a count of clean days, not a date-time
+- badges are granted by the backend on `POST /streaks/start` and `/streaks/checkin`
+- `POST /streaks/end` ends the streak and immediately opens the next one (accepts a backdated `end_at`)
+- deleted account: the old access token now gets `403 Account not found.`
+- `X-Forwarded-For` is only considered coming from a peer in `TRUSTED_PROXIES` — the
+  suite stopped forging IPs and now zeroes the rate-limit counters between tests
+- `new_message` / `messages_read` / `message_read` events go to the personal room
+  `user_<id>`; `join_chat` is still required **only** for `typing_indicator`
+- presence became multi-device and cross-instance (registry in Redis);
+  the `online_status` format has not changed
+- per-user socket limits: `send_message` 30/min, `typing` 60/min
 
-## Proxy (backend privado)
+## Proxy (private backend)
 
-Implementado — ver [`PROXY.md`](PROXY.md). O app passou a falar com a própria
-origem: `VITE_API_URL=/api`, `VITE_SOCKET_URL` vazia, e o nginx do container
-encaminha `/api` (sem o prefixo) e `/ws` para o backend em `127.0.0.1:8080`. O
-`npm run dev` proxia as mesmas rotas, então a suíte E2E roda contra o dev server
-sem precisar subir o container.
+Implemented. The details are in `CLAUDE.md` (Deployment section) and in
+`noHarmBack/docker/app_locations.conf`, which is the real routing file;
+the old `PROXY.md` described a serverless proxy that no longer exists.
+The app now talks to its own origin: `VITE_API_URL=/api`, empty
+`VITE_SOCKET_URL`, and the container's nginx forwards `/api` (without the
+prefix) and `/ws` to the backend at `127.0.0.1:8080`. `npm run dev` proxies the
+same routes, so the E2E suite runs against the dev server without bringing up the
+container.
 
-Efeito colateral: CORS deixou de existir para o tráfego web (mesma origem, sem
-preflight), e `ALLOWED_ORIGINS` no backend para de importar para a SPA.
+Side effect: CORS ceased to exist for web traffic (same origin, no preflight),
+and `ALLOWED_ORIGINS` on the backend stops mattering for the SPA.
 
-## Pendente no frontend por causa do backend novo
+## Pending on the frontend because of the new backend
 
-- **`src/connectors/socket.js`** — tratar os códigos reais de `connect_error`
+- **`src/connectors/socket.js`** — handle the real `connect_error` codes
   (`missing_token`, `invalid_token`, `account_unavailable`, `too_many_connections`).
-  Hoje é `console.warn` + 5 reconexões para todos os casos.
+  Today it is `console.warn` + 5 reconnections for every case.
 
-## Ainda sem integração (falta endpoint/infra)
+## Still not integrated (missing endpoint/infra)
 
-- Upload de foto de perfil (EditProfile câmera) — sem endpoint de upload; `putMe` só aceita URL
-- Settings "Privacy & safety" / "Crisis resources" — telas não existem; as linhas agora aparecem como "Soon" e desabilitadas em vez de toque morto
-- `totalStreaks` na Dashboard — hardcoded `0` (sem campo na API)
+- Profile picture upload (EditProfile camera) — no upload endpoint; `putMe` only accepts a URL
+- Settings "Privacy & safety" / "Crisis resources" — the screens do not exist; the rows now show as "Soon" and disabled instead of being dead taps
+- `totalStreaks` on the Dashboard — hardcoded `0` (no field in the API)

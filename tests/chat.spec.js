@@ -9,13 +9,13 @@ const openChatTab = async (page) => {
 };
 
 test.describe("Chat", () => {
-  test("Chat list — estado vazio", async ({ appA, page }) => {
+  test("Chat list — empty state", async ({ appA, page }) => {
     await openChatTab(page);
     await expect(page.getByText("No conversations yet")).toBeVisible();
     await expect(page.getByText("0 conversations")).toBeVisible();
   });
 
-  test("Chat list — conversa com última mensagem e badge de não-lidas", async ({
+  test("Chat list — conversation with last message and unread badge", async ({
     page,
     userA,
     userB,
@@ -34,20 +34,20 @@ test.describe("Chat", () => {
     await expect(page.getByText(userB.username)).toBeVisible();
   });
 
-  test("Chat thread — abre, marca como lida e envia mensagem", async ({
+  test("Chat thread — opens, marks as read and sends a message", async ({
     page,
     userA,
     userB,
   }) => {
     await makeFriends(userA, userB);
-    await sendMessage(userB, { to: userA, content: "mensagem inicial" });
+    await sendMessage(userB, { to: userA, content: "opening message" });
 
     await openApp(page, userA, { checkedInToday: true });
     await openChatTab(page);
-    await page.getByText("mensagem inicial").click();
+    await page.getByText("opening message").click();
 
     await expect(page.getByPlaceholder("Message…")).toBeVisible();
-    await expect(page.getByText("mensagem inicial")).toBeVisible();
+    await expect(page.getByText("opening message")).toBeVisible();
 
     await page.getByPlaceholder("Message…").fill("tudo certo por aqui");
     await page.keyboard.press("Enter");
@@ -64,7 +64,7 @@ test.describe("Chat", () => {
       .toBe(0);
   });
 
-  test("Message person — a partir de Friends cria a conversa na primeira mensagem", async ({
+  test("Message person — from Friends, the conversation is created on the first message", async ({
     page,
     userA,
     userB,
@@ -83,25 +83,25 @@ test.describe("Chat", () => {
       page.getByText("This is the beginning of your conversation with"),
     ).toBeVisible();
 
-    await page.getByPlaceholder("Message…").fill("primeira mensagem");
+    await page.getByPlaceholder("Message…").fill("first message");
     await page.keyboard.press("Enter");
-    await expect(page.getByText("primeira mensagem")).toBeVisible();
+    await expect(page.getByText("first message")).toBeVisible();
 
     await expect.poll(async () => (await getChats(userA)).length).toBe(1);
   });
 
-  test("Realtime (WS) — mensagem do outro usuário chega na thread aberta", async ({
+  test("Realtime (WS) — the other user's message arrives in the open thread", async ({
     page,
     browser,
     userA,
     userB,
   }) => {
     await makeFriends(userA, userB);
-    await sendMessage(userA, { to: userB, content: "abrindo a conversa" });
+    await sendMessage(userA, { to: userB, content: "opening the thread" });
 
     await openApp(page, userA, { checkedInToday: true });
     await openChatTab(page);
-    await page.getByText("abrindo a conversa").click();
+    await page.getByText("opening the thread").click();
     await expect(page.getByPlaceholder("Message…")).toBeVisible();
 
     const { context, page: pageB } = await openSecondApp(browser, userB, {
@@ -109,7 +109,7 @@ test.describe("Chat", () => {
     });
     try {
       await pageB.getByRole("button", { name: "Chat", exact: true }).click();
-      await pageB.getByText("abrindo a conversa").click();
+      await pageB.getByText("opening the thread").click();
       await pageB.getByPlaceholder("Message…").fill("chegou em tempo real");
       await pageB.keyboard.press("Enter");
 
@@ -121,7 +121,7 @@ test.describe("Chat", () => {
     }
   });
 
-  test("Realtime (WS) — indicador 'typing…' aparece ao receber o evento", async ({
+  test("Realtime (WS) — the 'typing…' indicator appears when the event arrives", async ({
     page,
     userA,
     userB,
@@ -150,17 +150,17 @@ test.describe("Chat", () => {
     }
   });
 
-  test("Realtime (WS) — mensagem enviada pelo socket aparece na lista de chats", async ({
+  test("Realtime (WS) — a message sent over the socket appears in the chat list", async ({
     page,
     userA,
     userB,
   }) => {
     await makeFriends(userA, userB);
-    const msg = await sendMessage(userA, { to: userB, content: "conversa" });
+    const msg = await sendMessage(userA, { to: userB, content: "thread" });
 
     await openApp(page, userA, { checkedInToday: true });
     await openChatTab(page);
-    await expect(page.getByText("conversa", { exact: true })).toBeVisible();
+    await expect(page.getByText("thread", { exact: true })).toBeVisible();
 
     const socketB = await connectAs(userB);
     try {

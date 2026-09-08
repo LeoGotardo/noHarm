@@ -1,12 +1,28 @@
-import { GoogleButton, Header, Logo, Screen } from "@components";
-import { Icon } from "@ui";
+import { BottomSheet, GoogleButton, Header, Logo, Screen } from "@components";
+import { Btn, Icon } from "@ui";
 import { useState } from "react";
 import { errorMessage } from "../../connectors/api.js";
-import { signIn } from "../../services/api/auth.js";
+import { reactivate, signIn } from "../../services/api/auth.js";
+
+/** "March 3, 2027" from the ISO instant the backend sends. */
+function fmtDeadline(iso) {
+  if (!iso) return null;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+}
 
 export function LoginScreen({ onBack, onDone }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  // Set when the backend answers ACCOUNT_PENDING_DELETION: the account is still
+  // restorable, and this holds what the restore needs.
+  const [restore, setRestore] = useState(null);
+  const [restoring, setRestoring] = useState(false);
 
   const submit = async () => {
     setLoading(true);
@@ -24,13 +40,34 @@ export function LoginScreen({ onBack, onDone }) {
       }
       onDone();
     } catch (e) {
-      if (e?.status === 403)
+      // Checked before the generic 403: a deletion that has not run yet is a
+      // question ("want it back?"), not a rejection.
+      if (e?.body?.errorCode === "ACCOUNT_PENDING_DELETION") {
+        setRestore({
+          idToken: e.idToken,
+          deadline: fmtDeadline(e.deletionScheduledAt),
+        });
+      } else if (e?.status === 403)
         setError("This account has been suspended. Please contact support.");
       else if (e?.status === 404)
         setError("No account found. Try signing up instead.");
       else setError(errorMessage(e));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const confirmRestore = async () => {
+    setRestoring(true);
+    try {
+      await reactivate(restore.idToken);
+      setRestore(null);
+      onDone();
+    } catch (e) {
+      setRestore(null);
+      setError(errorMessage(e, "We couldn't restore your account. Please try again."));
+    } finally {
+      setRestoring(false);
     }
   };
 
@@ -122,6 +159,61 @@ export function LoginScreen({ onBack, onDone }) {
           We never post anything on your behalf.
         </div>
       </div>
+      <BottomSheet open={!!restore} onClose={() => setRestore(null)}>
+        <div style={{ textAlign: "center", marginBottom: 6 }}>
+          <div
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: "50%",
+              background: "var(--accent-soft)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              margin: "0 auto 14px",
+            }}
+          >
+            <Icon name="heart" size={26} color="var(--accent-ink)" />
+          </div>
+          <div style={{ fontSize: 19, fontWeight: 700, color: "var(--ink)" }}>
+            Want your account back?
+          </div>
+          <div
+            style={{
+              fontSize: 14,
+              color: "var(--ink-2)",
+              marginTop: 8,
+              lineHeight: 1.5,
+            }}
+          >
+            You deleted this account and it hasn't been erased yet. Restore it
+            and your streak, badges and friends come back exactly as they were.
+            {restore?.deadline && (
+              <>
+                <br />
+                <br />
+                If you do nothing, it is permanently deleted on{" "}
+                <strong>{restore.deadline}</strong>.
+              </>
+            )}
+          </div>
+        </div>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 10,
+            marginTop: 18,
+          }}
+        >
+          <Btn full loading={restoring} onClick={confirmRestore}>
+            Restore my account
+          </Btn>
+          <Btn kind="ghost" full onClick={() => setRestore(null)}>
+            Leave it deleted
+          </Btn>
+        </div>
+      </BottomSheet>
     </Screen>
   );
 }

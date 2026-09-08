@@ -9,6 +9,20 @@
   <link href="https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900&family=Manrope:wght@400;500;600;700;800&family=Spectral:ital,wght@0,400;0,500;0,600;0,700;0,800;1,500&display=swap" rel="stylesheet" />
 </head>
 <body>
+  <script>
+    // Apply the stored theme before first paint, so dark mode never flashes
+    // white on load. Mirrors loadTweaks() in src/app.jsx — keep the key and the
+    // allowed values in sync. Anything unrecognised falls back to the default.
+    (function () {
+      try {
+        var t = JSON.parse(localStorage.getItem('nh_tweaks') || '{}');
+        var dir = ['sage', 'dawn'].indexOf(t.direction) === -1 ? 'sage' : t.direction;
+        var mode = ['light', 'dark'].indexOf(t.mode) === -1 ? 'light' : t.mode;
+        document.documentElement.setAttribute('data-dir', dir);
+        document.documentElement.setAttribute('data-mode', mode);
+      } catch (e) {}
+    })();
+  </script>
   <div id="root"></div>
   <script type="module" src="/src/main.jsx"></script>
 </body>

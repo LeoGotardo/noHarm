@@ -16,8 +16,47 @@ export async function signIn() {
 
   // Identity is whatever the backend reads out of the verified token — nothing
   // this side sends about who the user is would be believed anyway.
-  const result = await api.post("/auth/login", { idToken: userData.idToken });
+  try {
+    const result = await api.post("/auth/login", { idToken: userData.idToken });
+    tokens.set(result);
+  } catch (e) {
+    throw withRestoreContext(e, userData.idToken);
+  }
+}
+
+/**
+ * Attach the Firebase ID token to a "this account is scheduled for deletion"
+ * error, so the screen that catches it can offer the restore without sending
+ * the user back through the Google popup a second time.
+ *
+ * The token is already in hand and stays valid for about an hour, which is far
+ * longer than the two taps the restore takes.
+ *
+ * @param {unknown} err     the error thrown by the login/register call
+ * @param {string} idToken  the Firebase ID token that produced it
+ */
+function withRestoreContext(err, idToken) {
+  if (err?.body?.errorCode === "ACCOUNT_PENDING_DELETION") {
+    err.idToken = idToken;
+    err.deletionScheduledAt = err.body?.details?.deletionScheduledAt ?? null;
+  }
+  return err;
+}
+
+/**
+ * Restore an account that was deleted and is still inside its grace window.
+ * Stores the returned tokens, so the caller lands signed in.
+ *
+ * Separate from signIn on purpose: restoring puts the profile, the friend list
+ * and the streak history back in front of other people, and that is not
+ * something a sign-in should decide on the user's behalf.
+ *
+ * @param {string} idToken Firebase ID token for the account being restored
+ */
+export async function reactivate(idToken) {
+  const result = await api.post("/auth/reactivate", { idToken });
   tokens.set(result);
+  return result;
 }
 
 /**
@@ -34,10 +73,17 @@ export async function signUp(username) {
   const userData = await fbLogin();
   if (!userData.success) return userData;
 
-  const result = await api.post("/auth/register", {
-    idToken: userData.idToken,
-    username,
-  });
+  let result;
+  try {
+    result = await api.post("/auth/register", {
+      idToken: userData.idToken,
+      username,
+    });
+  } catch (e) {
+    // Signing up with an account that is mid-deletion is the same intent as
+    // signing in with it, and gets the same offer to restore.
+    throw withRestoreContext(e, userData.idToken);
+  }
 
   tokens.set(result);
   return result;

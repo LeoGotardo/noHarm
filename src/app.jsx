@@ -65,6 +65,32 @@ const TWEAK_DEFAULTS = {
   accentName: "warm",
 };
 
+// Theme choices survive a reload. The pre-paint script in index.html reads this
+// same key and applies data-dir/data-mode before first paint, so a dark-mode
+// user never gets a white page on load. Keep the key and the allowed values in
+// sync with that script.
+const TWEAKS_KEY = "nh_tweaks";
+const TWEAK_OPTIONS = {
+  direction: ["sage", "dawn"],
+  mode: ["light", "dark"],
+  motion: [true, false],
+};
+
+// Stored values are only hints: anything unrecognised falls back to the default
+// rather than reaching the DOM as an attribute value.
+function loadTweaks() {
+  const stored = { ...TWEAK_DEFAULTS };
+  try {
+    const raw = JSON.parse(localStorage.getItem(TWEAKS_KEY) || "{}");
+    for (const [key, allowed] of Object.entries(TWEAK_OPTIONS)) {
+      if (allowed.includes(raw[key])) stored[key] = raw[key];
+    }
+  } catch {}
+  return stored;
+}
+
+const INITIAL_TWEAKS = loadTweaks();
+
 // How many directory entries to pull per page while building the search pool.
 const USER_PAGE_SIZE = 100;
 
@@ -259,6 +285,10 @@ function RelapseSheet({ open, days, loading, onConfirm, onClose }) {
   );
 }
 
+// Mirrors the backend's ACCOUNT_DELETION_GRACE_DAYS — see Settings.jsx. Shown,
+// never enforced here.
+const GRACE_DAYS = Number(import.meta.env.VITE_DELETION_GRACE_DAYS) || 30;
+
 function DeletedScreen({ onRestart }) {
   return (
     <Screen geo="splash" padTop={0} padBottom={0} noScroll>
@@ -295,7 +325,7 @@ function DeletedScreen({ onRestart }) {
             color: "var(--ink)",
           }}
         >
-          Your account is gone
+          Your account is deleted
         </div>
         <div
           style={{
@@ -305,8 +335,9 @@ function DeletedScreen({ onRestart }) {
             lineHeight: 1.55,
           }}
         >
-          We're sorry to see you go. Recovery isn't linear — if you ever want to
-          begin again, the door is open.
+          We're sorry to see you go. Recovery isn't linear — if you change your
+          mind in the next {GRACE_DAYS} days, signing in brings your streak,
+          badges and friends back. After that it is erased for good.
         </div>
         <Btn
           kind="primary"
@@ -324,8 +355,27 @@ function DeletedScreen({ onRestart }) {
 // ── Root component ────────────────────────────────────────────────────────────
 
 export default function App() {
-  const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const [t, setTweak] = useTweaks(INITIAL_TWEAKS);
   const { direction: dir, mode, motion } = t;
+
+  // Mirror the theme onto <html> so the page behind .nh-root resolves --bg.
+  // Screens fade in (nhScreenIn), and during that fade the document background
+  // is visible; without this it falls back to the light token and dark mode
+  // flashes white on every screen change.
+  useEffect(() => {
+    const html = document.documentElement;
+    html.setAttribute("data-dir", dir);
+    html.setAttribute("data-mode", mode);
+  }, [dir, mode]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        TWEAKS_KEY,
+        JSON.stringify({ direction: dir, mode, motion }),
+      );
+    } catch {}
+  }, [dir, mode, motion]);
 
   // ── Remote data ───────────────────────────────────────────────────────────
   const { me, refetch: refetchMe } = useUser();
@@ -350,7 +400,7 @@ export default function App() {
     refetch: refetchFriends,
   } = useFriends();
   const { chats: chatData, markChatRead } = useChats(me?.id);
-  const { badges: badgeData, userBadges } = useBadges();
+  const { badges: badgeData, userBadges, refetch: refetchBadges } = useBadges();
 
   // ── Derived data ──────────────────────────────────────────────────────────
   const chatList = chatData.chats ?? [];
@@ -625,6 +675,9 @@ export default function App() {
       return;
     }
     setPulseKey((k) => k + 1);
+    // The server grants badges during the check-in; without this the grid and
+    // the "next badge" card keep the pre-check-in answer for up to an hour.
+    refetchBadges();
     if (motion) burstConfetti();
     showToast(`Checked in — day ${days + 1} ✓`);
     if (reminderEnabled) checkinReminder.reschedule();
@@ -638,6 +691,7 @@ export default function App() {
       return;
     }
     setPulseKey((k) => k + 1);
+    refetchBadges();
     if (relapses.length === 0) {
       if (motion) burstConfetti();
       showToast(`Checked in — day ${days} ✓`);
@@ -656,6 +710,7 @@ export default function App() {
       return;
     }
     setPulseKey((k) => k + 1);
+    refetchBadges();
     showToast("A new streak begins. Be gentle with yourself.", "heart");
   };
 
@@ -668,6 +723,8 @@ export default function App() {
       return;
     }
     setPulseKey((k) => k + 1);
+    // A backdated start grants every milestone already passed, in one go.
+    refetchBadges();
     if (motion) burstConfetti();
     showToast("Your streak has begun. One day at a time.", "heart");
   };

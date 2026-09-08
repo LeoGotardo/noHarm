@@ -50,9 +50,13 @@ async function runCheckinSequence(relapses, lastCheckin, today) {
   let windowStart = lastCheckin;
 
   for (const relapse of sorted) {
-    // Days in the clean window before this relapse (exclusive of relapse day)
-    const daysBefore = Math.max(0, daysBetween(windowStart, relapse.date) - 1);
-    for (let i = 0; i < daysBefore; i++) await checkinStreak();
+    // One check-in for the whole clean window, not one per day. The server does
+    // not count check-ins: a streak's length is `end_at - start_at`
+    // (streakService._durationDays) and `POST /streaks/checkin` is a plain
+    // `last_checkin = now` assignment, so the second call through the tenth
+    // change nothing the first did not. See startFrom for what the loop cost.
+    const hasCleanDaysBefore = daysBetween(windowStart, relapse.date) - 1 > 0;
+    if (hasCleanDaysBefore) await checkinStreak();
 
     // Relapse: ends current streak with the backdated timestamp
     await endStreak(`${relapse.date}T${relapse.time}:00`);
@@ -60,9 +64,8 @@ async function runCheckinSequence(relapses, lastCheckin, today) {
     windowStart = relapse.date;
   }
 
-  // Checkin for remaining days from last relapse (or lastCheckin) through today
-  const daysAfter = Math.max(0, daysBetween(windowStart, today));
-  for (let i = 0; i < daysAfter; i++) await checkinStreak();
+  // And one for the window that reaches today, same reasoning.
+  if (daysBetween(windowStart, today) > 0) await checkinStreak();
 }
 
 export function useStreak() {
@@ -94,6 +97,20 @@ export function useStreak() {
   const saveStreak = (data) => {
     setStreak(data);
     cacheWrite(KEY_STREAK, data);
+  };
+
+  // The personal best is derived from CLOSED streaks, so it changes exactly when
+  // one ends — a relapse — and can also move on a check-in that carries the
+  // current streak past the old record. Every path that mutates the streak has
+  // to re-read it, or the dashboard keeps showing the previous best until the
+  // app is restarted.
+  const refreshRecord = async () => {
+    const rec = await getStreakRecord().catch(() => null);
+    if (rec) {
+      setRecord(rec);
+      cacheWrite(KEY_RECORD, rec);
+    }
+    return rec;
   };
 
   const fetchAll = useCallback(async () => {
@@ -157,6 +174,7 @@ export function useStreak() {
       const updated = await checkinStreak();
       saveStreak(updated);
       cacheWrite(KEY_CHECKIN, today);
+      await refreshRecord();
       return updated;
     } catch (e) {
       // Rethrow: the caller shows the celebration toast, and it must not fire
@@ -177,8 +195,20 @@ export function useStreak() {
       setError(null);
       try {
         await startStreak(`${startDate}T00:00:00`);
-        const daysToCheckin = Math.max(0, daysBetween(startDate, today));
-        for (let i = 0; i < daysToCheckin; i++) await checkinStreak();
+
+        // One check-in, never one per elapsed day.
+        //
+        // The loop that used to be here sent a request for every day between
+        // the chosen date and today, and `POST /streaks/checkin` allows
+        // 10/minute. Backdating by eleven days or more therefore died on 429 —
+        // *after* `startStreak` had already succeeded, so the streak existed on
+        // the server while the error aborted this function before
+        // `saveStreak()` ever ran. The screen showed no streak, retrying
+        // answered 409 STREAK_ALREADY_ACTIVE, and the badges looked missing
+        // even though the server had granted them: `startStreak` calls
+        // `_checkAndGrantBadges` itself, and clean days come from `start_at`,
+        // not from how many times anyone checked in.
+        if (daysBetween(startDate, today) > 0) await checkinStreak();
         cacheWrite(KEY_CHECKIN, today);
         const [cur, rec] = await Promise.all([
           getCurrentStreak(),
@@ -206,6 +236,8 @@ export function useStreak() {
       const newStreak = await endStreak();
       saveStreak(newStreak);
       cacheWrite(KEY_CHECKIN, today);
+      // The streak that just ended is a candidate for the record.
+      await refreshRecord();
       return newStreak;
     } catch (e) {
       // Rethrow so a failed reset never shows the compassionate success toast.

@@ -1,0 +1,54 @@
+# Dependency vulnerability scan.
+#
+# This repository had no CI at all, so a vulnerable transitive dependency had
+# nothing watching for it — the first run of this check found one reachable from
+# the production bundle, pulled in by a package package.json had already dropped
+# but the lockfile still carried.
+#
+# The schedule is the part that matters: a dependency does not have to change to
+# become vulnerable, so a check that only runs on push goes quiet exactly when
+# the tree stops moving.
+
+name: security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Mondays, 05:00 UTC — same slot as the backend's scan, so one Monday
+    # morning covers both halves of the app.
+    - cron: "0 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  npm-audit:
+    name: audit npm dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      # `npm ci` rather than `npm install`: it installs exactly what the
+      # lockfile pins and fails if the lockfile disagrees with package.json,
+      # which is the state that hid the finding above.
+      - name: install
+        run: npm ci
+
+      # Two passes, because they answer different questions and only one of them
+      # is about users. Anything reachable from the shipped bundle fails the
+      # build; a dev-only advisory is reported but does not, since it can only
+      # be reached by someone who already runs this repo's code locally.
+      - name: audit production dependencies
+        run: npm audit --omit=dev --audit-level=low
+
+      - name: audit dev dependencies
+        run: npm audit --audit-level=low
+        continue-on-error: true

@@ -9,12 +9,24 @@ NoHarm — addiction recovery tracker. Core loop: register → start streak → 
 ## Commands
 
 ```bash
-npm run dev      # Vite dev server (hot reload)
-npm run build    # production build → dist/
-npm run preview  # serve dist/ locally
+npm run dev        # Vite dev server (hot reload)
+npm run build      # production build → dist/
+npm run preview    # serve dist/ locally
+npm run test:e2e   # Playwright suite (71 tests) — needs the backend on :8080
 ```
 
-No test runner, no lint script. Open `http://localhost:5173` after `npm run dev`. `TESTING.md` is a manual QA checklist (Portuguese) organised by domain in use-flow order — update it when adding/changing user-facing flows.
+No lint script. Open `http://localhost:5173` after `npm run dev`.
+
+`tests/` is a Playwright suite that automates most of `TESTING.md`; see
+[`tests/README.md`](tests/README.md) for how it fakes the Google popup and what
+it assumes about the backend. `TESTING.md` remains the manual QA checklist,
+organised by domain in use-flow order — update it when adding/changing
+user-facing flows, and mark 🤖 what the suite covers.
+
+Playwright reuses a dev server already listening on the configured port
+(`reuseExistingServer`), so if **another project** holds `:5173` the suite
+silently tests that app instead. Point it elsewhere when that happens:
+`E2E_WEB_URL=http://localhost:5180 npm run test:e2e`, with `npm run dev -- --port 5180`.
 
 Env vars: `VITE_API_URL` (REST base URL) and `VITE_SOCKET_URL` (Socket.IO URL, falls back to `VITE_API_URL`). Both are **relative and empty** for the web build — see Deployment below. Every `VITE_*` is inlined by Vite at build time, so changing one needs a rebuild, not a restart.
 
@@ -28,7 +40,7 @@ Env vars: `VITE_API_URL` (REST base URL) and `VITE_SOCKET_URL` (Socket.IO URL, f
 
 **Import aliases** (`vite.config.js`): `@components` → `src/components`, `@ui` → `src/ui`. Note `tsconfig.json` also declares `@/*` → `src/*`, but vite does **not** resolve it — `@/…` imports build-break. Use only `@components`/`@ui` or relative paths.
 
-**Stale docs warning**: `README.md` is leftover Expo boilerplate. This project is **not** Expo — it's Vite + React + Capacitor. Ignore its Expo instructions. (`AGENTS.md` and `scripts/reset-project.js`, the other two, have been removed.)
+**Expo leftovers**: the project was bootstrapped from an Expo template but is **not** Expo — it's Vite + React + Capacitor. `AGENTS.md` and `scripts/reset-project.js` have been removed; `README.md` was rewritten. What still lingers: `assets/` (Expo icon/splash art, unreferenced), `.vscode/extensions.json` (recommends `expo.vscode-expo-tools`) and `.claude/settings.json` (enables the Expo plugin).
 
 ### Layer diagram
 
@@ -55,7 +67,7 @@ services/ import from connectors/
 |------|------|
 | `src/app.jsx` | Root component: nav state machine, theme wiring, screen routing, global state |
 | `src/main.jsx` | Mounts `<App>`, imports `theme.css` |
-| `src/theme.css` | CSS custom properties for all four theme variants |
+| `src/theme.css` | CSS custom properties for all four theme variants. Token blocks are attribute-only selectors so `<html>` resolves them too — see Theming |
 | `src/ui/index.js` | Low-level primitives: `Icon`, `Avatar`/`OnlineDot`, `Btn`, `Card`, `Field`, `Skeleton`, `GeoBackground`, `Divider`, `SectionLabel`, plus `cx` helper |
 | `src/components/index.js` | Composite widgets: `Screen`, `Header`, `Banner`, `Toast`, `BottomSheet`, `TabBar`, `StreakRing`/`BadgeMedallion`, `EmptyState`, `Logo`, `GoogleButton`, `PersonRow`, `SegTabs`, plus format helpers from `utils.js` (`hashHue`, `fmtTime`, `fmtLongDate`, `fmtRelDate`, `fmtShortDay`) |
 | `src/connectors/` | Transport layer (see diagram above) |
@@ -84,16 +96,19 @@ services/ import from connectors/
 ## Deployment
 
 The app is served by nginx from inside a single container that also runs the
-FastAPI backend — config in `noHarmBack/docker/`, and the AWS stack that runs
-it in `noHarmBack/infra/` (ECS Fargate behind an ALB). nginx serves the bundle,
+FastAPI backend — config in `noHarmBack/docker/`. nginx serves the bundle,
 proxies `/api/*` to the backend with the prefix stripped, and passes `/ws/*`
 through for the Socket.IO upgrade. The bundle is therefore **same-origin with
 the API**, which is why `VITE_API_URL` is `/api` and `VITE_SOCKET_URL` is empty.
 
-Deployed, TLS ends at the load balancer and the container serves plain `:80`
-(`TLS_MODE=alb`); `compose.prod.yaml` keeps the other shape, where nginx holds
-the certificate. Neither changes anything the bundle sees — the browser's leg is
-https either way, and the routes are the same file in both.
+**Live at `https://noharm.site`**: a single EC2 t3.micro running
+`noHarmBack/docker/compose.host.yaml`, where nginx itself holds a Let's Encrypt
+certificate (`TLS_MODE=container`). The runbook is
+`noHarmBack/docs/operations.md`. The ECS/ALB stack in `noHarmBack/infra/` is
+written but **not provisioned**; `TLS_MODE=alb` is its shape, where TLS ends at
+the load balancer and the container serves plain `:80`. Neither changes anything
+the bundle sees — the browser's leg is https either way, and the routes are the
+same file in both.
 
 Two consequences worth knowing before debugging:
 
@@ -115,8 +130,11 @@ added here has to be added there too, or it compiles to `undefined` and shows up
 as a feature that quietly does nothing.
 
 **A change here only ships on a backend deploy.** There is no separate
-front-end pipeline: pushing to this repo builds nothing. The image is rebuilt by
-the backend's workflow, which checks out this repo's `main`.
+front-end pipeline: pushing to this repo builds nothing, and nothing deploys on
+push at all today. Shipping a change to this repo means running
+`./noHarmBack/docker/deploy-host.sh` from the directory holding both repos: it
+builds the image on your machine — `vite build` needs more RAM than the
+instance has — and ships it over SSH.
 
 ## Navigation model
 
@@ -137,9 +155,37 @@ Two visual directions × two modes = four combinations:
 - **sage** light/dark — Figtree (humanist sans), muted green
 - **dawn** light/dark — Spectral (soft serif), warm clay
 
-Switched at runtime via `data-dir` and `data-mode` attributes on `.nh-root`. `TWEAK_DEFAULTS` in `src/app.jsx` sets initial values. The `TweaksPanel` bottom-right overlay toggles direction/mode/motion/accent live.
+Switched at runtime via `data-dir` and `data-mode` attributes, set on **both
+`<html>` and `.nh-root`**. The `TweaksPanel` bottom-right overlay and the Dark
+mode row in Settings both toggle direction/mode/motion live.
 
-CSS tokens live in `src/theme.css` under selectors like `.nh-root[data-dir="sage"][data-mode="light"]`.
+CSS tokens live in `src/theme.css` under attribute-only selectors —
+`[data-dir="sage"][data-mode="light"]`, not `.nh-root[…]`. That is deliberate
+and load-bearing:
+
+- **The document has to resolve `--bg` too.** Screens fade in (`nhScreenIn`
+  animates `opacity: 0 → 1`), and during that fade whatever is behind them is
+  visible. If the tokens are scoped to `.nh-root`, `body` cannot see them —
+  custom properties inherit downward, and `.nh-root` is a *descendant* of body —
+  so `body { background: var(--bg, <light fallback>) }` paints the fallback and
+  every screen change in dark mode flashes white. A transparent background is
+  the same bug: the browser paints its own white canvas underneath.
+- Prefixing a token block with `.nh-root` again reintroduces exactly that.
+  `tests/profile.spec.js` guards it by asserting `--bg` resolves on `<html>` and
+  that `body`'s computed background is neither transparent nor different from
+  the token.
+
+**Persistence**: `direction`, `mode` and `motion` are stored in `localStorage`
+under `nh_tweaks`. `loadTweaks()` in `src/app.jsx` validates every stored value
+against an allowlist before it reaches the DOM, and an inline script at the top
+of `<body>` in `index.html` applies `data-dir`/`data-mode` **before first
+paint** so a reload does not flash light. That script and `loadTweaks()` read
+the same key and must stay in sync. `accentName` is in `TWEAK_DEFAULTS` but
+nothing consumes it, so it is not persisted.
+
+Only in `npm run dev` does the very first frame still flash: `theme.css` is
+injected by the module script there, while the production build emits a
+render-blocking `<link>` in `<head>`.
 
 ## Notifications architecture
 
@@ -157,8 +203,27 @@ Notification IDs must not collide: checkinReminder uses 1001; message notifs use
 See `noHarmBack/docs/FRONTEND_DESIGN_BRIEF.md` for full API shapes. Key invariants:
 
 - **Streak**: one active at a time; expires without 24 h check-in; relapse resets to 0 and immediately starts a new streak.
+- **Check-ins are not counted.** Duration comes from `start_at`/`end_at`, and
+  `updateLastCheckin` is a plain assignment of "now" — so N check-ins do exactly
+  what one does. Never loop one request per elapsed day to backfill a
+  backdated streak: `POST /streaks/checkin` is capped at 10/minute, so anything
+  past ten days 429s partway through, *after* the streak was already created,
+  and the retry then fails with 409 `STREAK_ALREADY_ACTIVE`. Badges are granted
+  server-side by `startStreak` from `start_at`, so backfilling earns nothing
+  either. `src/store/useStreak.js` sends **one** conditional check-in;
+  `tests/streak.spec.js` covers a 30-day backdate to keep it that way.
 - **Friendship status codes**: 2=deleted, 3=blocked, 4=pending, 5=accepted, 6=rejected.
 - **Chat**: friends-only, 1-on-1. Lifecycle: pending → enabled → disabled.
 - **Messages**: text only, max 2000 chars. Status 7=unread, 8=read.
 - **Auth**: Firebase identity + app JWT. Access token 15 min, refresh 7 days. `connectors/api.js` handles the silent refresh automatically on 401.
+- **Account deletion is reversible for 30 days.** `deleteMe()` soft-deletes; the
+  backend keeps the row for `ACCOUNT_DELETION_GRACE_DAYS` and a cron purges it
+  after. Signing in during the window returns 403 `ACCOUNT_PENDING_DELETION`
+  with `details.deletionScheduledAt`; `signIn`/`signUp` re-throw that error with
+  the Firebase `idToken` attached, and `LoginScreen` offers the restore sheet
+  that calls `reactivate(idToken)`. The window is stated to the user on the
+  delete confirmation and on the farewell screen — `VITE_DELETION_GRACE_DAYS`
+  feeds that copy and must match the backend. Never present deletion as
+  immediate: the copy said "Delete forever" while the backend kept everything,
+  and that mismatch is the thing being fixed, not a detail to restore.
 - **WebSocket** (Socket.IO): JWT-authenticated at connect. Events: `chat` (join/leave/send/mark_read/typing), `presence` (get_online_status/online_status), friend notifications (friend_request/accept/reject/remove/block/unblock).

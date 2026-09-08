@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { tokens } from "../connectors/tokens.js";
 import { getAllBadges, getAllUserBadges } from "../services/api/badge.js";
 import { cacheRead, cacheValid, cacheWrite } from "./cache.js";
@@ -18,17 +18,25 @@ export function useBadges() {
   );
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  // `force` skips the cache. Badges are granted server-side during a check-in or
+  // a streak start, so after one of those the 1 h cache is exactly wrong: it
+  // holds the answer from before the grant, and nothing else would refresh it
+  // until the hour ran out. The caller that mutates the streak refetches.
+  const fetchAll = useCallback(async (force = false) => {
     if (!tokens.getAccess()) {
       setLoading(false);
       return;
     }
-    if (cacheValid("badges", ONE_HOUR) && cacheValid("user_badges", ONE_HOUR)) {
+    if (
+      !force &&
+      cacheValid("badges", ONE_HOUR) &&
+      cacheValid("user_badges", ONE_HOUR)
+    ) {
       setLoading(false);
       return;
     }
 
-    Promise.all([
+    await Promise.all([
       getAllBadges()
         .then((data) => {
           const nd = normBadges(data);
@@ -43,8 +51,15 @@ export function useBadges() {
           cacheWrite("user_badges", list);
         })
         .catch(() => {}),
-    ]).finally(() => setLoading(false));
+    ]);
+    setLoading(false);
   }, []);
 
-  return { badges, userBadges, loading };
+  useEffect(() => {
+    fetchAll();
+  }, [fetchAll]);
+
+  const refetch = useCallback(() => fetchAll(true), [fetchAll]);
+
+  return { badges, userBadges, loading, refetch };
 }
