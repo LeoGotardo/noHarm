@@ -1,6 +1,9 @@
 import { Icon } from "@ui/Icon.jsx";
+import { useGuardedCallback } from "@ui/guards.js";
 
 export function Header({ title, onBack, right, sub, large }) {
+  // pop() twice takes the user one screen further back than they asked.
+  const back = useGuardedCallback(onBack);
   return (
     <div
       style={{
@@ -15,7 +18,7 @@ export function Header({ title, onBack, right, sub, large }) {
       >
         {onBack && (
           <button
-            onClick={onBack}
+            onClick={back}
             style={{
               background: "none",
               border: "none",

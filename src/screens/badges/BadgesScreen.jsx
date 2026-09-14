@@ -1,5 +1,5 @@
 import { BadgeMedallion, Header, Screen } from "@components";
-import { Card } from "@ui";
+import { Card, useGuardedCallback } from "@ui";
 import {
   badgeDescription,
   badgeProgress,
@@ -8,6 +8,7 @@ import {
 } from "../../services/badges.js";
 
 export function BadgesScreen({ badges, currentDays, onOpen }) {
+  const openBadge = useGuardedCallback(onOpen);
   const earned = badges.filter((b) => b.earned);
   const next = badges.find((b) => !b.earned);
   const nextProgress = next ? badgeProgress(next, currentDays) : null;
@@ -107,7 +108,7 @@ export function BadgesScreen({ badges, currentDays, onOpen }) {
           {badges.map((b, i) => (
             <button
               key={b.id}
-              onClick={() => onOpen(b.id)}
+              onClick={() => openBadge(b.id)}
               style={{
                 background: "none",
                 border: "none",

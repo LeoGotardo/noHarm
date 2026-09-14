@@ -1,3 +1,5 @@
+import { useGuardedCallback } from "@ui";
+
 // Google brand SVGs kept inline — multicolor logo requires per-path fills
 // that no single icon library supports; monochrome reuses the same path.
 const G_PATH =
@@ -40,6 +42,9 @@ export function GoogleButton({
   loadingLabel,
   variant = "signin",
 }) {
+  // Sign-in pops a Google window; a second tap while it is open starts a
+  // second flow and the first one's redirect lands on a stale promise.
+  const run = useGuardedCallback(onClick);
   const isSignup = variant === "signup";
   const isDisabled = loading || disabled;
 
@@ -64,7 +69,7 @@ export function GoogleButton({
 
   return (
     <button
-      onClick={onClick}
+      onClick={run}
       disabled={isDisabled}
       style={{
         display: "flex",

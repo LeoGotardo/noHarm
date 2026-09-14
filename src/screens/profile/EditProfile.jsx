@@ -1,5 +1,5 @@
 import { Header, Screen, hashHue } from "@components";
-import { Avatar, Field, Icon } from "@ui";
+import { Avatar, Field, Icon, useGuardedCallback } from "@ui";
 import { useState } from "react";
 import { errorMessage } from "../../connectors/api.js";
 import { putMe } from "../../services/api/user.js";
@@ -16,7 +16,7 @@ export function EditProfile({ me, onBack, onSave }) {
   const hue = hashHue(username || me?.username);
   const src = me?.profile_picture ?? null;
 
-  const save = async () => {
+  const save = useGuardedCallback(async () => {
     if (!valid || !dirty) return;
     setSaving(true);
     setError(null);
@@ -31,7 +31,7 @@ export function EditProfile({ me, onBack, onSave }) {
     } finally {
       setSaving(false);
     }
-  };
+  });
 
   return (
     <Screen geo="auth" padTop={56}>

@@ -1,6 +1,6 @@
 import { BadgeMedallion, hashHue, Header, Screen } from "@components";
 import { milestoneDays } from "../../services/badges.js";
-import { Avatar, Btn, Card, Icon } from "@ui";
+import { Avatar, Btn, Card, Icon, useGuardedCallback } from "@ui";
 
 export function MyProfile({
   me,
@@ -14,6 +14,7 @@ export function MyProfile({
   onSettings,
   onOpenBadges,
 }) {
+  const openSettings = useGuardedCallback(onSettings);
   const username = me?.username ?? "";
   const hue = hashHue(username);
   const src = me?.profile_picture ?? null;
@@ -31,7 +32,7 @@ export function MyProfile({
         title=""
         right={
           <button
-            onClick={onSettings}
+            onClick={openSettings}
             style={{
               width: 38,
               height: 38,

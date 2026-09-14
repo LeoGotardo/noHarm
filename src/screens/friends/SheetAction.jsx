@@ -1,9 +1,10 @@
-import { Icon } from "@ui";
+import { Icon, useGuardedCallback } from "@ui";
 
 export function SheetAction({ icon, label, onClick, danger }) {
+  const run = useGuardedCallback(onClick);
   return (
     <button
-      onClick={onClick}
+      onClick={run}
       style={{
         display: "flex",
         alignItems: "center",

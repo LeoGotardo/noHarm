@@ -1,6 +1,11 @@
-import { Icon } from "@ui";
+import { Icon, useGuardedCallback } from "@ui";
 
 export function ToggleRow({ icon, label, sub, value, onChange, disabled }) {
+  // A switch is cheap to flip and flipping it back is a real thing to do, so
+  // the guard here is the narrow one: gap 0 collapses taps landing in the same
+  // tick, and an async onChange (the notification master switch prompts the
+  // OS) still holds until it settles instead of stacking prompts.
+  const run = useGuardedCallback(onChange, 0);
   return (
     <div
       style={{
@@ -36,7 +41,7 @@ export function ToggleRow({ icon, label, sub, value, onChange, disabled }) {
         )}
       </div>
       <button
-        onClick={() => !disabled && onChange(!value)}
+        onClick={() => !disabled && run(!value)}
         disabled={disabled}
         style={{
           width: 50,

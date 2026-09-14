@@ -1,9 +1,10 @@
-import { Icon } from "@ui";
+import { Icon, useGuardedCallback } from "@ui";
 
 export function LinkRow({ icon, label, onClick, danger, last, soon }) {
+  const run = useGuardedCallback(onClick);
   return (
     <button
-      onClick={soon ? undefined : onClick}
+      onClick={soon ? undefined : run}
       disabled={soon}
       aria-disabled={soon || undefined}
       style={{

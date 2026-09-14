@@ -1,7 +1,11 @@
+import { useGuardedCallback } from "./guards.js";
+
 export function Card({ children, style, onClick, pad = 18 }) {
+  // Tappable cards navigate; two taps would push the same screen twice.
+  const run = useGuardedCallback(onClick);
   return (
     <div
-      onClick={onClick}
+      onClick={onClick ? run : undefined}
       style={{
         background: "var(--surface)",
         borderRadius: 22,

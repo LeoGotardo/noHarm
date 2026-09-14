@@ -1,3 +1,4 @@
+import { useGuardedCallback } from "./guards.js";
 import { Icon } from "./Icon.jsx";
 
 export function Btn({
@@ -10,7 +11,12 @@ export function Btn({
   loading,
   style,
   icon,
+  debounce,
 }) {
+  // Every button in the app funnels through here, so the double-tap guard does
+  // too: one tap, one request. An async onClick holds the guard until it
+  // settles — see useGuardedCallback.
+  const run = useGuardedCallback(onClick, debounce);
   const pad =
     size === "lg" ? "16px 22px" : size === "sm" ? "9px 14px" : "13px 18px";
   const fs = size === "lg" ? 18 : size === "sm" ? 14 : 16;
@@ -51,7 +57,7 @@ export function Btn({
   };
   return (
     <button
-      onClick={disabled || loading ? undefined : onClick}
+      onClick={disabled || loading ? undefined : run}
       disabled={disabled}
       onMouseDown={(e) =>
         !disabled && (e.currentTarget.style.transform = "scale(0.97)")

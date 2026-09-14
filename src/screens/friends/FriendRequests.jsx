@@ -1,5 +1,13 @@
-import { EmptyState, Header, PersonRow, Screen, SegTabs, fmtRelDate, hashHue } from "@components";
-import { Card, Divider, Icon } from "@ui";
+import {
+  EmptyState,
+  Header,
+  PersonRow,
+  Screen,
+  SegTabs,
+  fmtRelDate,
+  hashHue,
+} from "@components";
+import { Card, Divider, Icon, useGuardedCallback } from "@ui";
 import { Fragment, useEffect, useState } from "react";
 import { getUser } from "../../services/api/user.js";
 import { cacheRead, cacheWrite } from "../../store/cache.js";
@@ -90,83 +98,13 @@ export function FriendRequests({
               <Fragment key={p.friendshipId}>
                 {i > 0 && <Divider />}
                 <div style={{ padding: "0 8px" }}>
-                  <PersonRow
+                  <RequestRow
                     person={p}
-                    onClick={() => onOpenProfile(p.id)}
-                    sub={p.when}
-                    right={
-                      tab === "received" ? (
-                        <div style={{ display: "flex", gap: 7 }}>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onDecline(p.friendshipId);
-                            }}
-                            style={{
-                              width: 40,
-                              height: 40,
-                              borderRadius: 12,
-                              background: "var(--surface-2)",
-                              border: "none",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              cursor: "pointer",
-                            }}
-                          >
-                            <Icon
-                              name="close"
-                              size={18}
-                              color="var(--ink-2)"
-                              sw={2.2}
-                            />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onAccept(p.friendshipId);
-                            }}
-                            style={{
-                              width: 40,
-                              height: 40,
-                              borderRadius: 12,
-                              background: "var(--primary)",
-                              border: "none",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              cursor: "pointer",
-                            }}
-                          >
-                            <Icon
-                              name="check"
-                              size={19}
-                              color="var(--on-primary)"
-                              sw={2.6}
-                            />
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onCancel(p.friendshipId);
-                          }}
-                          style={{
-                            padding: "8px 14px",
-                            borderRadius: 11,
-                            background: "var(--surface-2)",
-                            border: "none",
-                            color: "var(--ink-2)",
-                            fontSize: 13,
-                            fontWeight: 600,
-                            cursor: "pointer",
-                          }}
-                        >
-                          Cancel
-                        </button>
-                      )
-                    }
+                    tab={tab}
+                    onOpenProfile={onOpenProfile}
+                    onAccept={onAccept}
+                    onDecline={onDecline}
+                    onCancel={onCancel}
                   />
                 </div>
               </Fragment>
@@ -175,5 +113,94 @@ export function FriendRequests({
         )}
       </div>
     </Screen>
+  );
+}
+
+/**
+ * One pending request. Each row owns its own tap guards, so answering this
+ * request never locks the next one — but answering it twice is impossible:
+ * the second call would act on a friendship that is already accepted and come
+ * back 409.
+ */
+function RequestRow({
+  person: p,
+  tab,
+  onOpenProfile,
+  onAccept,
+  onDecline,
+  onCancel,
+}) {
+  const accept = useGuardedCallback(onAccept);
+  const decline = useGuardedCallback(onDecline);
+  const cancel = useGuardedCallback(onCancel);
+  return (
+    <PersonRow
+      person={p}
+      onClick={() => onOpenProfile(p.id)}
+      sub={p.when}
+      right={
+        tab === "received" ? (
+          <div style={{ display: "flex", gap: 7 }}>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                decline(p.friendshipId);
+              }}
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 12,
+                background: "var(--surface-2)",
+                border: "none",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+              }}
+            >
+              <Icon name="close" size={18} color="var(--ink-2)" sw={2.2} />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                accept(p.friendshipId);
+              }}
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 12,
+                background: "var(--primary)",
+                border: "none",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+              }}
+            >
+              <Icon name="check" size={19} color="var(--on-primary)" sw={2.6} />
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              cancel(p.friendshipId);
+            }}
+            style={{
+              padding: "8px 14px",
+              borderRadius: 11,
+              background: "var(--surface-2)",
+              border: "none",
+              color: "var(--ink-2)",
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            Cancel
+          </button>
+        )
+      }
+    />
   );
 }

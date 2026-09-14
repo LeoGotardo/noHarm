@@ -6,6 +6,7 @@ export { Card } from "./Card.jsx";
 export { Divider } from "./Divider.jsx";
 export { Field } from "./Field.jsx";
 export { GeoBackground } from "./GeoBackground.jsx";
+export { GUARD_MS, useDebouncedValue, useGuardedCallback } from "./guards.js";
 export { Icon } from "./Icon.jsx";
 export { SectionLabel } from "./SectionLabel.jsx";
 export { Skeleton } from "./Skeleton.jsx";

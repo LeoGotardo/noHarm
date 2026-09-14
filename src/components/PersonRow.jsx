@@ -1,9 +1,10 @@
-import { Avatar, Icon } from "@ui";
+import { Avatar, Icon, useGuardedCallback } from "@ui";
 
 export function PersonRow({ person, right, onClick, sub }) {
+  const run = useGuardedCallback(onClick);
   return (
     <div
-      onClick={onClick}
+      onClick={onClick ? run : undefined}
       style={{
         display: "flex",
         alignItems: "center",

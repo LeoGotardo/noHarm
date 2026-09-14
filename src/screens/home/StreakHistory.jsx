@@ -1,5 +1,5 @@
 import { EmptyState, fmtLongDate, Header, Screen } from "@components";
-import { Card, Icon, SectionLabel } from "@ui";
+import { Card, Icon, SectionLabel, useGuardedCallback } from "@ui";
 import { useEffect, useState } from "react";
 import { getStreakHistory } from "../../services/api/streak.js";
 import { cacheRead, cacheWrite } from "../../store/cache.js";
@@ -29,7 +29,7 @@ export function StreakHistory({ onBack, currentDays, currentStart, empty }) {
     });
   }, []);
 
-  const loadMore = async () => {
+  const loadOlder = useGuardedCallback(async () => {
     setLoadingMore(true);
     const next = page + 1;
     try {
@@ -41,7 +41,7 @@ export function StreakHistory({ onBack, currentDays, currentStart, empty }) {
     } finally {
       setLoadingMore(false);
     }
-  };
+  });
 
   // Exclude the active streak (status 1, no end) from history list
   const past = streaks.filter(
@@ -239,7 +239,7 @@ export function StreakHistory({ onBack, currentDays, currentStart, empty }) {
                   />
                 ) : (
                   <button
-                    onClick={loadMore}
+                    onClick={loadOlder}
                     style={{
                       background: "none",
                       border: "none",

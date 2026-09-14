@@ -1,9 +1,11 @@
 import { fmtTime, hashHue } from "@components";
-import { Avatar } from "@ui";
+import { Avatar, useGuardedCallback } from "@ui";
 import { STATUS_CONSTANTS } from "../../services/constants.js";
 
 export function ChatRow({ c, meId, users, onOpen, onOpenProfile }) {
 
+  const open = useGuardedCallback(onOpen);
+  const openProfile = useGuardedCallback(onOpenProfile);
   const otherId = c.sender === meId ? c.reciver : c.sender;
   const u = users[otherId];
   const username = u?.username ?? "…";
@@ -17,7 +19,7 @@ export function ChatRow({ c, meId, users, onOpen, onOpenProfile }) {
   const unread = c.unread_count ?? 0;
   return (
     <div
-      onClick={() => onOpen(c.id)}
+      onClick={() => open(c.id)}
       style={{
         display: "flex",
         alignItems: "center",
@@ -29,7 +31,7 @@ export function ChatRow({ c, meId, users, onOpen, onOpenProfile }) {
       <div
         onClick={(e) => {
           e.stopPropagation();
-          onOpenProfile(otherId);
+          openProfile(otherId);
         }}
         style={{ cursor: "pointer" }}
       >

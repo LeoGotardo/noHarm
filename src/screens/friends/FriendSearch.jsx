@@ -1,5 +1,12 @@
 import { EmptyState, Header, PersonRow, Screen } from "@components";
-import { Card, Divider, Field, Icon } from "@ui";
+import {
+  Card,
+  Divider,
+  Field,
+  Icon,
+  useDebouncedValue,
+  useGuardedCallback,
+} from "@ui";
 import { Fragment, useEffect, useState } from "react";
 
 export function FriendSearch({
@@ -12,7 +19,10 @@ export function FriendSearch({
 }) {
   const [q, setQ] = useState("");
   const [sentTo, setSentTo] = useState({});
-  const trimmed = q.trim().toLowerCase();
+  // The field stays instant; the filter and the page-widening below run on the
+  // settled term, so a typed word is one search, not one per keystroke.
+  const query = useDebouncedValue(q, 250);
+  const trimmed = query.trim().toLowerCase();
   const results =
     trimmed.length < 2
       ? []
@@ -22,7 +32,8 @@ export function FriendSearch({
   // loaded slice has no match we widen it a page at a time until something
   // turns up or the directory runs out — otherwise anyone past the first page
   // would be unfindable.
-  const searching = trimmed.length >= 2 && results.length === 0 && !poolComplete;
+  const searching =
+    trimmed.length >= 2 && results.length === 0 && !poolComplete;
   useEffect(() => {
     if (!searching || !onLoadMore) return;
     let cancelled = false;
@@ -72,7 +83,7 @@ export function FriendSearch({
           <EmptyState
             pad="50px 30px"
             title="No one found"
-            sub={`No user matches "${q}".`}
+            sub={`No user matches "${query}".`}
           />
         ) : (
           <Card pad={6}>
@@ -116,34 +127,12 @@ export function FriendSearch({
                             Requested
                           </span>
                         ) : (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
+                          <AddButton
+                            onAdd={() => {
                               setSentTo((s) => ({ ...s, [p.id]: true }));
-                              onSendRequest(p.id);
+                              return onSendRequest(p.id);
                             }}
-                            style={{
-                              padding: "8px 16px",
-                              borderRadius: 12,
-                              background: "var(--primary)",
-                              border: "none",
-                              color: "var(--on-primary)",
-                              fontSize: 13,
-                              fontWeight: 700,
-                              cursor: "pointer",
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 5,
-                            }}
-                          >
-                            <Icon
-                              name="plus"
-                              size={15}
-                              color="var(--on-primary)"
-                              sw={2.4}
-                            />
-                            Add
-                          </button>
+                          />
                         )
                       }
                     />
@@ -155,5 +144,38 @@ export function FriendSearch({
         )}
       </div>
     </Screen>
+  );
+}
+
+/**
+ * "Add" on a search result. Guarded per row: the row flips to "Requested" on
+ * the next render, but a second tap can land before that — and two POSTs for
+ * the same friendship is the second one coming back 409.
+ */
+function AddButton({ onAdd }) {
+  const add = useGuardedCallback(onAdd);
+  return (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        add();
+      }}
+      style={{
+        padding: "8px 16px",
+        borderRadius: 12,
+        background: "var(--primary)",
+        border: "none",
+        color: "var(--on-primary)",
+        fontSize: 13,
+        fontWeight: 700,
+        cursor: "pointer",
+        display: "flex",
+        alignItems: "center",
+        gap: 5,
+      }}
+    >
+      <Icon name="plus" size={15} color="var(--on-primary)" sw={2.4} />
+      Add
+    </button>
   );
 }

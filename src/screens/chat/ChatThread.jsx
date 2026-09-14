@@ -1,5 +1,5 @@
 import { hashHue } from "@components";
-import { Avatar, Btn, GeoBackground, Icon } from "@ui";
+import { Avatar, Btn, GeoBackground, Icon, useGuardedCallback } from "@ui";
 import { useEffect, useRef, useState } from "react";
 import { acceptChat, rejectChat } from "../../services/api/chat.js";
 import {
@@ -26,7 +26,6 @@ export function ChatThread({
   onOpenProfile,
   onRead,
 }) {
-
   const [chat, setChat] = useState(initialChat);
   const [otherUser, setOtherUser] = useState(null);
   const [input, setInput] = useState("");
@@ -38,6 +37,7 @@ export function ChatThread({
   const typingSentRef = useRef(false);
   const typingTimerRef = useRef(null);
 
+  const goBack = useGuardedCallback(onBack);
   const otherId = chat.sender === meId ? chat.reciver : chat.sender;
   const { messages: msgData, loading, refetch } = useChatThread(chat.id);
   const msgList = msgData?.messages ?? [];
@@ -120,7 +120,9 @@ export function ChatThread({
     typingTimerRef.current = setTimeout(stopTyping, 2500);
   };
 
-  const send = async () => {
+  // `sending` only catches taps a render apart; two in the same tick both read
+  // the same state and post twice. The guard holds until the POST settles.
+  const send = useGuardedCallback(async () => {
     if (!input.trim() || sending) return;
     const content = input.trim();
     setInput("");
@@ -149,24 +151,24 @@ export function ChatThread({
       setInput(content);
     }
     setSending(false);
-  };
+  });
 
-  const accept = async () => {
+  const accept = useGuardedCallback(async () => {
     if (!chat.id) return;
     try {
       const updated = await acceptChat(chat.id);
       setChat(updated);
     } catch {}
-  };
+  });
 
-  const reject = async () => {
+  const reject = useGuardedCallback(async () => {
     if (chat.id) {
       try {
         await rejectChat(chat.id);
       } catch {}
     }
     onBack();
-  };
+  });
 
   const username = otherUser?.username ?? "…";
   const hue = hashHue(otherUser?.username ?? otherId ?? "");
@@ -207,7 +209,7 @@ export function ChatThread({
           }}
         >
           <button
-            onClick={onBack}
+            onClick={goBack}
             style={{
               background: "none",
               border: "none",

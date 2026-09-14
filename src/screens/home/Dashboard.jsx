@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Screen, StreakRing, hashHue } from "@components";
-import { Avatar, Btn, Card, Icon } from "@ui";
+import { Avatar, Btn, Card, Icon, useGuardedCallback } from "@ui";
 import { StatTile } from "./StatTile.jsx";
 
 function useElapsed(start) {
@@ -112,6 +112,8 @@ export function Dashboard({
   onStartStreak,
   pulseKey,
 }) {
+  const openProfile = useGuardedCallback(onProfile);
+  const relapse = useGuardedCallback(onRelapse);
   const isRecord = days >= personalRecord;
   const toRecord = personalRecord - days;
   // null when the next badge's milestone isn't a day count — the hint is
@@ -138,7 +140,7 @@ export function Dashboard({
             {me?.username ?? "…"}
           </div>
         </div>
-        <div onClick={onProfile} style={{ cursor: "pointer" }}>
+        <div onClick={openProfile} style={{ cursor: "pointer" }}>
           <Avatar
             name={me?.username ?? "?"}
             size={42}
@@ -388,7 +390,7 @@ export function Dashboard({
 
           <div style={{ padding: "18px 22px 0", textAlign: "center" }}>
             <button
-              onClick={onRelapse}
+              onClick={relapse}
               style={{
                 background: "none",
                 border: "none",
