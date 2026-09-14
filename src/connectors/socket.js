@@ -22,6 +22,12 @@ const SOCKET_PATH = "/ws/socket.io";
 const CROWDED_RETRY_DELAY = 30_000;
 
 let _socket = null;
+// Fires every time a handshake succeeds, including reconnects.
+//
+// Kept module-level rather than on the socket: `connect()` builds a new socket
+// object, so a listener attached to the old one would be silently dropped by
+// the very reconnect it exists to observe.
+const _connectSubs = new Set();
 // Supplied by connect(). Module-level because a refusal can arrive long after
 // the caller's frame is gone — including on a socket.io-driven reconnect.
 let _handlers = {};
@@ -52,6 +58,13 @@ export function connect(accessToken, handlers = {}) {
 
   _socket.on("connect", () => {
     _refreshing = false;
+    for (const sub of _connectSubs) {
+      try {
+        sub();
+      } catch (e) {
+        console.warn("[socket] connect subscriber failed:", e);
+      }
+    }
   });
   _socket.on("connect_error", onConnectError);
   // Handler-level errors: { code, message }
@@ -113,6 +126,27 @@ function onConnectError(e) {
   }
 }
 
+/**
+ * Run `handler` on every successful handshake — the first one and every
+ * reconnect after it.
+ *
+ * Everything the server emitted while the socket was down is gone: there is no
+ * replay, and a missed `new_message` means an unread badge that never appears
+ * until the app is reopened. Reconnecting is therefore the moment to ask the
+ * REST API what happened in the meantime, which is what the stores do with
+ * this.
+ *
+ * It fires on the *first* connect too, deliberately. At boot the stores fetch
+ * as they mount, which can be before the handshake completes, and a message
+ * landing in that window is lost the same way — the same fix covers both.
+ *
+ * @returns {() => void} unsubscribe
+ */
+export function onConnected(handler) {
+  _connectSubs.add(handler);
+  return () => _connectSubs.delete(handler);
+}
+
 // Access token expires every 15 min. After a silent refresh, swap the auth
 // token and bounce the connection so the new JWT is used on the next handshake.
 export function reauth(accessToken) {
@@ -128,6 +162,8 @@ export function disconnect() {
   }
   _refreshing = false;
   _handlers = {};
+  // Subscribers are not cleared: the stores that registered them are still
+  // mounted, and a later `connect()` has to reach them.
   if (_socket) {
     _socket.disconnect();
     _socket = null;

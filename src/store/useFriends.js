@@ -13,6 +13,7 @@ import {
   onFriendRequest,
   onFriendUnblock,
 } from "../services/ws/friendship.js";
+import { onSocketReady } from "../services/ws/connection.js";
 import { cacheRead, cacheWrite } from "./cache.js";
 
 const empty = { friendships: [], total: 0 };
@@ -69,6 +70,12 @@ export function useFriends() {
     }
     fetchAll();
 
+    // Friend events emitted while the socket was down are never replayed, so a
+    // request accepted during a reconnect would sit invisible until the app was
+    // reopened. Asking again the moment the socket is back is the only way to
+    // know what was missed.
+    const unsubReady = onSocketReady(() => fetchAll());
+
     try {
       const unsubs = [
         // New request received → refresh received list only
@@ -80,9 +87,14 @@ export function useFriends() {
         onFriendBlock(() => fetchAll()),
         onFriendUnblock(() => fetchAll()),
       ];
-      return () => unsubs.forEach((u) => u());
+      return () => {
+        unsubReady();
+        unsubs.forEach((u) => u());
+      };
     } catch {
-      // Socket not connected yet — WS will be wired once connected
+      // Socket not connected yet — `onSocketReady` fires when it is, and the
+      // refetch it triggers is what fills the gap.
+      return unsubReady;
     }
   }, []);
 

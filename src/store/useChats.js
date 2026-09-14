@@ -3,6 +3,7 @@ import { tokens } from "../connectors/tokens.js";
 import { getChats } from "../services/api/chat.js";
 import { getMessages } from "../services/api/message.js";
 import { markRead, onMessage, onMessagesRead } from "../services/ws/chat.js";
+import { onSocketReady } from "../services/ws/connection.js";
 import { cacheRead, cacheWrite } from "./cache.js";
 
 const emptyChats = { chats: [], total: 0 };
@@ -125,6 +126,13 @@ export function useChats(meId) {
 
     load();
 
+    // Anything the socket missed while it was down — or before it finished the
+    // first handshake — is only discoverable by asking again. The replay log
+    // above reconciles a response that crossed a live message; this covers the
+    // opposite gap, where there was no live message *because* the socket was
+    // not listening yet.
+    const unsubReady = onSocketReady(() => load());
+
     try {
       // Update last_message + unread_count locally so the card refreshes without
       // a full refetch. Only the other participant's messages bump unread.
@@ -148,8 +156,15 @@ export function useChats(meId) {
           if (loadedRef.current) load();
         }
       });
-      return unsub;
-    } catch {}
+      return () => {
+        unsubReady();
+        unsub();
+      };
+    } catch {
+      // Socket not connected yet — `onSocketReady` above is what picks it up
+      // when it is, and this effect's other subscription is all that was lost.
+      return unsubReady;
+    }
   }, [load, recordIncoming]);
 
   useEffect(() => {
@@ -202,6 +217,12 @@ export function useChatThread(chatId) {
         onMessage(({ message }) => {
           if (message.chat !== chatId) return;
           setMessages((prev) => {
+            // The sender gets an echo of their own message, and `send` also
+            // refetches the thread after the POST resolves. Whichever lands
+            // second used to append a second copy of the same row — the list
+            // has always deduped on `last_message.id`, and this is the same
+            // rule for the thread.
+            if (prev.messages.some((m) => m.id === message.id)) return prev;
             const next = {
               messages: [...prev.messages, message],
               total: prev.total + 1,
