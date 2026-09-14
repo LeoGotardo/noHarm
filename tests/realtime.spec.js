@@ -66,6 +66,62 @@ test.describe("Realtime", () => {
     await expect(tabBadge(page, "Chat")).toHaveText("1", { timeout: 10000 });
   });
 
+  test("Chat — a message that lands before the socket is live still shows up", async ({
+    page,
+    userA,
+    userB,
+  }) => {
+    await makeFriends(userA, userB);
+
+    // Two things held at once, to leave exactly one way for the badge to
+    // appear. The chat list is fetched *before* the message exists, so its
+    // answer says zero unread; the handshake is held, so no live event can
+    // arrive either. That is a cold start, and also every reconnect — Socket.IO
+    // replays nothing it missed.
+    let releaseChats;
+    const chatsHeld = new Promise((r) => (releaseChats = r));
+    let firstChats = true;
+    await page.route("**/api/chats**", async (route) => {
+      const response = await route.fetch();
+      const body = await response.text();
+      if (firstChats) {
+        firstChats = false;
+        await chatsHeld;
+      }
+      await route.fulfill({ response, body });
+    });
+
+    let releaseSocket;
+    const socketHeld = new Promise((r) => (releaseSocket = r));
+    let firstSocket = true;
+    await page.routeWebSocket(/\/ws\/socket\.io/, async (ws) => {
+      if (firstSocket) {
+        firstSocket = false;
+        await socketHeld;
+      }
+      ws.connectToServer();
+    });
+
+    await openApp(page, userA, { checkedInToday: true });
+    await expect(tab(page, "Chat")).toBeVisible();
+
+    await sendMessage(userB, { to: userA, content: "chegou antes do socket" });
+
+    // The list lands, and it is honestly empty — it was read before the message
+    // was written.
+    releaseChats();
+    await page.waitForTimeout(1000);
+    await expect(tabBadge(page, "Chat")).toHaveCount(0);
+
+    // Connecting is the one moment the client knows it has a gap, so it asks
+    // again. Without that the badge waits for the next time the app opens.
+    releaseSocket();
+
+    await expect(tabBadge(page, "Chat")).toHaveText("1", { timeout: 15_000 });
+    await tab(page, "Chat").click();
+    await expect(page.getByText("chegou antes do socket")).toBeVisible();
+  });
+
   test("Chat — a second live message increments the existing badge", async ({
     page,
     userA,

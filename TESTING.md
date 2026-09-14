@@ -2,7 +2,7 @@
 
 List of app features to test manually. Organized by domain, in usage-flow order.
 
-> **Most of this checklist is already automated** in `tests/` (Playwright, 71 tests).
+> **Most of this checklist is already automated** in `tests/` (Playwright, 113 tests).
 > Run it with `npm run test:e2e`. Items the automation covers are marked 🤖 —
 > the rest remain manual verification (Google popup, native push, etc.).
 > The bugs the suite found — frontend and backend — have all been fixed;
@@ -39,12 +39,37 @@ List of app features to test manually. Organized by domain, in usage-flow order.
 - [ ] **Friend requests** — received/sent 🤖; accept ("Friend added" toast) 🤖; cancel 🤖; **reject** _(no coverage)_
 - [x] 🤖 **Friend search** — search; open profile; send request ("Request sent" toast)
 - [x] 🤖 **Public profile** — view profile; relationship (friend / pending_out / pending_in / none); actions: message, add, accept, remove ("Friend removed" toast), block ("User blocked" toast)
+- [x] 🤖 **Report a user** — gear → "Report this user"; six reasons, Send
+      disabled until one is picked; optional details, capped at 1000 characters
+      and stored without markup; "Report sent — thank you" toast; the sheet
+      states the reported user is never told; Cancel and a reopen start blank;
+      a second report while the first is open shows "You already reported this
+      user" inline and keeps what was typed; a server failure keeps the sheet
+      open and does not celebrate; reporting works on a stranger found in
+      search and changes no relationship — the friendship, the friend list and
+      the tab counters are the same afterwards, on both sides
+- [x] 🤖 **A report stays private** — the reported user sees no banner, no
+      toast and no counter while it is filed, and `GET /reports/mine` never
+      returns a report about them; the moderation queue (`GET /reports`,
+      resolve, evidence) answers 404 to anyone outside `ADMIN_USER_IDS`
+- [x] 🤖 **A report carries the conversation** — reporting someone you have a
+      chat with captures that chat's last messages, both sides, in order, plus
+      the reported profile as it was; with no chat, the profile alone. What the
+      reporter typed in "details" never appears among the captured messages —
+      the app sends a chat id, and the server copies the text itself
 
 ## Chat
 
 - [x] 🤖 **Chat list** — conversation list; unread counter (tab badge)
+- [x] 🤖 **A message that arrives with the socket down** — it shows up when the
+      socket connects, without reopening the app (Socket.IO replays nothing)
 - [x] 🤖 **Chat thread** — open a conversation; send a message; typing; mark_read (WS)
+- [x] 🤖 **A sent message appears once** — the socket echoes it back to the
+      sender and the send also refetches the thread; whichever lands second must
+      not paint a second copy
 - [x] 🤖 **Message person** — opens an existing chat or creates a new one (from friends/profile)
+- [x] 🤖 **Double tap on Send** — two taps landing before the re-render post one
+      message, not two (the tap guard, see CLAUDE.md → Tap guards)
 
 ## Badges
 
@@ -71,6 +96,46 @@ List of app features to test manually. Organized by domain, in usage-flow order.
 - [ ] **In-app banner** — WS notification shows as a banner; tapping navigates (chat/etc) _(the backend already emits `new_message`; the test is still to be written)_
 - [x] 🤖 **Toast** — action feedback (auto-dismiss after 2.2 s)
 
+## Housekeeping
+
+- [x] 🤖 **The suite leaves no trace** — a soft-deleted account is still a row,
+      and the sweep the run ends with is what actually removes it
+
+## Moderation
+
+Admin-only, no screen in the app — covered at the API level in
+`tests/moderation.spec.js`.
+
+- [x] 🤖 **Suspension** — a timed ban answers the login with
+      `ACCOUNT_SUSPENDED` and the end date; a permanent one with
+      `ACCOUNT_BANNED` and no date; the token the user already held stops
+      working; lifting it by hand lets them straight back in
+- [x] 🤖 **Only moderators** — an ordinary user suspending anyone gets 404, and
+      a moderator cannot suspend themselves
+- [x] 🤖 **Review lock** — claiming a report keeps a second moderator from
+      claiming *or resolving* it; releasing puts it back undecided; resolving
+      clears the lock; the reporter is never told who is reading their report
+- [x] 🤖 **Resolving is not punishing** — closing a report leaves the reported
+      account able to sign in
+- [x] 🤖 **Moderation screen** — the Settings "Reports" row is absent for an
+      ordinary account; for a moderator it opens the queue, a report shows the
+      reason, what the reporter wrote and the captured conversation on both
+      sides, opening it claims the report (a second moderator gets 409),
+      leaving without deciding hands it back, Dismiss closes it, and suspending
+      from it locks the account out while leaving the report open
+- [x] 🤖 **Warning** — a moderator sends one from the report screen; the user
+      sees it on their next open ("A message you sent was reported" + the
+      moderator's words), it says nothing changed about their account and where
+      to appeal, never names the reporter, and one "I understand" retires it for
+      good. The account still signs in, and the report stays open — warning is
+      not deciding
+- [x] 🤖 **Suspension notice** — an account coming back from a suspension is
+      told why, and that its streak and friends are untouched
+- [x] 🤖 **A safety report is never a warning** — `self_harm` is refused with
+      the crisis-resources reason
+- [ ] **Suspended sign-in copy** — the login screen says "paused until <date>"
+      and where to appeal _(behind the Google popup — manual)_
+
 ## Navigation / Tabs
 
 - [x] 🤖 **TabBar** — home / friends / chat / badges / profile; counter badges (friends, chat)
@@ -94,6 +159,7 @@ Handlers previously stubbed, now calling the backend:
 - `onSendRequest` / `onAdd` → `sendFriendRequest`
 - `onAccept` / `onReject` / `onCancel` (requests + PublicProfile) → `acceptFriendship` / `rejectFriendship` / `removeFriendship`
 - `onRemove` / `onBlock` (PublicProfile) → `removeFriendship` / `blockFriendship`
+- `onReport` (PublicProfile → `ReportSheet`) → `reportUser` (`POST /reports/{userId}`)
 - Delete account (Settings) → `deleteMe`
 - Logout (Settings) → `signOut` + clears tokens
 - Chat "Ignore" (received request) → `rejectChat`

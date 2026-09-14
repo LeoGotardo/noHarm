@@ -8,6 +8,7 @@
  */
 import { test, expect, openApp, tab } from "./helpers/fixtures.js";
 import { api, as, createUser, fakeIdToken } from "./helpers/api.js";
+import { purgeUid, rowsFor } from "./helpers/cleanup.js";
 
 test.describe("Auth / Onboarding", () => {
   test('Splash — "Get started" opens Register, "I already have an account" opens Login', async ({
@@ -145,5 +146,25 @@ test.describe("Auth / Onboarding", () => {
     // Backend-side the account reads as gone to everyone, grace window or not:
     // its still-unexpired access token no longer resolves a profile.
     await expect(api.get("/users/me", as(userA))).rejects.toThrow(/403/);
+  });
+});
+
+test.describe("Housekeeping", () => {
+  test("Throwaway accounts are erased, not just marked deleted", async () => {
+    // `DELETE /users/me` is a soft delete — status 2 and a clock — so a suite
+    // that only calls it leaves every account it ever made in the database.
+    // The sweep in tests/helpers/cleanup.js is what actually removes them, and
+    // this is the thing that would quietly stop working.
+    const user = await createUser("sweep");
+    await api.delete("/users/me", as(user));
+
+    const live = await rowsFor(user.id);
+    expect(live, "a soft-deleted account is still a row").toBe(1);
+
+    // Scoped to this account: the whole-database sweep belongs to setup and
+    // teardown, and running it here would delete what the parallel workers are
+    // in the middle of using.
+    await purgeUid(user.id);
+    expect(await rowsFor(user.id)).toBe(0);
   });
 });

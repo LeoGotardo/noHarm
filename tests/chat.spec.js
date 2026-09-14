@@ -64,6 +64,41 @@ test.describe("Chat", () => {
       .toBe(0);
   });
 
+  test("Send — two taps in one tick post one message", async ({
+    page,
+    userA,
+    userB,
+  }) => {
+    await makeFriends(userA, userB);
+    await sendMessage(userB, { to: userA, content: "opening message" });
+
+    await openApp(page, userA, { checkedInToday: true });
+    await openChatTab(page);
+    await page.getByText("opening message").click();
+    await expect(page.getByPlaceholder("Message…")).toBeVisible();
+
+    const posts = [];
+    page.on("request", (r) => {
+      if (r.method() === "POST" && new URL(r.url()).pathname === "/api/messages")
+        posts.push(r.url());
+    });
+
+    await page.getByPlaceholder("Message…").fill("só uma vez");
+    // Both clicks land before React re-renders, which is what the `sending`
+    // flag alone cannot catch — only useGuardedCallback does.
+    await page.evaluate(() => {
+      const btn = document.querySelectorAll("button");
+      const send = btn[btn.length - 1];
+      send.click();
+      send.click();
+    });
+
+    await expect(page.getByText("só uma vez")).toBeVisible();
+    await expect.poll(() => posts.length, { timeout: 3000 }).toBe(1);
+    const chats = await getChats(userA);
+    expect(chats[0].last_message.message).toBe("só uma vez");
+  });
+
   test("Message person — from Friends, the conversation is created on the first message", async ({
     page,
     userA,
@@ -174,5 +209,33 @@ test.describe("Chat", () => {
     } finally {
       socketB.close();
     }
+  });
+});
+
+test.describe("Chat — no double renders", () => {
+  test("A sent message appears once, however the echo and the refetch race", async ({
+    page,
+    userA,
+    userB,
+  }) => {
+    // Sending posts, then refetches the thread — and the server also echoes the
+    // message back over the socket, to the sender as well as the recipient.
+    // Whichever of the two lands second used to append a second copy of the
+    // same row, so the sender saw their own message twice.
+    await makeFriends(userA, userB);
+    await sendMessage(userB, { to: userA, content: "abre a conversa" });
+
+    await openApp(page, userA, { checkedInToday: true });
+    await openChatTab(page);
+    await page.getByText("abre a conversa").click();
+    await expect(page.getByPlaceholder("Message…")).toBeVisible();
+
+    await page.getByPlaceholder("Message…").fill("uma só vez");
+    await page.keyboard.press("Enter");
+
+    await expect(page.getByText("uma só vez")).toHaveCount(1);
+    // And it stays one after the echo has certainly arrived.
+    await page.waitForTimeout(1500);
+    await expect(page.getByText("uma só vez")).toHaveCount(1);
   });
 });

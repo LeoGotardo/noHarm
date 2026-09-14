@@ -271,3 +271,93 @@ export async function listBadges(user) {
   const r = await api.get("/badges", as(user));
   return r.badges ?? r.items ?? [];
 }
+
+// ── Reports ──────────────────────────────────────────────────────────────────
+
+/** `from` files a report about `to`. Mirrors what the sheet sends. */
+export async function fileReport(from, to, reason = "spam", details = null) {
+  return api.post(`/reports/${to.id}`, { ...as(from), body: { reason, details } });
+}
+
+/** The reports a user filed — nobody can read reports filed about them. */
+export async function myReports(user) {
+  return api.get("/reports/mine", as(user));
+}
+
+/**
+ * The account on the backend's admin allowlist — the only one that can read a
+ * moderation queue or the evidence behind a report.
+ *
+ * Authorisation is `ADMIN_USER_IDS` and nothing else, and the dev backend names
+ * exactly this uid (`docker/compose.yaml`). The account is shared by every
+ * worker: whoever gets there first registers it, everyone else logs in.
+ *
+ * It is erased with everything else by the sweep in `helpers/cleanup.js`, and
+ * that has to be a *hard* delete — `DELETE /users/me` only soft-deletes, and a
+ * uid inside its 30-day grace window cannot register or log in again, so the
+ * next run would find a moderator it can no longer become.
+ */
+const ADMIN_UID = process.env.E2E_ADMIN_UID ?? "e2e-moderator";
+
+export async function asAdmin() {
+  return _moderator(ADMIN_UID, "e2e_moderator");
+}
+
+/**
+ * Sign in (or register) one of the fixed moderator accounts.
+ *
+ * Returns the same shape `createUser` does, tokens included, so a test can
+ * seed a browser session as the moderator and drive the moderation screens.
+ */
+async function _moderator(uid, username) {
+  const email = `${uid}@e2e-noharm.example.com`;
+  const idToken = fakeIdToken(uid, email);
+  let res;
+  try {
+    res = await api.post("/auth/register", { body: { idToken, username } });
+  } catch {
+    // Already registered — by a previous run, or by a sibling worker moments
+    // ago. Logging in is the same account either way.
+    res = await api.post("/auth/login", { body: { idToken } });
+  }
+  return {
+    id: uid,
+    uid,
+    username,
+    email,
+    idToken,
+    accessToken: res.accessToken,
+    refreshToken: res.refreshToken,
+  };
+}
+
+/**
+ * A second account on the allowlist, for the collisions a single moderator
+ * cannot produce: the report lock only means anything with two of them.
+ */
+const ADMIN_UID_2 = process.env.E2E_ADMIN_UID_2 ?? "e2e-moderator-2";
+
+export async function asSecondAdmin() {
+  return _moderator(ADMIN_UID_2, "e2e_moderator_2");
+}
+
+/** The evidence captured behind a report — admin only. */
+export async function reportEvidence(admin, reportId) {
+  return api.get(`/reports/${reportId}/evidence`, as(admin));
+}
+
+
+// ── Moderation notices ───────────────────────────────────────────────────────
+
+/** Send a warning as a moderator. Changes nothing about the account. */
+export async function warnUser(admin, user, reason = "harassment", message = null) {
+  return api.post(`/users/${user.id}/warn`, {
+    ...as(admin),
+    body: { reason, ...(message ? { message } : {}) },
+  });
+}
+
+/** The notices waiting on an account. */
+export async function myNotices(user, pending = false) {
+  return api.get(`/notices/mine${pending ? "?pending=true" : ""}`, as(user));
+}

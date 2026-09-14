@@ -1,6 +1,6 @@
 # E2E tests — NoHarm
 
-Playwright suite (71 tests) automating the checklist in
+Playwright suite (113 tests) automating the checklist in
 [`TESTING.md`](../TESTING.md). Runs against the real app (Vite on `:5173`) and
 the real backend (`:8080`).
 
@@ -32,6 +32,24 @@ The browser no longer talks to the backend directly: the app uses relative URLs
 (`/api`, `/ws`) and the dev server proxy (`vite.config.js`) mirrors the routes
 nginx serves in production (`noHarmBack/docker/app_locations.conf`). The Node
 helpers still hit `E2E_API_URL` directly, bypassing the proxy.
+
+`tests/reports.spec.js` covers the report system on its own: the sheet, the
+privacy promise it makes, the duplicate and failure paths, the evidence
+captured with a report, and the endpoints behind all of it. Three things it
+assumes about the environment — the throwaway accounts are never in
+`ADMIN_USER_IDS` (which is why `GET /reports` must answer 404); the one account
+that *is* on that list has the uid `e2e-moderator`, named in the backend's
+`docker/compose.yaml` and reached through `asAdmin()` in `helpers/api.js`
+(override with `E2E_ADMIN_UID`); and both `details` and the captured evidence
+are encrypted at rest, so they are only ever read back through the API, never
+straight from `tb_10` / `tb_11`.
+
+`asAdmin()` registers that account once and logs in on every later call, and it
+is **never deleted at teardown** — a deleted uid inside its 30-day grace window
+cannot log back in, so dropping it would break the next run. `asSecondAdmin()`
+(`e2e-moderator-2`, `E2E_ADMIN_UID_2`) is the same thing for the collisions a
+single moderator cannot produce: the report lock only means anything with two
+of them, and `tests/moderation.spec.js` needs both.
 
 During the socket tests the dev server logs
 `[vite] ws proxy socket error: ECONNRESET`: that is teardown closing the socket
@@ -133,14 +151,28 @@ None.
 
 ### Frontend — open
 
-- **Socket refusal codes are not handled** (`src/connectors/socket.js`).
-  The backend now returns the real reason in `connect_error` —
-  `missing_token`, `invalid_token`, `account_unavailable`,
-  `too_many_connections` — where everything used to become
-  `"Connection refused by server"`. The handler is still a `console.warn` and
-  socket.io retries 5 reconnections for any of the four; for
-  `account_unavailable` and `too_many_connections` that is guaranteed noise. No
-  test coverage until the handler exists.
+None.
+
+### Frontend — fixed since
+
+- **Socket refusal codes** (`src/connectors/socket.js`) — `missing_token`,
+  `invalid_token`, `account_unavailable` and `too_many_connections` each have
+  their own answer now: refresh once, end the session, back off 30 s, or stop.
+  Socket.IO's five blind retries only survive for the cases where retrying can
+  actually work.
+- **A sent message rendered twice** — `send` refetches the thread after the
+  POST, and the server echoes the message to the sender's own socket too. The
+  thread appended whatever arrived second, so the sender saw their own line
+  twice; the chat list had always deduped on `last_message.id` and the thread
+  now does the same on `message.id`. Covered by "a sent message appears once,
+  however the echo and the refetch race" in `chat.spec.js`.
+- **Events missed while the socket was down** — Socket.IO replays nothing, so a
+  message delivered before the first handshake (every cold start) left an unread
+  badge that never appeared. `services/ws/connection.js` → `onSocketReady`
+  fires on every handshake and `useChats`/`useFriends` refetch there. Covered by
+  "a message that lands before the socket is live still shows up" in
+  `realtime.spec.js`, which holds both the REST response and the handshake so
+  the refetch is the only path that can produce the badge.
 
 ### Contract changes
 
@@ -193,29 +225,58 @@ registry in Redis; the `online_status` format has not changed.
 
 ## State the suite leaves in the database
 
-- Users: deleted at teardown. The backend soft-deletes, so the rows stay in the
-  database and the directory grows with each run. To purge:
+**None.** `playwright.config.js` runs `tests/global-setup.js` before the suite
+and `tests/global-teardown.js` after it; both call `purgeE2EData` in
+[`helpers/cleanup.js`](helpers/cleanup.js), which deletes every row whose uid
+starts with `e2e` — accounts and, through their foreign keys, streaks,
+friendships, chats, messages, user badges, tokens and moderation notices, plus
+the two tables that deliberately survive an account (`tb_7` audit logs and
+`tb_10` reports, both ON DELETE SET NULL) and the evidence hanging off those
+reports.
 
-  ```bash
-  docker exec postgres_db psql -U root -d noharm-db -c "
-    DELETE FROM tb_4 WHERE cl_4c LIKE 'e2e%';
-    DELETE FROM tb_3 WHERE cl_3b LIKE 'e2e%' OR cl_3c LIKE 'e2e%';
-    DELETE FROM tb_2 WHERE cl_2b LIKE 'e2e%' OR cl_2c LIKE 'e2e%';
-    DELETE FROM tb_1 WHERE cl_1b LIKE 'e2e%';
-    DELETE FROM tb_6 WHERE cl_6b LIKE 'e2e%';
-    DELETE FROM tb_7 WHERE cl_7c LIKE 'e2e%';
-    DELETE FROM tb_8 WHERE cl_8b LIKE 'e2e%';
-    DELETE FROM tb_9 WHERE cl_9b LIKE 'e2e%';
-    DELETE FROM tb_0 WHERE cl_0a LIKE 'e2e%';"
-  ```
+It runs **before** as well as after, because a run killed with Ctrl-C never
+reaches a teardown and nothing else in the system would ever remove those rows.
 
-- Badges: none. `tests/badges.spec.js` creates its catalog in `beforeAll`, deletes
-  it in `afterAll` and also sweeps leftovers from previous runs by the `E2E `
-  prefix, now that the `DELETE` works.
+Why SQL and not the API: `DELETE /users/me` is a **soft** delete — status 2 and
+a clock, kept for `ACCOUNT_DELETION_GRACE_DAYS` so a real person can change
+their mind — and the only hard delete in the codebase is
+`jobs/purgeAccounts.py`, which refuses anything inside that 30-day window. A
+suite that only called the endpoint left every account it ever made: 3,246 of
+them, with 2,797 audit rows, before this existed. That is also a directory the
+friend-search tests have to page through and a moderation queue with thousands
+of entries.
 
-- Redis: `ws:conn:<userId>` counters are left at `0` with a 24 h TTL after the
-  socket closes — the decrement is correct, the key just isn't deleted. It does
-  not affect `too_many_connections`; it expires on its own.
+`DELETE /badges/{id}` is a soft delete too, and the badge catalogue is global,
+so `badges.spec.js` left its own catalogue behind on every run — invisible to
+`GET /badges`, permanent in `tb_5`. The sweep removes status-2 badges (and the
+awards pointing at them, whose foreign key does not cascade), which in a test
+database is residue by definition.
+
+The moderator accounts (`e2e-moderator`, `e2e-moderator-2`) go with everything
+else. That is only safe because it is a hard delete: a soft-deleted uid cannot
+register or log in again inside its grace window, so the next run would find a
+moderator it could no longer become.
+
+Running against a remote backend there is no container to `docker exec` into.
+The sweep warns once and skips, and this is the purge to run by hand:
+
+```bash
+docker exec postgres_db psql -U root -d noharm-db -c "
+  DELETE FROM tb_7 WHERE cl_7c LIKE 'e2e%';
+  DELETE FROM tb_11 WHERE cl_11b IN (SELECT cl_10a FROM tb_10 WHERE cl_10b LIKE 'e2e%' OR cl_10g LIKE 'e2e%');
+  DELETE FROM tb_10 WHERE cl_10b LIKE 'e2e%' OR cl_10g LIKE 'e2e%';
+  DELETE FROM tb_12 WHERE cl_12b LIKE 'e2e%';
+  DELETE FROM tb_0 WHERE cl_0a LIKE 'e2e%';
+  DELETE FROM tb_6 WHERE cl_6c IN (SELECT cl_5a FROM tb_5 WHERE cl_5f = 2);
+  DELETE FROM tb_5 WHERE cl_5f = 2;"
+```
+
+Override the container and database with `E2E_DB_CONTAINER`, `E2E_DB_NAME`,
+`E2E_DB_USER`. Redis: `ws:conn:*` counters are deleted by the same sweep; they
+had a 24 h TTL and expired on their own, but a run that ends should end.
+
+`auth.spec.js` has the test that keeps this honest — it soft-deletes an account,
+asserts the row is still there, and then asserts the sweep removes it.
 
 **Why friend search uses a stubbed directory.** The real directory grows with
 each run and the app paginates under a 30 req/min ceiling on `/users`. As soon as

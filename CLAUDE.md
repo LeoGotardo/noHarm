@@ -6,16 +6,42 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 NoHarm — addiction recovery tracker. Core loop: register → start streak → daily check-in → earn milestone badges → connect with friends for accountability → 1-on-1 chat. Tone must be warm and compassionate, never clinical.
 
+This repo is the **front end only**. The API it talks to is
+[`../noHarmBack`](../noHarmBack/) — FastAPI + PostgreSQL + Socket.IO, a sibling
+repository that must sit next to this one on disk (the production image builds
+both). Its `docs/README.md` is the architecture and auth reference, its
+`CLAUDE.md` the domain rules (RLS, moderation, account lifecycle, rate limits),
+and `docs/FRONTEND_DESIGN_BRIEF.md` the API shapes this app consumes.
+
 ## Commands
 
 ```bash
 npm run dev        # Vite dev server (hot reload)
 npm run build      # production build → dist/
 npm run preview    # serve dist/ locally
-npm run test:e2e   # Playwright suite (71 tests) — needs the backend on :8080
+npm run test:e2e   # Playwright suite (113 tests) — needs the backend on :8080
+
+npm run build:mobile          # vite build --mode mobile (absolute API URLs from .env.mobile)
+npx cap sync android          # copy dist/ into the native project
+cd android && ./gradlew assembleDebug   # → android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
 No lint script. Open `http://localhost:5173` after `npm run dev`.
+
+The full APK walkthrough — prerequisites, signing a release build, and the
+failure modes — is in [`README.md`](README.md), "Building the Android APK".
+Two things to know before touching it: `android/` and `ios/` are **gitignored
+and generated** (`npx cap add android`), so nothing you edit in there is
+versioned or survives a regeneration; and `applicationId` must stay
+`com.no.harm`, matching a `package_name` in the (also gitignored)
+`android/app/google-services.json`, or `:app:processDebugGoogleServices` fails
+the build.
+
+The e2e suite **cleans the database before and after every run** — every account
+it makes and everything hanging off them (`tests/helpers/cleanup.js`, wired as
+`globalSetup`/`globalTeardown`). It has to be SQL: `DELETE /users/me` is a soft
+delete and the only hard delete in the backend refuses anything inside its
+30-day grace window, so before this the suite left thousands of accounts behind.
 
 `tests/` is a Playwright suite that automates most of `TESTING.md`; see
 [`tests/README.md`](tests/README.md) for how it fakes the Google popup and what
@@ -68,11 +94,11 @@ services/ import from connectors/
 | `src/app.jsx` | Root component: nav state machine, theme wiring, screen routing, global state |
 | `src/main.jsx` | Mounts `<App>`, imports `theme.css` |
 | `src/theme.css` | CSS custom properties for all four theme variants. Token blocks are attribute-only selectors so `<html>` resolves them too — see Theming |
-| `src/ui/index.js` | Low-level primitives: `Icon`, `Avatar`/`OnlineDot`, `Btn`, `Card`, `Field`, `Skeleton`, `GeoBackground`, `Divider`, `SectionLabel`, plus `cx` helper |
+| `src/ui/index.js` | Low-level primitives: `Icon`, `Avatar`/`OnlineDot`, `Btn`, `Card`, `Field`, `Skeleton`, `GeoBackground`, `Divider`, `SectionLabel`, plus `cx` helper and the tap guards from `guards.js` (`useGuardedCallback`, `useDebouncedValue`) |
 | `src/components/index.js` | Composite widgets: `Screen`, `Header`, `Banner`, `Toast`, `BottomSheet`, `TabBar`, `StreakRing`/`BadgeMedallion`, `EmptyState`, `Logo`, `GoogleButton`, `PersonRow`, `SegTabs`, plus format helpers from `utils.js` (`hashHue`, `fmtTime`, `fmtLongDate`, `fmtRelDate`, `fmtShortDay`) |
 | `src/connectors/` | Transport layer (see diagram above) |
-| `src/services/api/` | `auth`, `badge`, `chat`, `friendship`, `message`, `streak`, `user`, `device` |
-| `src/services/ws/` | `chat`, `friendship`, `presence` |
+| `src/services/api/` | `auth`, `badge`, `chat`, `friendship`, `message`, `moderation`, `notice`, `report`, `streak`, `user`, `device` |
+| `src/services/ws/` | `chat`, `connection`, `friendship`, `presence` |
 | `src/services/notifications.js` | Browser Notification API wrapper (`notif.send/requestPermission/granted`) |
 | `src/services/push.js` | Capacitor FCM wrapper (`push.register/onForeground/onTap`) |
 | `src/services/checkinReminder.js` | Capacitor LocalNotifications — schedules daily 9 PM reminder (id 1001) |
@@ -82,16 +108,51 @@ services/ import from connectors/
 | `src/store/useFriends.js` | Friend list + WS subscriptions |
 | `src/store/useStreak.js` | Active streak data |
 | `src/store/useUser.js` | Current user profile |
+| `src/store/useModeration.js` | `useModerator(enabled)` — probes `GET /reports` once per session to find out whether this account can moderate |
+| `src/store/useNotices.js` | Moderation notices waiting for this user; `acknowledge` marks one read |
 | `src/store/useNotifPrefs.js` | Persists notification prefs to `nh_notif_prefs` in localStorage; keys: `master`, `messages`, `friendRequests`, `friendAccepted`, `checkinReminder` |
 | `src/store/useNotifications.js` | Wires WS events → browser/local notifs; registers FCM token on native |
 | `src/store/useCheckinReminder.js` | Schedules/cancels `checkinReminder` based on combined master+pref flag |
 | `src/screens/auth/` | `SplashScreen`, `RegisterScreen`, `LoginScreen` |
 | `src/screens/home/` | `Dashboard`, `StreakHistory`, `CheckInModal` |
-| `src/screens/friends/` | `FriendsScreen`, `FriendRequests`, `FriendSearch`, `PublicProfile` |
+| `src/screens/friends/` | `FriendsScreen`, `FriendRequests`, `FriendSearch`, `PublicProfile`, `ReportSheet` |
 | `src/screens/chat/` | `ChatList`, `ChatThread` |
 | `src/screens/badges/` | `BadgesScreen`, `BadgeDetail` |
 | `src/screens/profile/` | `MyProfile`, `EditProfile`, `Settings` |
+| `src/screens/moderation/` | `ModerationQueue`, `ReportReview`, `SuspendSheet`, `WarnSheet` — admin only; the Settings row that opens them is absent for everyone else |
 | `src/dev/TweaksPanel.jsx` | Dev overlay: `useTweaks`, `TweaksPanel`, `TweakSection`, `TweakRadio`, `TweakToggle` |
+
+## Tap guards
+
+Nothing in this app is idempotent — two taps on Add friend are two POSTs, two
+on Send are two messages, two on a row push the same screen twice — and taps
+land faster than React re-renders, so a `sending` state flag set inside the
+handler does not stop the second one: both taps read the same state in the same
+tick.
+
+`useGuardedCallback(fn, gap)` in `src/ui/guards.js` is the fix, and it is
+already wired into the primitives every screen goes through: `Btn`, `Card`
+(when tappable), `GoogleButton`, `PersonRow`, `Header`'s back arrow, `LinkRow`,
+`SheetAction`, `ToggleRow`. A handler passed to any of those needs nothing
+extra. Raw `<button>`s inside a screen do — `ChatThread`'s send, the request
+rows, the search result's Add, `StreakHistory`'s pagination, `EditProfile`'s
+Save each wrap their own.
+
+It runs `fn` once and ignores further calls until it is safe: `gap` ms for a
+sync handler (default `GUARD_MS`, 400), and for an async one the whole time the
+request is in flight plus `gap`. It holds refs only, so wrapping an inline
+arrow costs no re-render. Two places want a different gap: `ToggleRow` passes
+`0`, because flipping a switch back is a real thing to do and only same-tick
+taps should collapse — `tests/profile.spec.js` toggles dark mode twice in a row
+and a 400 ms gap swallows the second one.
+
+For work a **keystroke** triggers, `useDebouncedValue(value, delay)` is the
+other half: the field stays instantly controlled and the expensive part trails
+it. `FriendSearch` filters and widens the directory on the settled term, so a
+typed word is one search, not one per letter.
+
+`tests/chat.spec.js` fires two clicks in a single tick and asserts one
+`POST /messages`.
 
 ## Deployment
 
@@ -147,6 +208,10 @@ Custom stack-on-tabs — no router library:
 Only three navigation primitives: `push(screen, props)` / `pop()` / `resetTo(tab)`.
 
 **Adding a screen**: add a `case` to the `switch (top.screen)` block (overlay screens) or `switch (tab)` block (tab roots) in `src/app.jsx`, implement the component in the appropriate `src/screens/*/` folder.
+
+Overlay screens today: `streakHistory`, `friendRequests`, `friendSearch`,
+`publicProfile`, `chatThread`, `badgeDetail`, `editProfile`, `settings`,
+`moderation`, `reportReview`.
 
 ## Theming
 
@@ -213,9 +278,53 @@ See `noHarmBack/docs/FRONTEND_DESIGN_BRIEF.md` for full API shapes. Key invarian
   either. `src/store/useStreak.js` sends **one** conditional check-in;
   `tests/streak.spec.js` covers a 30-day backdate to keep it that way.
 - **Friendship status codes**: 2=deleted, 3=blocked, 4=pending, 5=accepted, 6=rejected.
+- **Reporting is private and inert.** `POST /reports/{userId}` takes one of six
+  reasons (`services/api/report.js` holds the list and its copy) plus up to 1000
+  optional characters. The reported user is never notified and can never read a
+  report about them, so the sheet says so — that promise is what makes people
+  file one. A report changes nothing else: it does not block, unfriend or notify,
+  and blocking stays the separate action offered beside it in the profile sheet.
+  A second report about the same person while the first is unreviewed comes back
+  409, which `ReportSheet` shows inline rather than as a failure.
+- **A report carries the conversation, as an id.** When the reporter and the
+  reported user have a chat, `app.jsx` finds it in `chatList` and passes its id
+  as the fourth argument to `reportUser`; the backend copies that chat's last 20
+  messages into the evidence attached to the report. Only the id travels —
+  there is no parameter for message text and the backend refuses a body field
+  carrying any, because a reporter must never be able to attribute invented
+  lines to someone. Nothing in the app reads that copy back: it is a
+  moderator's, and `GET /reports/{id}/evidence` answers 404 to everyone else,
+  the reporter included.
 - **Chat**: friends-only, 1-on-1. Lifecycle: pending → enabled → disabled.
 - **Messages**: text only, max 2000 chars. Status 7=unread, 8=read.
 - **Auth**: Firebase identity + app JWT. Access token 15 min, refresh 7 days. `connectors/api.js` handles the silent refresh automatically on 401.
+- **Moderation is a screen in the app, not a separate tool.** Settings shows a
+  "Reports" row only for an account on the backend's `ADMIN_USER_IDS`
+  allowlist, and `src/screens/moderation/` is what it opens: the queue (open /
+  actioned / dismissed), then one report with the evidence captured when it was
+  filed — the profile snapshot and the conversation, both sides, as a
+  transcript. **There is no "am I an admin" endpoint on purpose**: every
+  moderation route answers 404 rather than 403, so `useModerator` probes the
+  queue once per session and hides the row on failure. Opening a report
+  *claims* it and leaving without deciding releases it, so a second moderator
+  is never reading the same conversation; reading the evidence is logged
+  against the moderator. Suspending and closing are two buttons because they
+  are two decisions — closing a report never touches an account.
+- **Moderation talks back.** `useNotices` fetches what moderation has said to
+  this account and `NoticeSheet` shows it over everything on open — **before
+  the check-in modal**, because being asked "all clean today?" with an unread
+  warning waiting is the wrong order. A warning changes nothing about the
+  account and the copy says so; a suspension notice waits until the account
+  comes back, which is the only moment it can be read at all. The sheet never
+  names who reported them (the API does not carry it) and always says where to
+  appeal — `VITE_SUPPORT_EMAIL`, also on a refused sign-in.
+- **A suspended account is paused, not gone.** Moderation can ban for a fixed
+  window: signing in then answers 403 `ACCOUNT_SUSPENDED` with
+  `details.suspendedUntil`, where a permanent ban is still `ACCOUNT_BANNED`.
+  `LoginScreen` reads the date and says "paused until <date>" — telling someone
+  serving three days that their account is gone is a different message than the
+  truth, and this app's accounts hold a streak and a friend list. The ban lifts
+  itself on the first sign-in past the date, so nothing here has to poll.
 - **Account deletion is reversible for 30 days.** `deleteMe()` soft-deletes; the
   backend keeps the row for `ACCOUNT_DELETION_GRACE_DAYS` and a cron purges it
   after. Signing in during the window returns 403 `ACCOUNT_PENDING_DELETION`
@@ -226,4 +335,12 @@ See `noHarmBack/docs/FRONTEND_DESIGN_BRIEF.md` for full API shapes. Key invarian
   feeds that copy and must match the backend. Never present deletion as
   immediate: the copy said "Delete forever" while the backend kept everything,
   and that mismatch is the thing being fixed, not a detail to restore.
+- **Socket.IO replays nothing it missed.** A `new_message` or `friend_*` event
+  emitted while the socket was down — or before the first handshake finished,
+  which is every cold start — is simply gone, and the screen keeps the state
+  from before: an unread badge that never appears. `services/ws/connection.js`
+  → `onSocketReady` fires on every successful handshake, and `useChats` /
+  `useFriends` refetch over REST there. Connecting is the one instant the
+  client knows it has a gap. Cost: one extra fetch per connect, including the
+  silent token refresh every 15 minutes.
 - **WebSocket** (Socket.IO): JWT-authenticated at connect. Events: `chat` (join/leave/send/mark_read/typing), `presence` (get_online_status/online_status), friend notifications (friend_request/accept/reject/remove/block/unblock).
