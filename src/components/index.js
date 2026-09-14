@@ -8,6 +8,7 @@ export {
 } from "./GoogleButton.jsx";
 export { Header } from "./Header.jsx";
 export { Logo } from "./Logo.jsx";
+export { NoticeSheet } from "./NoticeSheet.jsx";
 export { PersonRow } from "./PersonRow.jsx";
 export { Screen } from "./Screen.jsx";
 export { SegTabs } from "./SegTabs.jsx";

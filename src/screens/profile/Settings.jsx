@@ -19,6 +19,11 @@ export function Settings({
   onEnableNotifications,
   notifPrefs,
   onNotifPrefChange,
+  // True only for an account on the backend's ADMIN_USER_IDS allowlist. The
+  // row is absent for everyone else, and the endpoints behind it answer 404
+  // to them anyway — this hides a door that is already locked.
+  isModerator,
+  onOpenModeration,
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmText, setConfirmText] = useState("");
@@ -155,6 +160,20 @@ export function Settings({
             <LinkRow icon="logout" label="Log out" onClick={onLogout} last />
           </Card>
         </div>
+
+        {isModerator && (
+          <div>
+            <SectionLabel>Moderation</SectionLabel>
+            <Card pad={8}>
+              <LinkRow
+                icon="flag"
+                label="Reports"
+                onClick={onOpenModeration}
+                last
+              />
+            </Card>
+          </div>
+        )}
 
         <div>
           <SectionLabel>Danger zone</SectionLabel>

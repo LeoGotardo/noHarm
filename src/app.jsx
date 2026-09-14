@@ -1,4 +1,12 @@
-import { Banner, BottomSheet, hashHue, Screen, TabBar, Toast } from "@components";
+import {
+  Banner,
+  BottomSheet,
+  hashHue,
+  NoticeSheet,
+  Screen,
+  TabBar,
+  Toast,
+} from "@components";
 import { Btn, Icon } from "@ui";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { errorMessage } from "./connectors/api.js";
@@ -17,6 +25,7 @@ import {
   removeFriendship,
   sendFriendRequest,
 } from "./services/api/friendship.js";
+import { reportUser } from "./services/api/report.js";
 import { getUsers } from "./services/api/user.js";
 import { milestoneDays, withEarnedState } from "./services/badges.js";
 import {
@@ -38,6 +47,8 @@ import { FriendSearch } from "./screens/friends/FriendSearch.jsx";
 import { FriendsScreen } from "./screens/friends/FriendsScreen.jsx";
 import { PublicProfile } from "./screens/friends/PublicProfile.jsx";
 import { CheckInModal } from "./screens/home/CheckInModal.jsx";
+import { ModerationQueue } from "./screens/moderation/ModerationQueue.jsx";
+import { ReportReview } from "./screens/moderation/ReportReview.jsx";
 import { Dashboard } from "./screens/home/Dashboard.jsx";
 import { StreakHistory } from "./screens/home/StreakHistory.jsx";
 import { EditProfile } from "./screens/profile/EditProfile.jsx";
@@ -50,6 +61,8 @@ import { useChats } from "./store/useChats.js";
 import { useCheckinReminder } from "./store/useCheckinReminder.js";
 import { useFriends } from "./store/useFriends.js";
 import { useNotifications } from "./store/useNotifications.js";
+import { useModerator } from "./store/useModeration.js";
+import { useNotices } from "./store/useNotices.js";
 import { useNotifPrefs } from "./store/useNotifPrefs.js";
 import { useStreak } from "./store/useStreak.js";
 import { useUser } from "./store/useUser.js";
@@ -539,6 +552,11 @@ export default function App() {
       disconnectSocket();
     }
   }, [phase, socketAuthHandlers]);
+  // What moderation has said to this account and the user has not seen yet.
+  // Shown over everything on open — a warning is said once, and saying it in
+  // the middle of a check-in would be worse than not saying it.
+  const { notice, acknowledge: acknowledgeNotice } = useNotices(phase === "app");
+
   const { prefs: notifPrefs, set: setNotifPref } = useNotifPrefs();
   const { requestPermission: enableNotifications, granted: notifGranted } =
     useNotifications(phase === "app" ? me?.id : null, notifPrefs);
@@ -554,6 +572,15 @@ export default function App() {
   const push = (screen, props = {}) =>
     setStack((s) => [...s, { screen, props }]);
   const pop = () => setStack((s) => s.slice(0, -1));
+
+  // Whether this account can moderate. There is no "am I an admin" endpoint —
+  // every moderation route answers 404 to everyone else rather than 403, so
+  // the probe *is* the answer (see store/useModeration.js). Run only once
+  // Settings is open: every user would pay the request otherwise, for a row
+  // almost none of them can use.
+  const { isModerator } = useModerator(
+    phase === "app" && stack.some((entry) => entry.screen === "settings"),
+  );
   const resetTo = (newTab) => {
     setTab(newTab);
     setStack([]);
@@ -607,6 +634,9 @@ export default function App() {
 
   // ── UI state ──────────────────────────────────────────────────────────────
   const [pulseKey, setPulseKey] = useState(0);
+  // Bumped when a report is decided, so the queue behind it refetches instead
+  // of showing the row that was just closed.
+  const [queueKey, setQueueKey] = useState(0);
   const [relapseOpen, setRelapseOpen] = useState(false);
   const [startOpen, setStartOpen] = useState(false);
   const [startDate, setStartDate] = useState("");
@@ -891,6 +921,23 @@ export default function App() {
                   showToast(errorMessage(e, "Couldn't block user"), "bell");
                 }
               }}
+              // Rethrows on failure: the report sheet keeps itself open and
+              // shows the reason, so the reporter does not lose what they wrote.
+              //
+              // The chat id goes with it when the two have one. The backend
+              // copies that conversation's last messages as evidence — only
+              // the id travels, never the text, so a report cannot quote words
+              // the other person never wrote. Without it a moderator has the
+              // reporter's sentence and nothing else.
+              onReport={async (reason, details) => {
+                const chat = chatList.find(
+                  (x) =>
+                    x.sender === top.props.userId ||
+                    x.reciver === top.props.userId,
+                );
+                await reportUser(top.props.userId, reason, details, chat?.id);
+                showToast("Report sent — thank you", "flag");
+              }}
             />
           );
           break;
@@ -966,6 +1013,30 @@ export default function App() {
               onEnableNotifications={enableNotifications}
               notifPrefs={notifPrefs}
               onNotifPrefChange={setNotifPref}
+              isModerator={isModerator}
+              onOpenModeration={() => push("moderation")}
+            />
+          );
+          break;
+        case "moderation":
+          body = (
+            <ModerationQueue
+              onBack={pop}
+              meId={me?.id}
+              reloadKey={queueKey}
+              onOpenReport={(report) => push("reportReview", { report })}
+            />
+          );
+          break;
+        case "reportReview":
+          body = (
+            <ReportReview
+              onBack={pop}
+              report={top.props.report}
+              onToast={(text) => showToast(text, "flag")}
+              // A decided report must not still be sitting in the list the
+              // moderator comes back to.
+              onDecided={() => setQueueKey((k) => k + 1)}
             />
           );
           break;
@@ -1112,8 +1183,14 @@ export default function App() {
           />
         )}
 
+        {/* Ahead of the check-in modal on purpose: being asked "all clean
+            today?" while an unread warning waits is the wrong order. */}
+        {phase === "app" && notice && (
+          <NoticeSheet notice={notice} onAcknowledge={acknowledgeNotice} />
+        )}
+
         <CheckInModal
-          open={phase === "app" && needsCheckin}
+          open={phase === "app" && !notice && needsCheckin}
           missedDays={missedDays}
           lastCheckinDate={lastCheckinDate}
           onConfirm={onCheckinConfirm}

@@ -3,6 +3,7 @@ import { Btn, Icon } from "@ui";
 import { useState } from "react";
 import { errorMessage } from "../../connectors/api.js";
 import { reactivate, signIn } from "../../services/api/auth.js";
+import { SUPPORT_EMAIL } from "../../services/api/notice.js";
 
 /** "March 3, 2027" from the ISO instant the backend sends. */
 function fmtDeadline(iso) {
@@ -47,6 +48,19 @@ export function LoginScreen({ onBack, onDone }) {
           idToken: e.idToken,
           deadline: fmtDeadline(e.deletionScheduledAt),
         });
+      } else if (e?.body?.errorCode === "ACCOUNT_SUSPENDED") {
+        // A suspension ends. Saying only "suspended" to someone serving three
+        // days reads as "your account is gone", and in a recovery app the
+        // account is a streak and a friend list — the date is the difference
+        // between a pause and a loss.
+        const until = fmtDeadline(e.body?.details?.suspendedUntil);
+        const when = until
+          ? `This account is paused until ${until}. You can sign in again then.`
+          : "This account is paused. You can sign in again when it ends.";
+        // The appeal route, said where the refusal is — anywhere else and
+        // nobody finds it. A different person reviews it; that is the policy
+        // this line is promising, and docs/operations.md is where it is kept.
+        setError(`${when} If you think it was a mistake, write to ${SUPPORT_EMAIL}.`);
       } else if (e?.status === 403)
         setError("This account has been suspended. Please contact support.");
       else if (e?.status === 404)

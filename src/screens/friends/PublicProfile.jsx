@@ -8,6 +8,7 @@ import { Avatar, Btn, Card, Icon, Skeleton } from "@ui";
 import { useEffect, useState } from "react";
 import { getUser, getUserStats } from "../../services/api/user.js";
 import { cacheRead, cacheWrite } from "../../store/cache.js";
+import { ReportSheet } from "./ReportSheet.jsx";
 import { SheetAction } from "./SheetAction.jsx";
 
 export function PublicProfile({
@@ -20,12 +21,14 @@ export function PublicProfile({
   onReject,
   onRemove,
   onBlock,
+  onReport,
 }) {
   const [user, setUser] = useState(
     () => cacheRead(`user_${userId}`)?.data ?? null,
   );
   const [rel, setRel] = useState(relation);
   const [menu, setMenu] = useState(false);
+  const [report, setReport] = useState(false);
   const [loading, setLoading] = useState(!user);
   // Activity numbers live behind their own endpoint: they are friends-only, and
   // the profile itself is not. Null while loading, and `visible: false` when the
@@ -280,6 +283,14 @@ export function PublicProfile({
             />
           )}
           <SheetAction
+            icon="flag"
+            label="Report this user"
+            onClick={() => {
+              setMenu(false);
+              setReport(true);
+            }}
+          />
+          <SheetAction
             icon="block"
             label="Block this user"
             danger
@@ -298,10 +309,17 @@ export function PublicProfile({
             }}
           >
             Blocking removes them from your friends and hides your activity from
-            each other.
+            each other. Reporting is private — they are never told.
           </div>
         </div>
       </BottomSheet>
+
+      <ReportSheet
+        open={report}
+        onClose={() => setReport(false)}
+        username={username}
+        onSubmit={onReport}
+      />
     </Screen>
   );
 }
