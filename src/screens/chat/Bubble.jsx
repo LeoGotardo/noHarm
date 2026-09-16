@@ -1,5 +1,6 @@
 import { fmtTime } from "@components";
 import { Icon } from "@ui";
+import { STATUS_CONSTANTS } from "../../services/constants.js";
 
 export function Bubble({ msg, mine }) {
   return (
@@ -44,7 +45,7 @@ export function Bubble({ msg, mine }) {
         >
           {fmtTime(msg.send_at ?? msg.created_at)}
           {mine &&
-            (msg.status === 8 ? (
+            (msg.status === STATUS_CONSTANTS.read ? (
               <span style={{ display: "inline-flex" }}>
                 <Icon name="check" size={13} color="var(--primary)" sw={2.6} />
               </span>

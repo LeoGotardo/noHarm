@@ -4,6 +4,7 @@ import { getChats } from "../services/api/chat.js";
 import { getMessages } from "../services/api/message.js";
 import { markRead, onMessage, onMessagesRead } from "../services/ws/chat.js";
 import { onSocketReady } from "../services/ws/connection.js";
+import { STATUS_CONSTANTS } from "../services/constants.js";
 import { cacheRead, cacheWrite } from "./cache.js";
 
 const emptyChats = { chats: [], total: 0 };
@@ -186,13 +187,25 @@ export function useChats(meId) {
   return { chats, loading, markChatRead, refetch: load };
 }
 
-/** Load messages for a single open chat thread. */
-export function useChatThread(chatId) {
+/**
+ * Load messages for a single open chat thread.
+ *
+ * `meId` is what keeps a read receipt honest: the sender is in the same room as
+ * the reader, so both ends see every `new_message` and every `messages_read`.
+ * Without knowing who I am, the thread marked my own messages read the moment I
+ * opened the chat and the double tick appeared before the other side had seen
+ * anything.
+ */
+export function useChatThread(chatId, meId) {
   const cacheKey = `messages_${chatId}`;
   const [messages, setMessages] = useState(
     () => cacheRead(cacheKey)?.data ?? emptyMsgs,
   );
   const [loading, setLoading] = useState(true);
+  // Read through a ref for the same reason the chat list does: the socket
+  // subscription must not be torn down because `meId` resolved a tick later.
+  const meIdRef = useRef(meId);
+  meIdRef.current = meId;
 
   const fetchMessages = useCallback(async () => {
     // No chat yet (composing the first message) — nothing to load.
@@ -230,16 +243,25 @@ export function useChatThread(chatId) {
             cacheWrite(cacheKey, next);
             return next;
           });
-          try {
-            markRead(chatId);
-          } catch {}
+          // Only the peer's messages can be read by me; echoing my own send
+          // back into mark_read is a read receipt for a message nobody opened.
+          if (message.sender !== meIdRef.current) {
+            try {
+              markRead(chatId);
+            } catch {}
+          }
         }),
-        // Mark all messages as read when other user reads
-        onMessagesRead(({ chatId: cid }) => {
+        // Mark as read the messages the reader received — never the ones they
+        // sent. `readerId` says who read; both participants get this event.
+        onMessagesRead(({ chatId: cid, readerId }) => {
           if (cid !== chatId) return;
           setMessages((prev) => ({
             ...prev,
-            messages: prev.messages.map((m) => ({ ...m, status: 8 })),
+            messages: prev.messages.map((m) =>
+              readerId && m.sender === readerId
+                ? m
+                : { ...m, status: STATUS_CONSTANTS.read },
+            ),
           }));
         }),
       ];
