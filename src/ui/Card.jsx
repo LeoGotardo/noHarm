@@ -5,6 +5,7 @@ export function Card({ children, style, onClick, pad = 18 }) {
   const run = useGuardedCallback(onClick);
   return (
     <div
+      className={onClick ? "nh-tap nh-tap-card" : undefined}
       onClick={onClick ? run : undefined}
       style={{
         background: "var(--surface)",

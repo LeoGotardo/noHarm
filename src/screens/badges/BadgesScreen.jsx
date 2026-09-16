@@ -22,7 +22,7 @@ export function BadgesScreen({ badges, currentDays, onOpen }) {
       />
 
       {next && (
-        <div style={{ padding: "14px 20px 0" }}>
+        <div style={{ padding: "14px var(--pad-x) 0" }}>
           <Card style={{ display: "flex", alignItems: "center", gap: 16 }}>
             <BadgeMedallion
               milestone={milestoneDays(next)}
@@ -85,7 +85,7 @@ export function BadgesScreen({ badges, currentDays, onOpen }) {
         </div>
       )}
 
-      <div style={{ padding: "20px 20px 0" }}>
+      <div style={{ padding: "20px var(--pad-x) 0" }}>
         <div
           style={{
             fontSize: 12.5,
@@ -101,7 +101,7 @@ export function BadgesScreen({ badges, currentDays, onOpen }) {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
+            gridTemplateColumns: "var(--badge-cols)",
             gap: 18,
           }}
         >

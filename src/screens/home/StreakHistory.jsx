@@ -53,7 +53,7 @@ export function StreakHistory({ onBack, currentDays, currentStart, empty }) {
       <Header title="Streak history" onBack={onBack} />
       <div
         style={{
-          padding: "14px 20px 0",
+          padding: "14px var(--pad-x) 0",
           display: "flex",
           flexDirection: "column",
           gap: 12,

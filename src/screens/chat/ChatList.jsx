@@ -5,7 +5,7 @@ import { STATUS_CONSTANTS } from "../../services/constants.js";
 import { getUser } from "../../services/api/user.js";
 import { ChatRow } from "./ChatRow.jsx";
 
-export function ChatList({ chats, meId, onOpen, onOpenProfile }) {
+export function ChatList({ chats, meId, onOpen, onOpenProfile, selectedId }) {
   const [users, setUsers] = useState({});
   const fetched = useRef(new Set());
 
@@ -30,7 +30,7 @@ export function ChatList({ chats, meId, onOpen, onOpenProfile }) {
         title="Messages"
         sub={`${active.length} conversation${active.length !== 1 ? "s" : ""}`}
       />
-      <div style={{ padding: "16px 20px 0" }}>
+      <div style={{ padding: "16px var(--pad-x) 0" }}>
         {chats.length === 0 ? (
           <EmptyState
             icon="chat"
@@ -51,6 +51,7 @@ export function ChatList({ chats, meId, onOpen, onOpenProfile }) {
                     users={users}
                     onOpen={onOpen}
                     onOpenProfile={onOpenProfile}
+                    selected={selectedId === c.id}
                   />
                 </Fragment>
               ))}
@@ -70,6 +71,7 @@ export function ChatList({ chats, meId, onOpen, onOpenProfile }) {
                         users={users}
                         onOpen={onOpen}
                         onOpenProfile={onOpenProfile}
+                        selected={selectedId === c.id}
                       />
                     </Fragment>
                   ))}

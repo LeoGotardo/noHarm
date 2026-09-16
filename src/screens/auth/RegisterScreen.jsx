@@ -44,7 +44,7 @@ export function RegisterScreen({ onBack, onDone }) {
   };
 
   return (
-    <Screen geo="auth" padTop={56} padBottom={28}>
+    <Screen geo="auth" padTop={56} padBottom={28} maxWidth="var(--form-max)">
       <Header title="Create account" onBack={onBack} />
       <div
         style={{

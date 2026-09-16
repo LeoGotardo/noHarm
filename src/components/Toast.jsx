@@ -5,8 +5,10 @@ export function Toast({ text, icon = "check" }) {
     <div
       style={{
         position: "absolute",
-        bottom: 110,
-        left: "50%",
+        // Clears the tab bar on a phone (96 + 14) and sits just off the bottom
+        // edge on a desktop, where there is no bar to clear.
+        bottom: "calc(var(--pad-bottom) + 14px)",
+        left: "calc(50% + var(--nav-offset) / 2)",
         transform: "translateX(-50%)",
         zIndex: 85,
         display: "flex",

@@ -34,7 +34,7 @@ export function EditProfile({ me, onBack, onSave }) {
   });
 
   return (
-    <Screen geo="auth" padTop={56}>
+    <Screen geo="auth" padTop={56} maxWidth="var(--form-max)">
       <Header
         title="Edit profile"
         onBack={onBack}

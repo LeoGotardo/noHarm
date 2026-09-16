@@ -49,7 +49,7 @@ export function FriendSearch({
   return (
     <Screen geo="friends" padTop={56}>
       <Header title="Add friends" onBack={onBack} />
-      <div style={{ padding: "12px 20px 0" }}>
+      <div style={{ padding: "12px var(--pad-x) 0" }}>
         <Field
           value={q}
           onChange={setQ}
@@ -57,7 +57,7 @@ export function FriendSearch({
           right={<Icon name="search" size={18} color="var(--ink-3)" />}
         />
       </div>
-      <div style={{ padding: "16px 20px 0" }}>
+      <div style={{ padding: "16px var(--pad-x) 0" }}>
         {trimmed.length < 2 ? (
           <EmptyState
             icon="search"

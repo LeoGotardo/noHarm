@@ -57,6 +57,7 @@ export function Btn({
   };
   return (
     <button
+      className="nh-btn"
       onClick={disabled || loading ? undefined : run}
       disabled={disabled}
       onMouseDown={(e) =>

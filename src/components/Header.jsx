@@ -7,7 +7,7 @@ export function Header({ title, onBack, right, sub, large }) {
   return (
     <div
       style={{
-        padding: "8px 20px 6px",
+        padding: "8px var(--pad-x) 6px",
         display: "flex",
         flexDirection: "column",
         gap: large ? 6 : 0,

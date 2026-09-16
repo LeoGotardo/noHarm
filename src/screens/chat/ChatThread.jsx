@@ -39,7 +39,7 @@ export function ChatThread({
 
   const goBack = useGuardedCallback(onBack);
   const otherId = chat.sender === meId ? chat.reciver : chat.sender;
-  const { messages: msgData, loading, refetch } = useChatThread(chat.id);
+  const { messages: msgData, loading, refetch } = useChatThread(chat.id, meId);
   const msgList = msgData?.messages ?? [];
 
   const scrollDown = () => {
@@ -206,6 +206,11 @@ export function ChatThread({
             alignItems: "center",
             gap: 10,
             padding: "6px 14px 10px",
+            // The bar spans the window; its contents line up with the
+            // transcript below. See the comment on <Screen>.
+            width: "100%",
+            maxWidth: "var(--content-max)",
+            margin: "0 auto",
           }}
         >
           <button
@@ -258,6 +263,7 @@ export function ChatThread({
 
       <div
         ref={scrollRef}
+        id="nh-thread"
         className="nh-scroll"
         style={{
           position: "relative",
@@ -268,6 +274,9 @@ export function ChatThread({
           display: "flex",
           flexDirection: "column",
           gap: 10,
+          width: "100%",
+          maxWidth: "var(--content-max)",
+          margin: "0 auto",
         }}
       >
         {loading && (
@@ -286,7 +295,7 @@ export function ChatThread({
           <div
             style={{
               textAlign: "center",
-              padding: "40px 20px",
+              padding: "40px var(--pad-x)",
               fontSize: 13.5,
               color: "var(--ink-3)",
               lineHeight: 1.5,
@@ -306,7 +315,7 @@ export function ChatThread({
               textAlign: "center",
               fontSize: 12.5,
               color: "var(--ink-3)",
-              padding: "14px 20px",
+              padding: "14px var(--pad-x)",
               lineHeight: 1.5,
             }}
           >
@@ -324,99 +333,107 @@ export function ChatThread({
           padding: "10px 14px 26px",
         }}
       >
-        {ended ? (
-          <div
-            style={{
-              textAlign: "center",
-              color: "var(--ink-3)",
-              fontSize: 13.5,
-              fontWeight: 600,
-              padding: "8px",
-            }}
-          >
-            Messaging unavailable
-          </div>
-        ) : iReceived ? (
-          <div>
+        <div
+          style={{
+            width: "100%",
+            maxWidth: "var(--content-max)",
+            margin: "0 auto",
+          }}
+        >
+          {ended ? (
             <div
               style={{
-                fontSize: 13.5,
-                color: "var(--ink-2)",
                 textAlign: "center",
-                marginBottom: 10,
-                lineHeight: 1.5,
+                color: "var(--ink-3)",
+                fontSize: 13.5,
+                fontWeight: 600,
+                padding: "8px",
               }}
             >
-              <strong style={{ color: "var(--ink)" }}>{username}</strong> wants
-              to start a conversation.
+              Messaging unavailable
             </div>
-            <div style={{ display: "flex", gap: 10 }}>
-              <Btn kind="outline" full onClick={reject}>
-                Ignore
-              </Btn>
-              <Btn kind="primary" full icon="check" onClick={accept}>
-                Accept
-              </Btn>
+          ) : iReceived ? (
+            <div>
+              <div
+                style={{
+                  fontSize: 13.5,
+                  color: "var(--ink-2)",
+                  textAlign: "center",
+                  marginBottom: 10,
+                  lineHeight: 1.5,
+                }}
+              >
+                <strong style={{ color: "var(--ink)" }}>{username}</strong> wants
+                to start a conversation.
+              </div>
+              <div style={{ display: "flex", gap: 10 }}>
+                <Btn kind="outline" full onClick={reject}>
+                  Ignore
+                </Btn>
+                <Btn kind="primary" full icon="check" onClick={accept}>
+                  Accept
+                </Btn>
+              </div>
             </div>
-          </div>
-        ) : (
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 9 }}>
-            <div
-              style={{
-                flex: 1,
-                background: "var(--surface-2)",
-                borderRadius: 22,
-                border: "1px solid var(--border)",
-                display: "flex",
-                alignItems: "center",
-              }}
-            >
-              <input
-                value={input}
-                onChange={(e) => onInputChange(e.target.value)}
-                onBlur={stopTyping}
-                onKeyDown={(e) => e.key === "Enter" && send()}
-                placeholder="Message…"
+          ) : (
+            <div style={{ display: "flex", alignItems: "flex-end", gap: 9 }}>
+              <div
                 style={{
                   flex: 1,
-                  border: "none",
-                  background: "none",
-                  outline: "none",
-                  padding: "12px 16px",
-                  fontSize: 15,
-                  color: "var(--ink)",
-                  fontFamily: "var(--font-body)",
+                  background: "var(--surface-2)",
+                  borderRadius: 22,
+                  border: "1px solid var(--border)",
+                  display: "flex",
+                  alignItems: "center",
                 }}
-              />
+              >
+                <input
+                  value={input}
+                  onChange={(e) => onInputChange(e.target.value)}
+                  onBlur={stopTyping}
+                  onKeyDown={(e) => e.key === "Enter" && send()}
+                  placeholder="Message…"
+                  style={{
+                    flex: 1,
+                    border: "none",
+                    background: "none",
+                    outline: "none",
+                    padding: "12px 16px",
+                    fontSize: 15,
+                    color: "var(--ink)",
+                    fontFamily: "var(--font-body)",
+                  }}
+                />
+              </div>
+              <button
+                onClick={send}
+                disabled={!input.trim() || sending}
+                style={{
+                  width: 46,
+                  height: 46,
+                  borderRadius: "50%",
+                  background: input.trim()
+                    ? "var(--primary)"
+                    : "var(--surface-2)",
+                  border: "none",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: input.trim() ? "pointer" : "default",
+                  flexShrink: 0,
+                  transition: "background .2s",
+                }}
+              >
+                <Icon
+                  name="send"
+                  size={20}
+                  color={input.trim() ? "var(--on-primary)" : "var(--ink-3)"}
+                  fill={input.trim() ? "var(--on-primary)" : "none"}
+                />
+              </button>
             </div>
-            <button
-              onClick={send}
-              disabled={!input.trim() || sending}
-              style={{
-                width: 46,
-                height: 46,
-                borderRadius: "50%",
-                background: input.trim()
-                  ? "var(--primary)"
-                  : "var(--surface-2)",
-                border: "none",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                cursor: input.trim() ? "pointer" : "default",
-                flexShrink: 0,
-                transition: "background .2s",
-              }}
-            >
-              <Icon
-                name="send"
-                size={20}
-                color={input.trim() ? "var(--on-primary)" : "var(--ink-3)"}
-                fill={input.trim() ? "var(--on-primary)" : "none"}
-              />
-            </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

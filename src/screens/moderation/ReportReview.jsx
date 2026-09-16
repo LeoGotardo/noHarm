@@ -219,7 +219,7 @@ export function ReportReview({ onBack, report, onDecided, onToast }) {
 
       <div
         style={{
-          padding: "10px 20px 0",
+          padding: "10px var(--pad-x) 0",
           display: "flex",
           flexDirection: "column",
           gap: 16,

@@ -152,7 +152,7 @@ export function ModerationQueue({ onBack, meId, onOpenReport, reloadKey }) {
         <SegTabs tabs={TABS} active={tab} onChange={setTab} />
       </div>
 
-      <div style={{ padding: "14px 20px 0" }}>
+      <div style={{ padding: "14px var(--pad-x) 0" }}>
         {loading ? (
           <Card pad={8}>
             {[0, 1, 2].map((i) => (

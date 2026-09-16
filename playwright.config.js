@@ -27,7 +27,20 @@ export default defineConfig({
     screenshot: "only-on-failure",
     video: "off",
   },
-  projects: [{ name: "chromium" }],
+  projects: [
+    // The phone-shaped app, at phone size (the `use` block above).
+    { name: "chromium", testIgnore: /desktop\.spec\.js/ },
+    // The desktop shell. The flow specs are re-run at 1440x900 so a layout
+    // change cannot break them unnoticed, plus desktop.spec.js for what only
+    // exists past the breakpoint. The rest (realtime, reports, moderation)
+    // exercise the same components through the same screens and would only
+    // double the runtime.
+    {
+      name: "desktop",
+      use: { viewport: { width: 1440, height: 900 } },
+      testMatch: /(desktop|navigation|chat|friends|profile)\.spec\.js/,
+    },
+  ],
   webServer: {
     command: "npm run dev",
     url: WEB_URL,

@@ -2,7 +2,7 @@ import { fmtTime, hashHue } from "@components";
 import { Avatar, useGuardedCallback } from "@ui";
 import { STATUS_CONSTANTS } from "../../services/constants.js";
 
-export function ChatRow({ c, meId, users, onOpen, onOpenProfile }) {
+export function ChatRow({ c, meId, users, onOpen, onOpenProfile, selected }) {
 
   const open = useGuardedCallback(onOpen);
   const openProfile = useGuardedCallback(onOpenProfile);
@@ -19,13 +19,19 @@ export function ChatRow({ c, meId, users, onOpen, onOpenProfile }) {
   const unread = c.unread_count ?? 0;
   return (
     <div
+      className="nh-tap nh-tap-row"
       onClick={() => open(c.id)}
+      aria-current={selected ? "true" : undefined}
       style={{
         display: "flex",
         alignItems: "center",
         gap: 13,
         padding: "12px 8px",
         cursor: "pointer",
+        // Two panes without this is a list you cannot read: the transcript on
+        // the right belongs to one of these rows and nothing says which.
+        background: selected ? "var(--primary-soft)" : undefined,
+        borderRadius: selected ? 12 : undefined,
       }}
     >
       <div

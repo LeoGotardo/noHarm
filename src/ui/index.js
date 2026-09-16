@@ -10,4 +10,4 @@ export { GUARD_MS, useDebouncedValue, useGuardedCallback } from "./guards.js";
 export { Icon } from "./Icon.jsx";
 export { SectionLabel } from "./SectionLabel.jsx";
 export { Skeleton } from "./Skeleton.jsx";
-
+export { useWide, WIDE_MIN } from "./useBreakpoint.js";

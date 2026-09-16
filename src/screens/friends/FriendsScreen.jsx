@@ -127,7 +127,7 @@ export function FriendsScreen({
         }
       />
 
-      <div style={{ padding: "16px 20px 0" }}>
+      <div style={{ padding: "16px var(--pad-x) 0" }}>
         {requestCount > 0 && (
           <Card
             pad={0}

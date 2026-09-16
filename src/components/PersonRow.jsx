@@ -4,6 +4,7 @@ export function PersonRow({ person, right, onClick, sub }) {
   const run = useGuardedCallback(onClick);
   return (
     <div
+      className={onClick ? "nh-tap nh-tap-row" : undefined}
       onClick={onClick ? run : undefined}
       style={{
         display: "flex",

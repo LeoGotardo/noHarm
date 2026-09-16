@@ -8,18 +8,61 @@ body {
 img { -webkit-user-drag: none; }
 button { font-family: inherit; }
 
-/* ── Theme tokens ─────────────────────────────────────── */
+/* ── Layout tokens ────────────────────────────────────────
+   Almost every style in this app is an inline `style={{}}` object, and an
+   inline style cannot hold a media query. These custom properties are the way
+   around that: the breakpoint lives here, the screens read `var(--pad-x)` and
+   friends, and a resize costs no React render.
+
+   Anything that only changes a *number* belongs here. Anything that changes
+   the *tree* (bottom tab bar vs side rail, one pane vs two) belongs to
+   `useBreakpoint()` in src/ui/useBreakpoint.js — whose 900px must stay equal
+   to the one below.
+   ------------------------------------------------------------------------ */
 .nh-root {
   background: var(--bg);
   --font-body: 'Figtree', system-ui, sans-serif;
   --font-display: 'Figtree', system-ui, sans-serif;
   --display-weight: 800;
+
+  --shell-max: 480px;   /* how wide the app shell itself may grow */
+  --nav-w: 0px;         /* side rail width; 0 while the tab bar is at the bottom */
+  --content-max: 480px; /* the readable column inside a screen */
+  --pad-x: 20px;        /* screen gutter */
+  --pad-bottom: 96px;   /* room the bottom tab bar needs under the scroll */
+  --form-max: 100%;     /* narrower column for auth and edit forms */
+
+  /* Three across, always — auto-fill would drop a 360px phone to two, and the
+     medallion grid is the one place the phone layout is already exact. */
+  --badge-cols: repeat(3, 1fr);
+
+  --master-w: 380px;    /* list pane of the desktop two-pane layout */
+
   width: 100%;
-  max-width: 480px;
+  max-width: var(--shell-max);
   height: 100vh;
   height: 100dvh;
   position: relative;
   overflow: hidden;
+}
+
+/* Desktop. 900px is above every phone in portrait and above a Capacitor
+   webview, so the native builds never cross it; a tablet does, on purpose. */
+@media (min-width: 900px) {
+  .nh-root {
+    --shell-max: 100%;
+    --nav-w: 240px;
+    --content-max: 720px;
+    --pad-x: 28px;
+    --pad-bottom: 32px;
+    --form-max: 440px;
+    /* Past the breakpoint the column is wide enough to let the grid decide. */
+    --badge-cols: repeat(auto-fill, minmax(110px, 1fr));
+  }
+}
+
+@media (min-width: 1400px) {
+  .nh-root { --content-max: 860px; }
 }
 
 /* SAGE — light */
@@ -130,6 +173,7 @@ button { font-family: inherit; }
 /* ── Shared animations ────────────────────────────────── */
 @keyframes nhFade { from { opacity: 0 } to { opacity: 1 } }
 @keyframes nhSheetIn { from { transform: translateY(100%) } to { transform: translateY(0) } }
+@keyframes nhDialogIn { from { transform: scale(.96); opacity: 0 } to { transform: scale(1); opacity: 1 } }
 @keyframes nhBannerIn { from { transform: translateY(-130%); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
 @keyframes nhToastIn { from { transform: translate(-50%, 16px); opacity: 0 } to { transform: translate(-50%, 0); opacity: 1 } }
 @keyframes nhSpin { to { transform: rotate(360deg) } }
@@ -175,3 +219,63 @@ button { font-family: inherit; }
 /* hide scrollbars inside the phone */
 .nh-scroll::-webkit-scrollbar { width: 0; height: 0; }
 .nh-scroll { scrollbar-width: none; }
+
+/* A hidden scrollbar is right on a touch screen — momentum scrolling is its
+   own affordance. With a mouse it removes the only sign that the page
+   continues below the fold, so the bar comes back with the desktop shell. */
+@media (min-width: 900px) {
+  .nh-scroll { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+  .nh-scroll::-webkit-scrollbar { width: 10px; height: 10px; }
+  .nh-scroll::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border: 3px solid transparent;
+    background-clip: content-box;
+    border-radius: 99px;
+  }
+  .nh-scroll::-webkit-scrollbar-thumb:hover { background: var(--ink-3); background-clip: content-box; }
+  .nh-scroll::-webkit-scrollbar-track { background: transparent; }
+}
+
+/* ── Pointer affordances ──────────────────────────────────
+   Touch needs none of this, so the app had none; a mouse does.
+
+   Gated on `hover: hover` rather than on width, because the question is what
+   the input device can do, not how big the window is — a touch laptop past
+   900px would otherwise leave every row stuck in its hover state after a tap.
+
+   `!important` is load-bearing here, not laziness: these elements carry inline
+   `style` objects (the whole app is styled that way), and an inline
+   declaration outranks any stylesheet rule that is not marked. Only the
+   properties that actually collide are marked. */
+@media (hover: hover) and (pointer: fine) {
+  .nh-tap { transition: background .15s ease, box-shadow .15s ease, transform .12s ease; }
+
+  .nh-tap-row:hover { background: var(--surface-2) !important; border-radius: 12px; }
+  /* A selected row stays selected under the cursor — hovering the open
+     conversation must not make it look like every other row. */
+  .nh-tap-row[aria-current="true"]:hover { background: var(--primary-soft) !important; }
+
+  .nh-tap-card:hover {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05), 0 14px 32px -16px rgba(0,0,0,0.3) !important;
+    transform: translateY(-1px);
+  }
+
+  .nh-btn:not(:disabled):hover { filter: brightness(1.04); }
+
+  .nh-navitem { transition: background .15s ease, color .15s ease; }
+  .nh-navitem:hover { background: var(--surface-2); }
+  .nh-navitem[aria-current="page"]:hover { background: var(--primary-soft); }
+}
+
+/* Motion is a preference the app already honours everywhere else. */
+.nh-root[data-reduce-motion="yes"] .nh-tap { transition: none; }
+.nh-root[data-reduce-motion="yes"] .nh-tap-card:hover { transform: none; }
+
+/* Keyboard navigation was invisible: nothing in the app draws a focus state,
+   and `outline: none` is never what an app wants — only an app that replaces
+   it. :focus-visible keeps it off for mouse clicks. */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 8px;
+}

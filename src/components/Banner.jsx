@@ -7,8 +7,14 @@ export function Banner({ icon = "bell", title, body, onTap, onClose }) {
       style={{
         position: "absolute",
         top: 56,
-        left: 12,
+        // Spans the phone, and on a desktop centres over the same column the
+        // screen behind it uses — a notification pinned to a window edge reads
+        // as belonging to the browser, not to the app.
+        left: "calc(var(--nav-offset) + 12px)",
         right: 12,
+        maxWidth: "var(--content-max)",
+        marginLeft: "auto",
+        marginRight: "auto",
         zIndex: 80,
         display: "flex",
         alignItems: "center",

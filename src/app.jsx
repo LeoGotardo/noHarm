@@ -2,12 +2,15 @@ import {
   Banner,
   BottomSheet,
   hashHue,
+  NoSelection,
   NoticeSheet,
   Screen,
+  SideNav,
+  SplitView,
   TabBar,
   Toast,
 } from "@components";
-import { Btn, Icon } from "@ui";
+import { Btn, Icon, useWide } from "@ui";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { errorMessage } from "./connectors/api.js";
 import {
@@ -371,6 +374,10 @@ export default function App() {
   const [t, setTweak] = useTweaks(INITIAL_TWEAKS);
   const { direction: dir, mode, motion } = t;
 
+  // Structural breakpoint only — every size, gutter and column width is a CSS
+  // custom property in theme.css. See src/ui/useBreakpoint.js.
+  const wide = useWide();
+
   // Mirror the theme onto <html> so the page behind .nh-root resolves --bg.
   // Screens fade in (nhScreenIn), and during that fade the document background
   // is visible; without this it falls back to the light token and dark mode
@@ -472,6 +479,13 @@ export default function App() {
     () => chatList.reduce((n, c) => n + (c.unread_count ?? 0), 0),
     [chatList],
   );
+
+  // The tab bar and the side rail show the same counts; they differ only in
+  // where they sit.
+  const navBadges = {
+    friends: reqReceived.length || undefined,
+    chat: chatUnread ? (chatUnread > 99 ? "99+" : chatUnread) : undefined,
+  };
 
   // Earned state is what the backend granted (GET /user-badges/), never a
   // comparison against `milestone` — the grant rule belongs to the server.
@@ -643,6 +657,21 @@ export default function App() {
   const [toast, setToast] = useState(null);
   const [banner, setBanner] = useState(null);
 
+  // Escape is the desktop's back gesture. It unwinds one layer at a time, and
+  // only layers the user is allowed to dismiss: the check-in modal and a
+  // moderation notice are answered, not escaped.
+  useEffect(() => {
+    if (phase !== "app") return;
+    const onKey = (e) => {
+      if (e.key !== "Escape") return;
+      if (startOpen) return setStartOpen(false);
+      if (relapseOpen) return setRelapseOpen(false);
+      setStack((s) => (s.length ? s.slice(0, -1) : s));
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [phase, startOpen, relapseOpen]);
+
   const showToast = (text, icon = "check") => {
     setToast({ text, icon });
     setTimeout(() => setToast(null), 2200);
@@ -761,6 +790,9 @@ export default function App() {
 
   // ── Screen routing ────────────────────────────────────────────────────────
   let body;
+  // Set below; read again by the screen-animation key, which must not treat a
+  // pane swap as a page change.
+  let chatPane = false;
   if (phase === "splash") {
     body = (
       <SplashScreen
@@ -794,8 +826,12 @@ export default function App() {
     body = <DeletedScreen onRestart={() => setPhase("splash")} />;
   } else {
     const top = stack[stack.length - 1];
-    if (top) {
-      // Overlay screens (pushed over the active tab)
+
+    // Overlay screens (pushed over the active tab). A function of a stack
+    // entry rather than of `stack`, because the desktop two-pane layout needs
+    // an overlay and a tab root rendered at the same time.
+    const renderOverlay = (top) => {
+      let body = null;
       switch (top.screen) {
         case "history":
           body = (
@@ -1043,8 +1079,12 @@ export default function App() {
         default:
           body = null;
       }
-    } else {
-      // Tab root screens
+      return body;
+    };
+
+    // Tab root screens
+    const renderTab = () => {
+      let body = null;
       switch (tab) {
         case "home":
           body = (
@@ -1090,6 +1130,11 @@ export default function App() {
               meId={me?.id}
               onOpen={openChat}
               onOpenProfile={openProfile}
+              selectedId={
+                stack[stack.length - 1]?.screen === "chatThread"
+                  ? stack[stack.length - 1].props?.chat?.id
+                  : null
+              }
             />
           );
           break;
@@ -1125,10 +1170,51 @@ export default function App() {
         default:
           body = null;
       }
+      return body;
+    };
+
+    // Two panes, on a desktop only, and only for chat. A conversation list you
+    // cannot see while reading a message is the single place the phone layout
+    // costs the most on a big screen.
+    //
+    // Two screens are deliberately left as full overlays. `publicProfile` is
+    // pushed from four different places (friends, chat list, search, requests),
+    // so there is no one list it belongs beside — and a profile is a
+    // destination, not a row you scan past. `reportReview` is not a pane
+    // because opening a report *claims* it and leaving releases it (see
+    // moderation in CLAUDE.md); a queue permanently beside a claimed report
+    // invites exactly the half-open state that lock is there to prevent.
+    chatPane =
+      wide &&
+      tab === "chat" &&
+      (!top || (top.screen === "chatThread" && stack.length === 1));
+
+    if (chatPane) {
+      body = (
+        <SplitView
+          master={renderTab()}
+          detail={
+            top ? (
+              renderOverlay(top)
+            ) : (
+              <NoSelection
+                title="No conversation open"
+                sub="Pick someone on the left to read and reply here."
+              />
+            )
+          }
+          detailKey={top?.props?.chat?.id ?? "none"}
+        />
+      );
+    } else {
+      body = top ? renderOverlay(top) : renderTab();
     }
   }
 
-  const showTabs = phase === "app" && stack.length === 0;
+  // The bottom bar hides behind a pushed screen because a phone cannot show
+  // both; the side rail stays, because a desktop can — and a rail that
+  // disappeared every time you opened a chat would be worse than none.
+  const showNav = phase === "app" && (wide || stack.length === 0);
   const showBanner = banner && phase === "app";
 
   return (
@@ -1137,6 +1223,11 @@ export default function App() {
       data-dir={dir}
       data-mode={mode}
       data-reduce-motion={motion ? "no" : "yes"}
+      /* --nav-offset is how much of the left edge the side rail is actually
+         occupying right now. --nav-w is a width and stays 240px on a desktop
+         whether or not a rail is drawn; this is what everything else aligns
+         to, so a toast on the login screen is not pushed by absent furniture. */
+      style={{ "--nav-offset": showNav && wide ? "var(--nav-w)" : "0px" }}
     >
       <div
         id="nh-screen"
@@ -1144,12 +1235,17 @@ export default function App() {
       >
         {/* Animated screen container — key change triggers nhScreenIn */}
         <div
+          id="nh-stage"
           key={
-            phase + tab + (stack.length ? stack[stack.length - 1].screen : "")
+            // In two-pane mode the pushed screen is not a new page — it lands
+            // in the pane beside the list, which must not re-animate. SplitView
+            // keys the detail itself.
+            phase + tab + (chatPane || !stack.length ? "" : stack[stack.length - 1].screen)
           }
           style={{
             position: "absolute",
             inset: 0,
+            left: "var(--nav-offset)",
             animation: "nhScreenIn .34s cubic-bezier(.2,.8,.3,1) both",
           }}
         >
@@ -1172,16 +1268,12 @@ export default function App() {
 
         {toast && <Toast text={toast.text} icon={toast.icon} />}
 
-        {showTabs && (
-          <TabBar
-            active={tab}
-            onChange={resetTo}
-            badges={{
-              friends: reqReceived.length || undefined,
-              chat: chatUnread ? (chatUnread > 99 ? "99+" : chatUnread) : undefined,
-            }}
-          />
-        )}
+        {showNav &&
+          (wide ? (
+            <SideNav active={tab} onChange={resetTo} badges={navBadges} />
+          ) : (
+            <TabBar active={tab} onChange={resetTo} badges={navBadges} />
+          ))}
 
         {/* Ahead of the check-in modal on purpose: being asked "all clean
             today?" while an unread warning waits is the wrong order. */}

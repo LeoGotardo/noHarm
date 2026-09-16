@@ -1,13 +1,18 @@
 import { Icon } from "@ui/Icon.jsx";
 
+// The five tab roots, in order. SideNav renders the same list on desktop, so
+// they live here rather than inside a component: two copies drift, and the
+// order is what the user learns.
+export const TABS = [
+  { id: "home", icon: "home", label: "Home" },
+  { id: "friends", icon: "friends", label: "Friends" },
+  { id: "chat", icon: "chat", label: "Chat" },
+  { id: "badges", icon: "badges", label: "Badges" },
+  { id: "profile", icon: "profile", label: "Profile" },
+];
+
 export function TabBar({ active, onChange, badges = {} }) {
-  const tabs = [
-    { id: "home", icon: "home", label: "Home" },
-    { id: "friends", icon: "friends", label: "Friends" },
-    { id: "chat", icon: "chat", label: "Chat" },
-    { id: "badges", icon: "badges", label: "Badges" },
-    { id: "profile", icon: "profile", label: "Profile" },
-  ];
+  const tabs = TABS;
   return (
     <div
       style={{
@@ -56,6 +61,7 @@ export function TabBar({ active, onChange, badges = {} }) {
               />
               {badge ? (
                 <span
+                  className="nh-tabbadge"
                   style={{
                     position: "absolute",
                     top: -5,

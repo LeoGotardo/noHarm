@@ -4,6 +4,7 @@ export function LinkRow({ icon, label, onClick, danger, last, soon }) {
   const run = useGuardedCallback(onClick);
   return (
     <button
+      className={soon ? undefined : "nh-tap nh-tap-row"}
       onClick={soon ? undefined : run}
       disabled={soon}
       aria-disabled={soon || undefined}

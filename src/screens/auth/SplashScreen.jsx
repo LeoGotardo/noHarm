@@ -3,7 +3,7 @@ import { Btn } from "@ui";
 
 export function SplashScreen({ onGetStarted, onLogin }) {
   return (
-    <Screen geo="splash" padTop={0} padBottom={0} noScroll>
+    <Screen geo="splash" padTop={0} padBottom={0} noScroll maxWidth="var(--form-max)">
       <div
         style={{
           flex: 1,

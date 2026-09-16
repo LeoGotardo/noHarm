@@ -78,7 +78,7 @@ export function FriendRequests({
           counts={{ received: enrichedRecv.length }}
         />
       </div>
-      <div style={{ padding: "16px 20px 0" }}>
+      <div style={{ padding: "16px var(--pad-x) 0" }}>
         {list.length === 0 ? (
           <EmptyState
             icon={tab === "received" ? "bell" : "send"}

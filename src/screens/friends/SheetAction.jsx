@@ -4,6 +4,7 @@ export function SheetAction({ icon, label, onClick, danger }) {
   const run = useGuardedCallback(onClick);
   return (
     <button
+      className="nh-tap nh-tap-row"
       onClick={run}
       style={{
         display: "flex",

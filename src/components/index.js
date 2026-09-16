@@ -12,8 +12,10 @@ export { NoticeSheet } from "./NoticeSheet.jsx";
 export { PersonRow } from "./PersonRow.jsx";
 export { Screen } from "./Screen.jsx";
 export { SegTabs } from "./SegTabs.jsx";
+export { SideNav } from "./SideNav.jsx";
+export { NoSelection, SplitView } from "./SplitView.jsx";
 export { BadgeMedallion, StreakRing } from "./StreakRing.jsx";
-export { TabBar } from "./TabBar.jsx";
+export { TabBar, TABS } from "./TabBar.jsx";
 export { Toast } from "./Toast.jsx";
 export {
     fmtLongDate,
