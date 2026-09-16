@@ -121,14 +121,18 @@ export { expect };
 export const tab = (page, name) =>
   page.locator(`button:has(> span:text-is("${name}"))`);
 
-/** The counter badge on a TabBar button (empty locator when there is none). */
-export const tabBadge = (page, name) => tab(page, name).locator("> div > span");
+/** The counter badge on a tab button (empty locator when there is none).
+ *  Addressed by class because the bottom bar and the desktop side rail nest it
+ *  differently. */
+export const tabBadge = (page, name) => tab(page, name).locator(".nh-tabbadge");
 
 /** Toast text (auto-dismisses after 2.2s, so assert promptly). */
 export const toast = (page, text) => page.getByText(text, { exact: false });
 
-/** The back chevron — always the first button rendered inside a stacked screen. */
-export const backButton = (page) => page.locator("#nh-screen button").first();
+/** The back chevron — always the first button rendered inside a stacked screen.
+ *  Scoped to #nh-stage, not #nh-screen: the desktop side rail lives in the
+ *  latter and its first button is a nav item. */
+export const backButton = (page) => page.locator("#nh-stage button").first();
 
 /** The switch of a Settings ToggleRow, addressed by its label. */
 export const toggleRow = (page, label) =>

@@ -168,7 +168,7 @@ test.describe("Moderation screen", () => {
     await tab(page, "Profile").click();
     await expect(page.getByText("Member since")).toBeVisible();
     // The gear is the profile header's only button.
-    await page.locator("#nh-screen button").first().click();
+    await page.locator("#nh-stage button").first().click();
     await expect(page.getByText("Appearance")).toBeVisible();
   };
 
@@ -242,7 +242,7 @@ test.describe("Moderation screen", () => {
 
     // Back out of the report — a lock nobody holds is a report nobody else can
     // touch for half an hour.
-    await page.locator("#nh-screen button").first().click();
+    await page.locator("#nh-stage button").first().click();
     await expect(page.getByRole("button", { name: "Open" })).toBeVisible();
 
     // The release is a request in flight as the screen pops, so poll rather
@@ -359,7 +359,7 @@ test.describe("Moderation notices", () => {
     await openApp(page, admin, { checkedInToday: true });
     await tab(page, "Profile").click();
     await expect(page.getByText("Member since")).toBeVisible();
-    await page.locator("#nh-screen button").first().click();
+    await page.locator("#nh-stage button").first().click();
     await page.getByText("Reports").click();
     await page.getByText(userB.username).click();
 

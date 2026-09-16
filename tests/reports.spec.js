@@ -43,7 +43,7 @@ const openFriendProfile = async (page, user) => {
  * remove/block tests use.
  */
 const openReportSheet = async (page, user) => {
-  await page.locator("#nh-screen button").nth(1).click();
+  await page.locator("#nh-stage button").nth(1).click();
   await page.getByText("Report this user").click();
   await expect(page.getByText(`Report ${user.username}`)).toBeVisible();
 };
@@ -361,7 +361,7 @@ test.describe("Reports", () => {
     ).toHaveLength(1);
 
     // Blocking afterwards is the deliberate second step.
-    await page.locator("#nh-screen button").nth(1).click();
+    await page.locator("#nh-stage button").nth(1).click();
     await page.getByText("Block this user").click();
     await expect(page.getByText("User blocked")).toBeVisible();
     expect((await myReports(userA)).total).toBe(1);

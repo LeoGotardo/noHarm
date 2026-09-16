@@ -129,7 +129,7 @@ test.describe("Friends", () => {
     await expect(page.getByText(userB.username)).toBeVisible();
 
     // The accept button is the second (primary) action button on the row
-    await page.locator("#nh-screen button").filter({ has: page.locator("svg") }).last().click();
+    await page.locator("#nh-stage button").filter({ has: page.locator("svg") }).last().click();
     await expect(page.getByText("Friend added")).toBeVisible();
 
     const friendships = await api.get("/friendships", as(userA));
@@ -265,7 +265,7 @@ test.describe("Friends", () => {
     await expect(page.getByRole("button", { name: /Message/ })).toBeVisible();
 
     // gear → action sheet
-    await page.locator("#nh-screen button").nth(1).click();
+    await page.locator("#nh-stage button").nth(1).click();
     await expect(page.getByText("Remove friend")).toBeVisible();
     await expect(page.getByText("Block this user")).toBeVisible();
 
@@ -286,7 +286,7 @@ test.describe("Friends", () => {
     await openFriends(page);
 
     await page.getByText(userB.username).click();
-    await page.locator("#nh-screen button").nth(1).click();
+    await page.locator("#nh-stage button").nth(1).click();
     await page.getByText("Block this user").click();
 
     await expect(page.getByText("User blocked")).toBeVisible();

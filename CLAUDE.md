@@ -93,9 +93,9 @@ services/ import from connectors/
 |------|------|
 | `src/app.jsx` | Root component: nav state machine, theme wiring, screen routing, global state |
 | `src/main.jsx` | Mounts `<App>`, imports `theme.css` |
-| `src/theme.css` | CSS custom properties for all four theme variants. Token blocks are attribute-only selectors so `<html>` resolves them too — see Theming |
-| `src/ui/index.js` | Low-level primitives: `Icon`, `Avatar`/`OnlineDot`, `Btn`, `Card`, `Field`, `Skeleton`, `GeoBackground`, `Divider`, `SectionLabel`, plus `cx` helper and the tap guards from `guards.js` (`useGuardedCallback`, `useDebouncedValue`) |
-| `src/components/index.js` | Composite widgets: `Screen`, `Header`, `Banner`, `Toast`, `BottomSheet`, `TabBar`, `StreakRing`/`BadgeMedallion`, `EmptyState`, `Logo`, `GoogleButton`, `PersonRow`, `SegTabs`, plus format helpers from `utils.js` (`hashHue`, `fmtTime`, `fmtLongDate`, `fmtRelDate`, `fmtShortDay`) |
+| `src/theme.css` | CSS custom properties for all four theme variants, the layout tokens the breakpoint drives, and the hover/focus rules. Theme token blocks are attribute-only selectors so `<html>` resolves them too — see Theming and Responsive layout |
+| `src/ui/index.js` | Low-level primitives: `Icon`, `Avatar`/`OnlineDot`, `Btn`, `Card`, `Field`, `Skeleton`, `GeoBackground`, `Divider`, `SectionLabel`, plus `cx` helper, the tap guards from `guards.js` (`useGuardedCallback`, `useDebouncedValue`) and `useWide` from `useBreakpoint.js` (see Responsive layout) |
+| `src/components/index.js` | Composite widgets: `Screen`, `Header`, `Banner`, `Toast`, `BottomSheet`, `TabBar`/`SideNav`, `SplitView`/`NoSelection`, `StreakRing`/`BadgeMedallion`, `EmptyState`, `Logo`, `GoogleButton`, `PersonRow`, `SegTabs`, plus format helpers from `utils.js` (`hashHue`, `fmtTime`, `fmtLongDate`, `fmtRelDate`, `fmtShortDay`) |
 | `src/connectors/` | Transport layer (see diagram above) |
 | `src/services/api/` | `auth`, `badge`, `chat`, `friendship`, `message`, `moderation`, `notice`, `report`, `streak`, `user`, `device` |
 | `src/services/ws/` | `chat`, `connection`, `friendship`, `presence` |
@@ -212,6 +212,70 @@ Only three navigation primitives: `push(screen, props)` / `pop()` / `resetTo(tab
 Overlay screens today: `streakHistory`, `friendRequests`, `friendSearch`,
 `publicProfile`, `chatThread`, `badgeDetail`, `editProfile`, `settings`,
 `moderation`, `reportReview`.
+
+## Responsive layout
+
+The app is phone-shaped by origin and runs on a desktop browser at
+`noharm.site`. One breakpoint separates the two, **900px**, above every phone in
+portrait and above a Capacitor webview — so the native builds never cross it and
+a tablet does, on purpose.
+
+Almost every style here is an inline `style={{}}` object, and **an inline style
+cannot hold a media query**. That single fact shapes the whole approach:
+
+- **A number that changes with the viewport is a CSS custom property** in
+  `src/theme.css` (`--nav-w`, `--content-max`, `--pad-x`, `--pad-bottom`,
+  `--form-max`, `--badge-cols`, `--master-w`), consumed from inline styles as
+  `var(--pad-x)`. The media query lives in one place and a resize costs no React
+  render.
+- **A change to the markup is `useWide()`** (`src/ui/useBreakpoint.js`) — the
+  side rail replacing the tab bar, the chat list and transcript side by side.
+  Its `WIDE_MIN` and the `@media` in `theme.css` are two spellings of the same
+  number and must stay equal.
+
+Never reach for a third mechanism. Tailwind or CSS-in-JS would fight the
+`data-dir`/`data-mode` token system described under Theming.
+
+What the breakpoint actually changes:
+
+| Compact | ≥ 900px |
+|---------|---------|
+| `TabBar` pinned to the bottom, hidden behind a pushed screen | `SideNav` down the left edge, **kept** while a screen is pushed — a desktop has the room, and a rail that vanished on every chat would be worse than none |
+| Screens fill the 480px shell | `<Screen>` centres its children in a `--content-max` column; `ChatThread` builds its own frame and centres each of its three bands itself |
+| `BottomSheet` slides up, with a drag handle | the same component renders a centred dialog (`role="dialog"`, 460px, no handle) |
+| Scrollbars hidden | thin scrollbar returns — with a mouse it is the only sign the page continues |
+| Chat list, then the transcript over it | `SplitView`: list and transcript together, `ChatRow` marks the open one |
+
+Two details that are easy to get wrong:
+
+- **`--nav-w` is a width, `--nav-offset` is an occupancy.** `--nav-w` stays
+  240px on a desktop whether or not a rail is drawn; `app.jsx` sets
+  `--nav-offset` on `.nh-root` to the rail's *actual* footprint (0 on splash and
+  login, where there is no rail). Everything that aligns to the rail — the
+  screen container, `Toast`, `Banner` — reads the offset, never the width.
+- **Hover rules are gated on `@media (hover: hover) and (pointer: fine)`, not on
+  width**, because the question is what the input device can do. A touch laptop
+  past 900px would otherwise leave every row stuck in its hover state after a
+  tap. Those rules need `!important` on the properties that collide with an
+  element's inline `style`, which outranks any unmarked stylesheet rule.
+
+**Two-pane is chat only**, and the two omissions are deliberate.
+`publicProfile` is pushed from four places (friends, chat list, search,
+requests), so there is no one list it belongs beside. `reportReview` is not a
+pane because opening a report *claims* it and leaving releases it (see
+Moderation under Domain rules): a queue permanently beside a claimed report
+invites exactly the half-open state that lock exists to prevent.
+
+`Escape` is the desktop's back gesture — it closes the relapse/start-streak
+sheet, else pops the stack. It never dismisses the check-in modal or a
+moderation notice: those are answered, not escaped.
+
+The Playwright suite has two projects. `chromium` runs everything at Pixel 7
+size; `desktop` re-runs the navigation, chat, friends and profile specs at
+1440×900 and adds `tests/desktop.spec.js` for what only exists past the
+breakpoint. Test helpers address the nav badge by `.nh-tabbadge` and the back
+arrow inside `#nh-stage`, because the bottom bar and the side rail nest them
+differently.
 
 ## Theming
 

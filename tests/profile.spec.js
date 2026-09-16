@@ -16,7 +16,7 @@ const openProfile = async (page) => {
 
 const openSettings = async (page) => {
   await openProfile(page);
-  await page.locator("#nh-screen button").first().click();
+  await page.locator("#nh-stage button").first().click();
   await expect(page.getByText("Settings")).toBeVisible();
 };
 

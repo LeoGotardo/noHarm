@@ -148,7 +148,7 @@ test.describe("Badges", () => {
     // milestone 5 − 2 elapsed days = 3 to go
     await expect(page.getByText("3 days to go · keep showing up")).toBeVisible();
 
-    await page.locator("#nh-screen button").first().click();
+    await page.locator("#nh-stage button").first().click();
     await expect(page.getByText("All milestones")).toBeVisible();
   });
 
@@ -189,7 +189,7 @@ test.describe("Badges", () => {
       page.getByText(`${nextBadge.milestone - 10} days to go`),
     ).toBeVisible();
 
-    const screen = await page.locator("#nh-screen").innerText();
+    const screen = await page.locator("#nh-stage").innerText();
     expect(screen).not.toMatch(/NaN/);
   });
 
@@ -210,7 +210,7 @@ test.describe("Badges", () => {
     const nextBadge = await nextUnearned(userA);
     await expect(page.getByText(`to your ${nextBadge.name} badge`)).toBeVisible();
     await expect(page.getByText("30 to your record")).toBeVisible();
-    const screen = await page.locator("#nh-screen").innerText();
+    const screen = await page.locator("#nh-stage").innerText();
     expect(screen).not.toMatch(/NaN/);
   });
 

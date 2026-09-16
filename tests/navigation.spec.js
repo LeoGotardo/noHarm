@@ -2,6 +2,22 @@
 import { test, expect, openApp, tab, tabBadge } from "./helpers/fixtures.js";
 import { makeFriends, sendMessage, startStreak } from "./helpers/api.js";
 
+/**
+ * Whether the navigation survives a pushed screen.
+ *
+ * It does not on a phone — there is no room for a bar and a screen at once —
+ * and it does on a desktop, where the side rail stays put. Same rule, opposite
+ * expectation, so the assertion has to know which shell it is looking at.
+ */
+const navSurvivesPush = () => test.info().project.name === "desktop";
+
+async function expectNavAfterPush(page) {
+  const home = tab(page, "Home");
+  await (navSurvivesPush()
+    ? expect(home).toBeVisible()
+    : expect(home).toBeHidden());
+}
+
 /** Open the dev TweaksPanel — it only mounts on the `__activate_edit_mode` message. */
 async function openTweaks(page) {
   await page.evaluate(() =>
@@ -45,7 +61,7 @@ test.describe("Navigation / Tabs", () => {
     await expect(tabBadge(page, "Friends")).toHaveCount(0);
   });
 
-  test("Stack — push esconde a TabBar, pop devolve", async ({ page, userA }) => {
+  test("Stack — push esconde a TabBar no celular, rail permanece no desktop", async ({ page, userA }) => {
     await startStreak(userA, 4);
     await openApp(page, userA, { checkedInToday: true });
 
@@ -53,9 +69,9 @@ test.describe("Navigation / Tabs", () => {
 
     await page.getByText("Streak history").click();
     await expect(page.getByText("Streak history")).toBeVisible();
-    await expect(tab(page, "Home")).toBeHidden();
+    await expectNavAfterPush(page);
 
-    await page.locator("#nh-screen button").first().click();
+    await page.locator("#nh-stage button").first().click();
     await expect(tab(page, "Home")).toBeVisible();
   });
 
@@ -63,10 +79,11 @@ test.describe("Navigation / Tabs", () => {
     await tab(page, "Friends").click();
     await page.getByRole("button", { name: /Find friends/ }).click();
     await expect(page.getByText("Add friends")).toBeVisible();
-    await expect(tab(page, "Home")).toBeHidden();
+    await expectNavAfterPush(page);
 
-    // TabBar is hidden while an overlay is up, so pop first, then switch
-    await page.locator("#nh-screen button").first().click();
+    // The bottom bar is hidden while an overlay is up, so pop first, then
+    // switch — which is also a valid path on the desktop rail.
+    await page.locator("#nh-stage button").first().click();
     await tab(page, "Profile").click();
     await expect(page.getByText("current streak")).toBeVisible();
   });
@@ -76,7 +93,7 @@ test.describe("Navigation / Tabs", () => {
     page,
   }) => {
     const anim = await page.evaluate(() => {
-      const el = document.querySelector("#nh-screen > div");
+      const el = document.querySelector("#nh-stage");
       return getComputedStyle(el).animationName;
     });
     expect(anim).toBe("nhScreenIn");

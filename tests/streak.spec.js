@@ -313,7 +313,7 @@ test.describe("Home / Streak", () => {
     await expect(page.getByText("DAYS").first()).toBeVisible();
 
     // Back returns to the dashboard
-    await page.locator("#nh-screen button").first().click();
+    await page.locator("#nh-stage button").first().click();
     await expect(page.getByText("clean and counting")).toBeVisible();
   });
 

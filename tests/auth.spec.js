@@ -22,13 +22,13 @@ test.describe("Auth / Onboarding", () => {
     await expect(page.getByPlaceholder("3–50 characters")).toBeVisible();
 
     // Back → splash
-    await page.locator("#nh-screen button").first().click();
+    await page.locator("#nh-stage button").first().click();
     await expect(page.getByRole("button", { name: "Get started" })).toBeVisible();
 
     await page.getByRole("button", { name: "I already have an account" }).click();
     await expect(page.getByText("Good to see you again")).toBeVisible();
 
-    await page.locator("#nh-screen button").first().click();
+    await page.locator("#nh-stage button").first().click();
     await expect(page.getByRole("button", { name: "Get started" })).toBeVisible();
   });
 
@@ -98,7 +98,7 @@ test.describe("Auth / Onboarding", () => {
 
   test("Logout — clears tokens, returns to the splash", async ({ appA, page }) => {
     await tab(page, "Profile").click();
-    await page.locator("#nh-screen button").first().click(); // gear → Settings
+    await page.locator("#nh-stage button").first().click(); // gear → Settings
     await expect(page.getByText("Settings")).toBeVisible();
 
     await page.getByRole("button", { name: /Log out/ }).click();
@@ -120,7 +120,7 @@ test.describe("Auth / Onboarding", () => {
     userA,
   }) => {
     await tab(page, "Profile").click();
-    await page.locator("#nh-screen button").first().click();
+    await page.locator("#nh-stage button").first().click();
 
     await page.getByRole("button", { name: /Delete account/ }).click();
     await expect(page.getByText("Delete your account?")).toBeVisible();
