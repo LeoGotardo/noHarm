@@ -228,6 +228,6 @@ test.describe("Consent — the screens", () => {
 
     // The document opens as the same screen the gate shows.
     await page.getByText("Terms of Use").first().click();
-    await expect(page.getByText(/not been written yet/i).first()).toBeVisible();
+    await expect(page.getByText("NoHarm is not medical care")).toBeVisible();
   });
 });

@@ -229,8 +229,9 @@ allowlist decides both, so `useModerator`'s single probe answers for both rows.
 
 The gate decides whether an account gets into the app at all, and one of its
 buttons deletes every streak the account has — `tests/legal.spec.js` covers both
-halves. The documents' *text* is deliberately not asserted: it is a placeholder
-and will be rewritten.
+halves. The documents' *text* is deliberately not asserted beyond one heading:
+it changes with every revision, and a test pinned to a sentence would only be
+edited alongside it.
 
 - [x] 🤖 **Registration is gated** — refused without the terms and the privacy
       policy (400), and refused below `MINIMUM_AGE_YEARS` (403 `UNDERAGE`, with

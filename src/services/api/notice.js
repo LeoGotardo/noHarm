@@ -11,7 +11,7 @@ import { api } from "../../connectors/api.js";
 
 /** Where an appeal goes. Stated on every notice and on a refused sign-in. */
 export const SUPPORT_EMAIL =
-  import.meta.env.VITE_SUPPORT_EMAIL || "support@noharm.site";
+  import.meta.env.VITE_SUPPORT_EMAIL || "noharm@leogotardo.com.br";
 
 /**
  * What each conduct code means, in the second person, without accusation.

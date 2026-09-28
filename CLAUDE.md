@@ -129,7 +129,7 @@ services/ import from connectors/
 | `src/screens/chat/` | `ChatList`, `ChatThread` |
 | `src/screens/badges/` | `BadgesScreen`, `BadgeDetail` |
 | `src/screens/profile/` | `MyProfile`, `EditProfile`, `Settings`, `DataAndPrivacy`, `ForcedRename` (shown instead of the app while a username reset is outstanding) |
-| `src/screens/legal/` | `legalContent.js` (the documents' text — **placeholders today**, and the only place to edit them), `LegalDocument` (renders one, reached from Settings, the register screen and the gate — all three show the same page), `ConsentGate` (shown instead of the app while a consent is outstanding), `CrisisResources` + `crisisResources.js` (the numbers the "not medical care" clause points at — the one list in this folder that must be verified, not drafted) |
+| `src/screens/legal/` | `legalContent.js` (the documents' text, in force since 2026-09-28, and the only place to edit them), `LegalDocument` (renders one, reached from Settings, the register screen and the gate — all three show the same page), `ConsentGate` (shown instead of the app while a consent is outstanding), `CrisisResources` + `crisisResources.js` (the numbers the "not medical care" clause points at — the one list in this folder that must be verified, not drafted) |
 | `src/screens/moderation/` | `ModerationQueue`, `ReportReview`, `SuspendSheet`, `WarnSheet`, `ProfileSanctionSheet` — admin only; the Settings row that opens them is absent for everyone else |
 | `src/dev/TweaksPanel.jsx` | Dev overlay: `useTweaks`, `TweaksPanel`, `TweakSection`, `TweakRadio`, `TweakToggle` |
 
@@ -443,7 +443,7 @@ Two notification paths coexist:
 - **Web** (`services/notifications.js`): Browser Notification API. Skips when tab is visible (in-app toast handles it).
 - **Native** (`services/push.js` + `services/checkinReminder.js`): Capacitor. `push` → FCM for real-time events (backend sends via FCM). `checkinReminder` → LocalNotifications for the scheduled 9 PM daily prompt.
 
-`useNotifications(meId, prefs)` in `src/store/` unifies both: listens to the same WS events, dispatches to the right platform. FCM token is registered via `services/api/device.js` → `POST /devices/token`.
+`useNotifications(meId, prefs)` in `src/store/` unifies both: listens to the same WS events, dispatches to the right platform. FCM token is registered via `services/api/device.js` → `POST /notifications`, **with the push categories** (`messages`, `friends`) taken from the Settings switches, and re-registered whenever one changes; master off unregisters it. The server filters on them, which is the only way a switch can affect a push sent while the app is closed. The listeners read prefs through a ref — the effect subscribes once per account, and a closure would keep the values from the first render.
 
 Notification IDs must not collide: checkinReminder uses 1001; message notifs use 2000–2999; friend events use 3001–3002.
 
@@ -484,10 +484,15 @@ See `noHarmBack/docs/FRONTEND_DESIGN_BRIEF.md` for full API shapes. Key invarian
   `public/terms.html` / `public/privacy.html` for the copies served without a
   login. The second pair is not optional — an app store review needs a privacy
   policy at a URL anyone can open, and nginx (`app_locations.conf`) rewrites
-  `/terms` and `/privacy` to them. Both are **placeholder text today**;
-  publishing means writing both, clearing `draft: true`, and bumping the
-  matching version in the backend config, which is what asks every existing
-  account to accept it.
+  `/terms` and `/privacy` to them. The public pages are **generated from
+  `legalContent.js`**, never edited by hand — a change means editing the
+  content, regenerating both pages (`npm run legal`), and bumping the matching version in the
+  backend config, which is what asks every existing account to accept it.
+  Every sentence in them is a claim about the backend (retention days, the
+  200-character push, the 20 messages a report copies); change one of those
+  and the document is wrong until it is edited too. There is deliberately no
+  postal address: the controller is a natural person, and the contact the LGPD
+  asks for is the one mailbox every email in the app points at.
 - **Friendship status codes**: 2=deleted, 3=blocked, 4=pending, 5=accepted, 6=rejected.
 - **Reporting is private and inert.** `POST /reports/{userId}` takes one of six
   reasons (`services/api/report.js` holds the list and its copy) plus up to 1000

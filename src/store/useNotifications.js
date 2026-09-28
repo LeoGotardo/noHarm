@@ -1,7 +1,10 @@
 import { Capacitor } from "@capacitor/core";
 import { LocalNotifications } from "@capacitor/local-notifications";
-import { useEffect } from "react";
-import { registerDeviceToken } from "../services/api/device.js";
+import { useEffect, useRef } from "react";
+import {
+  registerDeviceToken,
+  unregisterDeviceToken,
+} from "../services/api/device.js";
 import { notif } from "../services/notifications.js";
 import { push } from "../services/push.js";
 import { onAdminAlert } from "../services/ws/admin.js";
@@ -40,33 +43,64 @@ async function localNotif(id, title, body) {
  * Native fires LocalNotifications; web fires the browser Notification API.
  * The native FCM path (background/closed app) is handled separately via push.register().
  *
- * Prefs are read at event time — toggling a pref takes effect immediately
- * without re-subscribing.
+ * Prefs are read at event time through a ref — toggling a pref takes effect
+ * immediately without re-subscribing.
  *
  * @param {string|null} meId  - current user id; null when logged out
  * @param {object}      prefs - from useNotifPrefs()
  */
 export function useNotifications(meId, prefs = {}) {
+  // The listeners below are subscribed once per account and read the switches
+  // when an event arrives, so they need the current values, not the ones from
+  // the render that subscribed them.
+  const prefsRef = useRef(prefs);
+  prefsRef.current = prefs;
+
+  // ── Native: keep the server's copy of this device in step with Settings ──
+  // A push sent while the app is closed never reaches this code, so the
+  // switches only mean something if the server knows them. Master off
+  // unregisters the token — which also stops badge pushes — and anything else
+  // re-registers it with the two categories; the endpoint is an upsert.
+  const { master, messages, friendRequests } = prefs;
+  useEffect(() => {
+    if (!meId || !isNative) return;
+
+    let cancelled = false;
+
+    if (!master) {
+      const stored = localStorage.getItem("nh_fcm");
+      if (stored) {
+        unregisterDeviceToken(stored)
+          .then(() => localStorage.removeItem("nh_fcm"))
+          .catch(() => {});
+      }
+      return;
+    }
+
+    const registration = push.register(async (token) => {
+      if (cancelled) return;
+      try {
+        await registerDeviceToken(token, {
+          messages: !!messages,
+          friends: !!friendRequests,
+        });
+        // Persist so logout can unregister this device from FCM
+        localStorage.setItem("nh_fcm", token);
+      } catch {}
+    });
+
+    return () => {
+      cancelled = true;
+      registration.then((unregister) => unregister()).catch(() => {});
+    };
+  }, [meId, master, messages, friendRequests]);
+
   useEffect(() => {
     if (!meId) return;
 
-    let cancelled = false;
     const cleanups = [];
 
     async function setup() {
-      // ── Native: register FCM token for background/closed-app pushes ──────
-      if (isNative) {
-        const unregister = await push.register(async (token) => {
-          if (cancelled) return;
-          try {
-            await registerDeviceToken(token);
-            // Persist so logout can unregister this device from FCM
-            localStorage.setItem("nh_fcm", token);
-          } catch {}
-        });
-        cleanups.push(unregister);
-      }
-
       // ── WS listeners — fire for both native and web ───────────────────────
       try {
         const send = isNative
@@ -76,7 +110,7 @@ export function useNotifications(meId, prefs = {}) {
         cleanups.push(
           onMessage(({ message }) => {
             if (message.sender === meId) return;
-            if (!prefs.master || !prefs.messages) return;
+            if (!prefsRef.current.master || !prefsRef.current.messages) return;
             send(
               ID.message(message.chat),
               "New message",
@@ -86,7 +120,7 @@ export function useNotifications(meId, prefs = {}) {
           }),
 
           onFriendRequest(({ username }) => {
-            if (!prefs.master || !prefs.friendRequests) return;
+            if (!prefsRef.current.master || !prefsRef.current.friendRequests) return;
             send(
               ID.friendRequest,
               "Friend request",
@@ -96,7 +130,7 @@ export function useNotifications(meId, prefs = {}) {
           }),
 
           onFriendAccept(() => {
-            if (!prefs.master || !prefs.friendRequests) return;
+            if (!prefsRef.current.master || !prefsRef.current.friendRequests) return;
             send(
               ID.friendAccept,
               "Friend request accepted",
@@ -124,7 +158,6 @@ export function useNotifications(meId, prefs = {}) {
     setup();
 
     return () => {
-      cancelled = true;
       cleanups.forEach((fn) => {
         try {
           fn();

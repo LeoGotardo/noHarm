@@ -14,6 +14,8 @@ import { LEGAL_DOCUMENTS } from "./legalContent.js";
  * and which one a stored signature refers to; printing a second, local number
  * beside its text is how the two drift.
  */
+const TEXT = { fontSize: 14, lineHeight: 1.6, color: "var(--ink-2)" };
+
 export function LegalDocument({ docKey, version, onBack }) {
   const doc = LEGAL_DOCUMENTS[docKey];
 
@@ -57,9 +59,8 @@ export function LegalDocument({ docKey, version, onBack }) {
               fontWeight: 500,
             }}
           >
-            This document is still being written. The headings below are the
-            outline; the text under them is not final and should not be relied
-            on.
+            This is a draft awaiting review. It describes how NoHarm works
+            today, but it is not yet the final text.
           </div>
         )}
 
@@ -81,16 +82,29 @@ export function LegalDocument({ docKey, version, onBack }) {
             >
               {section.heading}
             </h2>
-            <p
-              style={{
-                fontSize: 14,
-                lineHeight: 1.6,
-                color: "var(--ink-2)",
-                margin: 0,
-              }}
-            >
-              {section.body}
-            </p>
+            {section.body.map((block, i) =>
+              typeof block === "string" ? (
+                <p key={i} style={{ ...TEXT, margin: i ? "10px 0 0" : 0 }}>
+                  {block}
+                </p>
+              ) : (
+                <ul
+                  key={i}
+                  style={{
+                    ...TEXT,
+                    margin: i ? "10px 0 0" : 0,
+                    paddingLeft: 20,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 6,
+                  }}
+                >
+                  {block.list.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              ),
+            )}
           </section>
         ))}
       </div>
