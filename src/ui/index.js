@@ -3,6 +3,7 @@ export const cx = (...a) => a.filter(Boolean).join(" ");
 export { Avatar, OnlineDot } from "./Avatar.jsx";
 export { Btn } from "./Btn.jsx";
 export { Card } from "./Card.jsx";
+export { Checkbox } from "./Checkbox.jsx";
 export { Divider } from "./Divider.jsx";
 export { Field } from "./Field.jsx";
 export { GeoBackground } from "./GeoBackground.jsx";

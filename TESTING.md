@@ -133,8 +133,132 @@ Admin-only, no screen in the app — covered at the API level in
       told why, and that its streak and friends are untouched
 - [x] 🤖 **A safety report is never a warning** — `self_harm` is refused with
       the crisis-resources reason
+- [x] 🤖 **Username reset** — for a report about a *name*. The handle is
+      replaced immediately with `user_xxxxxxxx`, the account owes a new one,
+      and choosing one is the only thing that lifts it. The account is not
+      banned and keeps its streak, friends and history
+- [x] 🤖 **Picture block** — the photo is removed, a new one is refused, and
+      signing in again does not bring it back from the Google account;
+      unblocking restores nothing and stops refusing
+- [x] 🤖 **Both say why** — each writes its own notice (`rename`, `picture`)
+      and neither names the reporter
+- [x] 🤖 **Profile sanctions are admin-only** — an ordinary caller gets 404,
+      and a moderator cannot use either on themselves
+- [x] 🤖 **The queue names the reporter** — `reporter_username` beside the uid
+      for a moderator, and never on `GET /reports/mine`
+- [ ] **Report screen shows the profile** — for an `impersonation` or
+      `inappropriate` report, the captured picture and username are drawn at a
+      size a moderator can judge, and "Reset their username" / "Remove their
+      picture" appear above the ladder _(needs a real photo — manual)_
+- [ ] **Forced rename screen** — an account under the sanction sees its notice,
+      then a screen it cannot leave until it picks a name; the tab bar and side
+      rail are gone and the check-in modal does not interrupt it _(manual)_
 - [ ] **Suspended sign-in copy** — the login screen says "paused until <date>"
       and where to appeal _(behind the Google popup — manual)_
+
+## Brand & icons
+
+- [x] 🤖 **Icon set wired** — `favicon.svg`, `apple-touch-icon.png`,
+      `manifest.webmanifest` and both theme-colors in the head, and every file
+      they name answers 200
+- [x] 🤖 **The tab icon is the same image as every other** — `icon.svg`, ring
+      included; the simplified variant that dropped it is gone, and
+      `/favicon.svg` 404s
+- [x] 🤖 **One drawing everywhere** — the check path matches in the app, in
+      `icon.svg`, `noharm-mark.svg`, `noharm-lockup.svg` and both public legal
+      pages
+- [x] 🤖 **A shared link previews as something** — `og:image`, title and
+      `summary_large_image`, and the image is the PNG rather than the lockup
+      SVG, whose `<text>` falls back to Arial wherever Figtree is not loaded
+- [ ] **Installed app** — the icon on a home screen and in the app switcher,
+      light and dark _(needs a device — manual)_
+- [ ] **Native icons** — `android/` and `ios/` are generated and gitignored, so
+      the Capacitor icon set is regenerated from `public/icon.svg` at build
+      time, not versioned _(manual)_
+
+## Desktop layout
+
+Covered by the `desktop` Playwright project (1440x900) — `tests/desktop.spec.js`
+plus the flow specs re-run at that size.
+
+- [x] 🤖 **Side rail replaces the tab bar** — and stays while a screen is pushed
+- [x] 🤖 **Content sits in a centred column**, not stretched across the window
+- [x] 🤖 **Badges grid uses the width** — more than the phone's three columns
+- [x] 🤖 **Auth is a centred card** — capped at `--form-max`, vertically centred,
+      drawn as a surface; the thumb gap that splits login in half on a phone is
+      collapsed
+- [x] 🤖 **The register form scrolls without losing its top** — it is taller than
+      the window, and `margin: auto` is what keeps the header reachable
+- [x] 🤖 **Sheets become centred dialogs**, and Escape closes them
+- [x] 🤖 **Chat is two panes** — the list stays while a conversation is open
+
+## Admin board
+
+Behind the same `ADMIN_USER_IDS` allowlist as the moderation queue — one
+allowlist decides both, so `useModerator`'s single probe answers for both rows.
+
+- [x] 🤖 **The row is absent for an ordinary account** — and the API answers
+      404, not 403, so the screen being hidden is cosmetic rather than the gate
+- [x] 🤖 **Every panel renders** — accounts, bans and sanctions, moderation,
+      health, suspicious traffic
+- [x] 🤖 **Health reads zero when nothing is wrong** — and says so; every field
+      in that block is a failure, and two of them are the retention crons
+      failing invisibly
+- [x] 🤖 **Self-harm reports are counted on their own** — not folded into the
+      queue total
+- [x] 🤖 **The account list shows banned and deleted accounts** — which
+      `GET /users` hides — **and nothing about anyone's recovery**: the test
+      asserts no streak appears anywhere on the screen
+- [x] 🤖 **Charts plot every day in the window**, empty ones included — a
+      series with its gaps removed is drawn as a line through them, which turns
+      a handful of sign-ups into a steady climb
+- [x] 🤖 **Two charts, never one with two y-scales** — sign-ups and reports
+      differ by an order of magnitude, and a second axis invents a correlation
+- [x] 🤖 **The period filter scopes the charts** — 7 / 30 / 90, the summary
+      line follows it, and the server cache is keyed by period so switching the
+      range cannot return the previous window's numbers
+- [x] 🤖 **The comparison chart reads the three inactive states** — disabled,
+      deleted, banned, one hue between them
+- [x] 🤖 **Every chart has a table view** — identity never rests on seeing the
+      shape
+- [ ] **Errors and Access tabs with real content** — needs a fault and an SSH
+      login on the box _(manual)_
+- [ ] **Pagination past one page** — needs more than 25 accounts _(manual)_
+
+## Legal & consent
+
+The gate decides whether an account gets into the app at all, and one of its
+buttons deletes every streak the account has — `tests/legal.spec.js` covers both
+halves. The documents' *text* is deliberately not asserted: it is a placeholder
+and will be rewritten.
+
+- [x] 🤖 **Registration is gated** — refused without the terms and the privacy
+      policy (400), and refused below `MINIMUM_AGE_YEARS` (403 `UNDERAGE`, with
+      the minimum in `details`)
+- [x] 🤖 **A fresh account owes nothing** — `pending_consents` empty, and the
+      three rows carry the version the *server* had in force, never one the
+      client named
+- [x] 🤖 **Declining health data is an answer** — the app stays usable, the gate
+      never reappears for it, and `POST /streaks/start` answers 403
+- [x] 🤖 **Withdrawing health consent deletes every streak** — including the
+      closed ones behind the personal record; the consent row survives stamped
+      with the moment it ended, and withdrawing again is a no-op
+- [x] 🤖 **Export is the account's own data** — and never the reports filed
+      against it, which would name the reporter
+- [x] 🤖 **A stale version shows the gate instead of the app** — full screen,
+      with no tab bar and no side rail over it
+- [x] 🤖 **Withdrawing turns the dashboard honest** — "Tracking is off" instead
+      of "Begin your journey", no "Start my streak" (the only answer it could
+      get is 403), it says the old streaks are gone for good, and the way back
+      goes through Privacy & data rather than a second, quieter consent prompt
+- [x] 🤖 **Crisis resources** — reachable from Settings, says plainly that this
+      is not treatment, and the numbers are `tel:` links
+- [x] 🤖 **Privacy & data** — both documents listed, and one opens as the same
+      screen the gate shows
+- [ ] **Export downloads a file** — the button fetches and saves
+      `noharm-export.json` _(a browser download — manual)_
+- [ ] **Re-accepting from the gate** — ticking both and continuing returns the
+      app _(needs a republished version on a live backend — manual)_
 
 ## Navigation / Tabs
 

@@ -1,4 +1,4 @@
-import { BottomSheet, GoogleButton, Header, Logo, Screen } from "@components";
+import { BottomSheet, GoogleButton, Header, Mark, Screen } from "@components";
 import { Btn, Icon } from "@ui";
 import { useState } from "react";
 import { errorMessage } from "../../connectors/api.js";
@@ -86,7 +86,7 @@ export function LoginScreen({ onBack, onDone }) {
   };
 
   return (
-    <Screen geo="auth" padTop={56} padBottom={28} maxWidth="var(--form-max)">
+    <Screen geo="auth" padTop={56} padBottom={28} maxWidth="var(--form-max)" panel>
       <Header title="Welcome back" onBack={onBack} />
       <div
         style={{
@@ -103,7 +103,7 @@ export function LoginScreen({ onBack, onDone }) {
             marginBottom: 28,
           }}
         >
-          <Logo size={64} />
+          <Mark size={64} title="NoHarm" />
         </div>
         <div
           style={{
@@ -157,7 +157,8 @@ export function LoginScreen({ onBack, onDone }) {
             </div>
           </div>
         )}
-        <div style={{ flex: 1 }} />
+        {/* Pushes the button to the thumb; collapsed past the breakpoint. */}
+        <div className="nh-thumb-gap" />
         <GoogleButton onClick={submit} loading={loading} variant="signin" />
         <div
           style={{

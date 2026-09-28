@@ -38,7 +38,7 @@ export default defineConfig({
     {
       name: "desktop",
       use: { viewport: { width: 1440, height: 900 } },
-      testMatch: /(desktop|navigation|chat|friends|profile)\.spec\.js/,
+      testMatch: /(desktop|navigation|chat|friends|profile|admin)\.spec\.js/,
     },
   ],
   webServer: {

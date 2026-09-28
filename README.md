@@ -2,6 +2,18 @@
 
 NoHarm is an addiction recovery tracker. The core loop: register → start a streak → daily check-in → earn milestone badges → connect with friends for accountability → 1-on-1 chat.
 
+## Contents
+
+- [Tech stack](#tech-stack)
+- [Getting started](#getting-started)
+  - [Environment variables](#environment-variables)
+- [Project structure](#project-structure)
+- [Backend](#backend)
+- [Mobile](#mobile)
+  - [Building the Android APK](#building-the-android-apk)
+- [Other files](#other-files)
+- [License](#license)
+
 ## Tech stack
 
 - **Vite + React 19** SPA (no router library — custom stack-on-tabs navigation)

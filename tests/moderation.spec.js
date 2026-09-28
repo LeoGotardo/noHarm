@@ -52,6 +52,150 @@ test.describe("Moderation", () => {
     await expect(api.get("/users/me", as(userA))).rejects.toMatchObject({ status: 403 });
   });
 
+  // ── name and picture sanctions ──────────────────────────────────────────────
+  //
+  // The two reports this app actually gets about a *profile*: a handle
+  // impersonating someone, and a photo that should not be beside a recovery
+  // conversation. A ban is far too much for either and a warning far too
+  // little — it leaves the thing exactly where it is.
+
+  test("Username reset — the name goes now, and the account owes a new one", async ({
+    userA,
+  }) => {
+    const admin = await asAdmin();
+    const before = await api.get("/users/me", as(userA));
+
+    const sanctioned = await api.put(`/users/${userA.id}/username/reset`, {
+      ...as(admin),
+      body: { reason: "impersonation" },
+    });
+
+    // Renamed immediately, not asked to fix it: the harm is the name being
+    // readable, and a flag alone leaves it on every friend list until the
+    // user next signs in.
+    expect(sanctioned.username).not.toBe(before.username);
+    expect(sanctioned.username).toMatch(/^user_[0-9a-f]{8}$/);
+    expect(sanctioned.must_change_username).toBe(true);
+    // No e-mail in the answer, for the same reason a suspension carries none.
+    expect(Object.keys(sanctioned).sort()).toEqual([
+      "id",
+      "must_change_username",
+      "picture_blocked",
+      "username",
+    ]);
+
+    // The account still works. That is the whole point of not banning it.
+    const me = await api.get("/users/me", as(userA));
+    expect(me.username).toBe(sanctioned.username);
+    expect(me.must_change_username).toBe(true);
+
+    // Choosing a name is what lifts it — nothing else does.
+    const chosen = `renamed${Date.now() % 1000000}`;
+    await api.put("/users/me", { ...as(userA), body: { username: chosen } });
+    const after = await api.get("/users/me", as(userA));
+    expect(after.username).toBe(chosen);
+    expect(after.must_change_username).toBe(false);
+  });
+
+  test("Picture block — removed, refused, and not restored by the next login", async ({
+    userA,
+  }) => {
+    const admin = await asAdmin();
+
+    const blocked = await api.put(`/users/${userA.id}/picture/block`, {
+      ...as(admin),
+      body: { reason: "inappropriate" },
+    });
+    expect(blocked.picture_blocked).toBe(true);
+
+    // The user cannot put one back.
+    await expect(
+      api.put("/users/me", {
+        ...as(userA),
+        body: { profile_picture: "https://lh3.googleusercontent.com/x" },
+      }),
+    ).rejects.toMatchObject({ status: 403 });
+
+    // Nor can signing in again: login refreshes the photo from the Google
+    // claim, which is exactly the path that would undo the decision silently.
+    await login(userA);
+    const me = await api.get("/users/me", as(userA));
+    expect(me.profile_picture ?? null).toBeNull();
+    expect(me.picture_blocked).toBe(true);
+
+    // Lifting it restores nothing, and stops refusing.
+    const lifted = await api.put(`/users/${userA.id}/picture/unblock`, {
+      ...as(admin),
+      body: {},
+    });
+    expect(lifted.picture_blocked).toBe(false);
+  });
+
+  test("Both sanctions say why, and neither names the reporter", async ({
+    userA,
+    userB,
+  }) => {
+    const admin = await asAdmin();
+    await fileReport(userB, userA, "impersonation", "that is my name");
+
+    await api.put(`/users/${userA.id}/username/reset`, {
+      ...as(admin),
+      body: { reason: "impersonation", message: "Pick a name that isn't someone else's." },
+    });
+    await api.put(`/users/${userA.id}/picture/block`, {
+      ...as(admin),
+      body: { reason: "inappropriate" },
+    });
+
+    const notices = await myNotices(userA);
+    const kinds = (notices.notices ?? []).map((n) => n.kind).sort();
+    expect(kinds).toEqual(["picture", "rename"]);
+
+    // The one rule every notice keeps: the conduct, never the complainant.
+    const blob = JSON.stringify(notices);
+    expect(blob).not.toContain(userB.id);
+    expect(blob).not.toContain(userB.username ?? "\u0000never");
+  });
+
+  test("Sanctions are admin-only, and not usable on yourself", async ({
+    userA,
+    userB,
+  }) => {
+    // An ordinary caller gets 404, not 403: these routes do not confirm they
+    // exist to someone who cannot use them.
+    await expect(
+      api.put(`/users/${userB.id}/username/reset`, { ...as(userA), body: {} }),
+    ).rejects.toMatchObject({ status: 404 });
+    await expect(
+      api.put(`/users/${userB.id}/picture/block`, { ...as(userA), body: {} }),
+    ).rejects.toMatchObject({ status: 404 });
+
+    const admin = await asAdmin();
+    await expect(
+      api.put(`/users/${admin.id}/username/reset`, { ...as(admin), body: {} }),
+    ).rejects.toMatchObject({ status: 400 });
+  });
+
+  test("The queue names the reporter, and /reports/mine never does", async ({
+    userA,
+    userB,
+  }) => {
+    const admin = await asAdmin();
+    await fileReport(userB, userA, "impersonation", "using my photo");
+
+    const queue = await api.get("/reports", as(admin));
+    const row = queue.reports.find((r) => r.reported_uid === userA.id);
+    // A moderator cannot weigh a complaint against an account without knowing
+    // whether the same person filed the last four — an id does not tell them.
+    expect(row.reporter_username).toBeTruthy();
+    expect(row.reporter).toBe(userB.id);
+
+    // The reporter's own list learns nothing new: the promise of anonymity is
+    // owed to the reported user, and this is the model that keeps it.
+    const mine = await api.get("/reports/mine", as(userB));
+    expect(mine.reports[0]).not.toHaveProperty("reporter_username");
+  });
+
   test("Suspension — lifting it by hand lets them back in", async ({ userA }) => {
     const admin = await asAdmin();
     await api.put(`/users/${userA.id}/suspend`, { ...as(admin), body: { days: 30 } });

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="NoHarm">
+  <!--
+    The app icon: the mark reversed out of the primary ground.
+
+    Kept in sync with src/components/Logo.jsx, which is where the geometry is
+    explained. Hex rather than oklch on purpose — this file is rasterised by
+    tools far older than the app's browsers, and a colour they cannot parse
+    renders as black.
+
+    Radius is 22.5% of the side, the same proportion at every size.
+  -->
+  <rect width="512" height="512" rx="115.2" fill="#558969"/>
+  <g transform="translate(108.8 108.8) scale(2.944)">
+    <circle cx="50" cy="50" r="42" fill="none" stroke="#f9fdfa" stroke-width="6" opacity="0.32"/>
+    <circle cx="50" cy="50" r="42" fill="none" stroke="#f9fdfa" stroke-width="7" stroke-linecap="round" stroke-dasharray="264" stroke-dashoffset="79" transform="rotate(-90 50 50)"/>
+    <path d="M32 52 L44 64 L70 34" fill="none" stroke="#f9fdfa" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

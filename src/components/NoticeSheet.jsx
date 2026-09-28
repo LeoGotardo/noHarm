@@ -20,7 +20,22 @@ export function NoticeSheet({ notice, onAcknowledge }) {
   if (!notice) return null;
 
   const copy = noticeCopy(notice.reason);
-  const suspension = notice.kind === "suspension";
+
+  // What the notice says happened to the account. The reason is the conduct;
+  // the kind is the consequence, and they are not the same sentence.
+  const FOOTER = {
+    suspension:
+      "Your account was paused. Your streak and your friends are exactly where you left them.",
+    rename:
+      "Your username was reset. Pick a new one when the app asks — everything else about your account is untouched.",
+    picture:
+      "Your profile picture was removed. You can't set a new one until this is lifted; nothing else about your account changed.",
+  };
+  const ICON = { suspension: "flag", rename: "edit", picture: "camera" };
+
+  const footer =
+    FOOTER[notice.kind] ??
+    "Nothing has changed about your account — no pause, no limits. This is us telling you once.";
 
   const confirm = async () => {
     setBusy(true);
@@ -43,7 +58,7 @@ export function NoticeSheet({ notice, onAcknowledge }) {
               justifyContent: "center",
             }}
           >
-            <Icon name="flag" size={24} color="var(--ink-2)" />
+            <Icon name={ICON[notice.kind] ?? "flag"} size={24} color="var(--ink-2)" />
           </div>
         </div>
 
@@ -96,9 +111,7 @@ export function NoticeSheet({ notice, onAcknowledge }) {
             padding: "12px 6px 0",
           }}
         >
-          {suspension
-            ? "Your account was paused. Your streak and your friends are exactly where you left them."
-            : "Nothing has changed about your account — no pause, no limits. This is us telling you once."}
+          {footer}
         </div>
 
         <div

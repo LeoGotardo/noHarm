@@ -57,6 +57,40 @@ test.describe("Desktop shell", () => {
     expect(await cols.jsonValue()).toBeGreaterThan(3);
   });
 
+  test("Auth is a centred card, not a phone column on a wall", async ({ page }) => {
+    await page.goto("/");
+    await page.getByText("I already have an account").click();
+    await expect(page.getByText("Good to see you again")).toBeVisible();
+
+    const panel = page.locator(".nh-panel");
+    const box = await panel.boundingBox();
+    // Capped at --form-max, and centred vertically rather than torn in half by
+    // the gap that puts the button under a thumb on a phone.
+    expect(box.width).toBeLessThanOrEqual(440);
+    expect(box.y).toBeGreaterThan(120);
+    expect(box.y + box.height).toBeLessThan(900);
+
+    // Drawn as a surface, not left floating on the page background.
+    await expect(panel).toHaveCSS("border-radius", "28px");
+  });
+
+  test("The register form is taller than the window and still reaches its top", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page.getByText("Get started").click();
+    await expect(page.getByText("Create account")).toBeVisible();
+
+    // `margin: auto` rather than `justify-content: center`, because a centred
+    // flex line clips its own overflow at the top — which is exactly what this
+    // form does once it is taller than the viewport.
+    await expect(page.getByText("Create account")).toBeInViewport();
+    await page.evaluate(() =>
+      document.querySelector(".nh-scroll").scrollTo(0, 99999),
+    );
+    await expect(page.getByRole("button", { name: /Sign up with Google/ })).toBeInViewport();
+  });
+
   test("A sheet becomes a centred dialog", async ({ userA, page }) => {
     await openApp(page, userA, { checkedInToday: true });
     await startStreak(userA, 5);

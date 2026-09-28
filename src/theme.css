@@ -24,6 +24,7 @@ button { font-family: inherit; }
   --font-body: 'Figtree', system-ui, sans-serif;
   --font-display: 'Figtree', system-ui, sans-serif;
   --display-weight: 800;
+  --display-tracking: -0.03em;
 
   --shell-max: 480px;   /* how wide the app shell itself may grow */
   --nav-w: 0px;         /* side rail width; 0 while the tab bar is at the bottom */
@@ -90,6 +91,7 @@ button { font-family: inherit; }
   --font-body: 'Figtree', system-ui, sans-serif;
   --font-display: 'Figtree', system-ui, sans-serif;
   --display-weight: 800;
+  --display-tracking: -0.03em;
 }
 /* SAGE — dark */
 [data-dir="sage"][data-mode="dark"] {
@@ -116,6 +118,7 @@ button { font-family: inherit; }
   --font-body: 'Figtree', system-ui, sans-serif;
   --font-display: 'Figtree', system-ui, sans-serif;
   --display-weight: 800;
+  --display-tracking: -0.03em;
 }
 /* DAWN — light */
 [data-dir="dawn"][data-mode="light"] {
@@ -142,6 +145,7 @@ button { font-family: inherit; }
   --font-body: 'Manrope', system-ui, sans-serif;
   --font-display: 'Spectral', Georgia, serif;
   --display-weight: 700;
+  --display-tracking: 0em;
 }
 /* DAWN — dark */
 [data-dir="dawn"][data-mode="dark"] {
@@ -168,6 +172,7 @@ button { font-family: inherit; }
   --font-body: 'Manrope', system-ui, sans-serif;
   --font-display: 'Spectral', Georgia, serif;
   --display-weight: 700;
+  --display-tracking: 0em;
 }
 
 /* ── Shared animations ────────────────────────────────── */
@@ -234,6 +239,37 @@ button { font-family: inherit; }
   }
   .nh-scroll::-webkit-scrollbar-thumb:hover { background: var(--ink-3); background-clip: content-box; }
   .nh-scroll::-webkit-scrollbar-track { background: transparent; }
+}
+
+/* ── The auth panel ───────────────────────────────────────
+   On a phone the screen is the card: it fills the viewport and a border would
+   be a border around nothing. On a desktop a 440px column against a thousand
+   pixels of empty background reads as a phone screenshot pinned to a wall, so
+   past the breakpoint the same column becomes a card and centres itself.
+
+   `!important` for the two properties that collide with <Screen>'s inline
+   style, for the reason set out under Pointer affordances — the column carries
+   a `style` object, and an inline declaration outranks any unmarked rule.
+
+   Centred with `margin: auto` rather than `justify-content: center` on the
+   scroller: a centred flex line clips its own overflow at the top, which is
+   exactly what the register form does once it is taller than the window. */
+.nh-thumb-gap { flex: 1; }
+
+@media (min-width: 900px) {
+  .nh-panel {
+    flex: 0 0 auto !important;
+    margin: auto !important;
+    padding: 12px 14px 26px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 28px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 24px 60px -28px rgba(0, 0, 0, 0.28);
+  }
+
+  /* The gap exists to put a button under a thumb. A mouse has no thumb, and
+     the space only tears the page in half. */
+  .nh-thumb-gap { flex: 0 0 auto; height: 18px; }
 }
 
 /* ── Pointer affordances ──────────────────────────────────

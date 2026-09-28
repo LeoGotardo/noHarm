@@ -207,14 +207,17 @@ test.describe("Profile", () => {
       .toBe(true);
   });
 
-  test("Settings — links with no destination show as 'Soon', not as dead taps", async ({
-    appA,
-    page,
-  }) => {
+  test("Settings — no row is a dead tap", async ({ appA, page }) => {
     await openSettings(page);
 
-    await expect(page.getByRole("button", { name: /Privacy & safety/ })).toBeDisabled();
-    await expect(page.getByRole("button", { name: /Crisis resources/ })).toBeDisabled();
-    await expect(page.getByText("Soon").first()).toBeVisible();
+    // This used to assert the opposite: "Privacy & safety" and "Crisis
+    // resources" were disabled and marked Soon, because neither had a screen.
+    // Both have one now, so what is left to guard is the rule the old test was
+    // really about — a row either goes somewhere or says it does not yet.
+    await expect(page.getByRole("button", { name: /Privacy & data/ })).toBeEnabled();
+    await expect(page.getByRole("button", { name: /Crisis resources/ })).toBeEnabled();
+
+    await page.getByText("Crisis resources").click();
+    await expect(page.getByText(/not treatment/i)).toBeVisible();
   });
 });

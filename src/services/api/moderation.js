@@ -69,6 +69,49 @@ export async function suspendUser(userId, days, reason, message) {
   });
 }
 
+/**
+ * Take an abusive username away and make the account choose another.
+ *
+ * The rung a report about a *name* actually needs: a ban is far too much for
+ * a handle and a warning far too little, because a warning leaves the name
+ * exactly where it is. The backend renames the account immediately to a
+ * neutral handle — the harm is the name being readable — and then refuses to
+ * let the app past a rename screen until a real one is chosen.
+ */
+export async function resetUsername(userId, reason, message) {
+  return api.put(`/users/${userId}/username/reset`, {
+    ...(reason ? { reason } : {}),
+    ...(message?.trim() ? { message: message.trim() } : {}),
+  });
+}
+
+/**
+ * Block or unblock the account's profile picture.
+ *
+ * Blocking removes it and refuses a new one. It has to be a flag and not just
+ * a delete: the backend refreshes the photo from the Google account at every
+ * login, so clearing it alone would undo itself the next time they signed in.
+ *
+ * Unblocking restores nothing — the old picture is gone, and the next sign-in
+ * pulls whatever the Google account holds now.
+ */
+export async function setPictureBlocked(userId, blocked, reason, message) {
+  return api.put(`/users/${userId}/picture/${blocked ? "block" : "unblock"}`, {
+    ...(reason ? { reason } : {}),
+    ...(message?.trim() ? { message: message.trim() } : {}),
+  });
+}
+
+/**
+ * Whether a report is about the profile itself rather than about conduct.
+ *
+ * Only these two reasons offer the name and picture sanctions: a harassment
+ * report is answered with a warning or a suspension, and offering "reset their
+ * username" there invites a moderator to reach for the tool that is in front
+ * of them rather than the one that fits.
+ */
+export const PROFILE_REASONS = new Set(["impersonation", "inappropriate"]);
+
 /** Lift a ban early. Clears the end date with it. */
 export async function liftSuspension(userId) {
   return api.put(`/users/${userId}/status/1`);

@@ -1,18 +1,22 @@
-import { Header, Screen, fmtLongDate, fmtTime } from "@components";
-import { Btn, Card, Icon, SectionLabel, Skeleton } from "@ui";
+import { Header, Screen, fmtLongDate, fmtTime, hashHue } from "@components";
+import { Avatar, Btn, Card, Icon, SectionLabel, Skeleton } from "@ui";
 import { useEffect, useRef, useState } from "react";
 import { errorMessage } from "../../connectors/api.js";
 import {
+  PROFILE_REASONS,
   REPORT_STATUS,
   claimReport,
   getEvidence,
   parseProfileEvidence,
   reasonLabel,
   releaseReport,
+  resetUsername,
   resolveReport,
+  setPictureBlocked,
   suspendUser,
 } from "../../services/api/moderation.js";
 import { warnUser } from "../../services/api/notice.js";
+import { ProfileSanctionSheet } from "./ProfileSanctionSheet.jsx";
 import { SuspendSheet } from "./SuspendSheet.jsx";
 import { WarnSheet } from "./WarnSheet.jsx";
 
@@ -122,6 +126,8 @@ function MessageBubble({ item, reportedUid }) {
  */
 export function ReportReview({ onBack, report, onDecided, onToast }) {
   const [evidence, setEvidence] = useState(null);
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [pictureOpen, setPictureOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [heldByOther, setHeldByOther] = useState(false);
@@ -209,6 +215,16 @@ export function ReportReview({ onBack, report, onDecided, onToast }) {
     onToast?.("Warning sent");
   };
 
+  const resetName = async (message) => {
+    const res = await resetUsername(report.reported_uid, report.reason, message);
+    onToast?.(`Renamed to ${res?.username ?? "a neutral handle"}`);
+  };
+
+  const blockPicture = async (message) => {
+    await setPictureBlocked(report.reported_uid, true, report.reason, message);
+    onToast?.("Picture removed");
+  };
+
   const profile = evidence?.find((item) => item.kind === "profile");
   const messages = evidence?.filter((item) => item.kind === "message") ?? [];
   const snapshot = profile ? parseProfileEvidence(profile.content) : null;
@@ -244,7 +260,27 @@ export function ReportReview({ onBack, report, onDecided, onToast }) {
             <Row label="Account" value={username} />
             <Row label="Reason" value={reasonLabel(report.reason)} />
             <Row label="Filed" value={fmtLongDate(report.created_at)} />
-            <Row label="Reporter" value={report.reporter ?? "account deleted"} />
+            {/* By name. The promise that a reported user never learns who
+                complained is about the reported user — a moderator cannot
+                weigh a complaint without knowing whether the same person filed
+                the last four. The uid stays, because two people can pick
+                similar names and only one of them filed this. */}
+            <Row
+              label="Reporter"
+              value={
+                report.reporter ? (
+                  <>
+                    {report.reporter_username ?? "name unavailable"}
+                    <span style={{ color: "var(--ink-3)", fontSize: 12 }}>
+                      {" · "}
+                      {report.reporter}
+                    </span>
+                  </>
+                ) : (
+                  "account deleted"
+                )
+              }
+            />
             {report.details && (
               <Row
                 label="In their words"
@@ -278,14 +314,39 @@ export function ReportReview({ onBack, report, onDecided, onToast }) {
             <Card pad={12}>
               {snapshot && (
                 <div style={{ marginBottom: messages.length ? 14 : 0 }}>
-                  <div style={{ fontSize: 12, color: "var(--ink-3)", marginBottom: 6 }}>
+                  <div style={{ fontSize: 12, color: "var(--ink-3)", marginBottom: 10 }}>
                     The account as it was when the report was filed
                   </div>
-                  <Row label="Username" value={snapshot.username ?? "—"} />
-                  <Row
-                    label="Picture"
-                    value={snapshot.profile_picture ? "set" : "none"}
-                  />
+                  {/* Shown, not described. A report about a name or a picture
+                      cannot be decided from the words "Picture: set" — the
+                      photo and the handle *are* the evidence, which is why
+                      they are captured at filing time and why they are drawn
+                      here at a size a moderator can actually judge. */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                    <Avatar
+                      name={snapshot.username ?? "?"}
+                      src={snapshot.profile_picture ?? null}
+                      size={64}
+                      hue={hashHue(snapshot.username ?? "")}
+                    />
+                    <div style={{ minWidth: 0 }}>
+                      <div
+                        style={{
+                          fontSize: 16,
+                          fontWeight: 700,
+                          color: "var(--ink)",
+                          wordBreak: "break-word",
+                        }}
+                      >
+                        {snapshot.username ?? "—"}
+                      </div>
+                      <div style={{ fontSize: 12.5, color: "var(--ink-3)", marginTop: 2 }}>
+                        {snapshot.profile_picture
+                          ? "Picture as captured"
+                          : "No picture at the time"}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -342,6 +403,35 @@ export function ReportReview({ onBack, report, onDecided, onToast }) {
                 keeps a busy queue from turning into decisions nobody chose.
               </Note>
             )}
+            {/* Offered only for the two reasons that are about the profile
+                itself. These are not rungs of the conduct ladder — they take
+                away the thing being complained about and leave the account
+                otherwise untouched, which is why they sit above a warning
+                rather than beside a suspension. */}
+            {PROFILE_REASONS.has(report.reason) && (
+              <>
+                <Btn
+                  kind="outline"
+                  size="lg"
+                  full
+                  icon="edit"
+                  onClick={() => setRenameOpen(true)}
+                  disabled={busy}
+                >
+                  Reset their username
+                </Btn>
+                <Btn
+                  kind="outline"
+                  size="lg"
+                  full
+                  icon="camera"
+                  onClick={() => setPictureOpen(true)}
+                  disabled={busy}
+                >
+                  Remove their picture
+                </Btn>
+              </>
+            )}
             {/* The ladder, in order. A warning changes nothing about the
                 account, which is exactly why it is the rung most cases stop
                 at — and the one that did not exist before. */}
@@ -395,6 +485,22 @@ export function ReportReview({ onBack, report, onDecided, onToast }) {
         onClose={() => setSuspendOpen(false)}
         username={username}
         onSubmit={suspend}
+      />
+
+      <ProfileSanctionSheet
+        kind="rename"
+        open={renameOpen}
+        onClose={() => setRenameOpen(false)}
+        username={username}
+        onSubmit={resetName}
+      />
+
+      <ProfileSanctionSheet
+        kind="picture"
+        open={pictureOpen}
+        onClose={() => setPictureOpen(false)}
+        username={username}
+        onSubmit={blockPicture}
       />
 
       <WarnSheet

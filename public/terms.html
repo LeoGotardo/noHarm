@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Terms of Use · NoHarm</title>
+<!--
+  The public copy of this document, served without a login.
+
+  It exists separately from the in-app screen for one reason: an app store
+  review needs a privacy policy at a URL anyone can open, and a page that lives
+  behind a sign-in does not qualify. Vite copies everything in `public/` to the
+  root of the bundle, and nginx serves `$uri` before falling back to the SPA,
+  so this file answers at /terms.html — and at /terms through the rewrite in
+  noHarmBack/docker/app_locations.conf.
+
+  KEEP IN STEP with src/screens/legal/legalContent.js. Two copies of a legal
+  document that disagree is worse than one, and nothing in the build checks
+  them against each other.
+
+  Deliberately self-contained: no stylesheet, no script, no font request. It
+  has to render on a reviewer's machine with a strict network and nothing
+  cached.
+-->
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    margin: 0 auto;
+    padding: 40px 20px 64px;
+    max-width: 44rem;
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: #1b1f1d;
+    background: #fbfaf7;
+  }
+  h1 { font-size: 1.7rem; margin: 0 0 6px; }
+  h2 { font-size: 1.1rem; margin: 30px 0 6px; }
+  p { margin: 0; color: #3c4542; }
+  .meta { font-size: 0.85rem; color: #6b7671; margin-bottom: 26px; }
+  .draft {
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: #fdeee4;
+    color: #7a3d14;
+    font-size: 0.9rem;
+    margin-bottom: 28px;
+  }
+  a { color: #1f6f52; }
+  /* The lockup, matching src/components/Logo.jsx. Hex rather than the app's
+     oklch tokens: this page carries no stylesheet and has to render the same
+     in a reviewer's browser as in ours. */
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 26px;
+    font-size: 1.35rem;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    color: #253129;
+  }
+  .brand b { color: #558969; font-weight: 800; }
+  @media (prefers-color-scheme: dark) {
+    body { color: #e7ece9; background: #141816; }
+    p { color: #b3bdb8; }
+    .meta { color: #8b9691; }
+    .draft { background: #3a2415; color: #f2c9a6; }
+    a { color: #7fd3ac; }
+    .brand { color: #e7ece9; }
+    .brand b { color: #7fd3ac; }
+  }
+</style>
+</head>
+<body>
+<div class="brand">
+  <svg width="34" height="34" viewBox="0 0 100 100" aria-hidden="true">
+    <circle cx="50" cy="50" r="42" fill="none" stroke="#558969" stroke-width="6" opacity="0.22"/>
+    <circle cx="50" cy="50" r="42" fill="none" stroke="#558969" stroke-width="7" stroke-linecap="round" stroke-dasharray="264" stroke-dashoffset="79" transform="rotate(-90 50 50)"/>
+    <path d="M32 52 L44 64 L70 34" fill="none" stroke="#558969" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+  <span>No<b>Harm</b></span>
+</div>
+<h1>Terms of Use</h1>
+<p class="meta"><a href="/">open the app</a></p>
+
+<div class="draft">
+  This document is still being written. The headings below are the outline; the
+  text under them is not final and should not be relied on.
+</div>
+
+<h2>Accepting these terms</h2>
+<p>This section has not been written yet. Nothing in this app should be read as a final statement of its terms until this document is complete.</p>
+
+<h2>NoHarm is not medical care</h2>
+<p>This section has not been written yet. Nothing in this app should be read as a final statement of its terms until this document is complete.</p>
+
+<h2>Who can hold an account</h2>
+<p>This section has not been written yet. Nothing in this app should be read as a final statement of its terms until this document is complete.</p>
+
+<h2>How you may and may not behave here</h2>
+<p>This section has not been written yet. Nothing in this app should be read as a final statement of its terms until this document is complete.</p>
+
+<h2>Reporting, moderation and appeals</h2>
+<p>This section has not been written yet. Nothing in this app should be read as a final statement of its terms until this document is complete.</p>
+
+<h2>What you write, and what we may do with it</h2>
+<p>This section has not been written yet. Nothing in this app should be read as a final statement of its terms until this document is complete.</p>
+
+<h2>Ending your account, and us ending it</h2>
+<p>This section has not been written yet. Nothing in this app should be read as a final statement of its terms until this document is complete.</p>
+
+<h2>Limits of our responsibility</h2>
+<p>This section has not been written yet. Nothing in this app should be read as a final statement of its terms until this document is complete.</p>
+
+<h2>Changes to these terms</h2>
+<p>This section has not been written yet. Nothing in this app should be read as a final statement of its terms until this document is complete.</p>
+
+<h2>Governing law</h2>
+<p>This section has not been written yet. Nothing in this app should be read as a final statement of its terms until this document is complete.</p>
+</body>
+</html>

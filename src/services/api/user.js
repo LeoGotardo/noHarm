@@ -17,7 +17,16 @@ export async function getMe() {
  * @returns {Promise<object>}
  */
 export async function putMe(username, profile_picture) {
-  const result = await api.put("/users/me", { username, profile_picture });
+  // Only the fields actually being changed. The backend refuses a
+  // `profile_picture` on an account whose picture moderation has blocked, so
+  // re-sending the unchanged current value would turn a plain username edit
+  // into a 403 — and the app has no upload UI, so there is nothing else this
+  // field is ever for.
+  const body = {};
+  if (username != null) body.username = username;
+  if (profile_picture !== undefined) body.profile_picture = profile_picture;
+
+  const result = await api.put("/users/me", body);
 
   return result;
 }
@@ -30,6 +39,22 @@ export async function deleteMe() {
   const result = await api.delete("/users/me");
 
   return result;
+}
+
+/**
+ * Download everything the backend holds about this account.
+ *
+ * One synchronous request returning the whole thing as JSON: an account's data
+ * is small, and the alternative — a job writing a file somewhere and emailing a
+ * link — needs an email service the backend does not have.
+ *
+ * A section the server could not build comes back `null` and is named in
+ * `incomplete`, so a partial export is distinguishable from an empty one.
+ *
+ * @returns {Promise<object>}
+ */
+export async function exportMyData() {
+  return api.get("/users/me/export");
 }
 
 /**

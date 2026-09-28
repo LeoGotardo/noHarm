@@ -24,6 +24,9 @@ export function Settings({
   // to them anyway — this hides a door that is already locked.
   isModerator,
   onOpenModeration,
+  onOpenPrivacy,
+  onOpenCrisis,
+  onOpenAdmin,
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmText, setConfirmText] = useState("");
@@ -153,10 +156,15 @@ export function Settings({
         <div>
           <SectionLabel>Account</SectionLabel>
           <Card pad={8}>
-            {/* No destination screens exist yet — marked "Soon" instead of
-                looking tappable and doing nothing. */}
-            <LinkRow icon="lock" label="Privacy & safety" soon />
-            <LinkRow icon="heart" label="Crisis resources" soon />
+            <LinkRow
+              icon="lock"
+              label="Privacy & data"
+              onClick={onOpenPrivacy}
+            />
+            {/* The other half of the Terms' "NoHarm is not medical care"
+                clause. A disclaimer with nowhere to send anyone is only half
+                of the sentence. */}
+            <LinkRow icon="heart" label="Crisis resources" onClick={onOpenCrisis} />
             <LinkRow icon="logout" label="Log out" onClick={onLogout} last />
           </Card>
         </div>
@@ -169,6 +177,13 @@ export function Settings({
                 icon="flag"
                 label="Reports"
                 onClick={onOpenModeration}
+              />
+              {/* Same allowlist as the row above — one ADMIN_USER_IDS decides
+                  both, so one probe answers for both. */}
+              <LinkRow
+                icon="gear"
+                label="Admin board"
+                onClick={onOpenAdmin}
                 last
               />
             </Card>
@@ -196,7 +211,15 @@ export function Settings({
             padding: "8px 0 4px",
           }}
         >
-          NoHarm v1.0 · made with care
+          NoHarm v1.0 · made with ❤️ by{" "}
+          <a
+            href="https://leogotardo.vercel.app/"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: "var(--ink-2)", fontWeight: 600 }}
+          >
+            Leo Gotardo
+          </a>
         </div>
       </div>
 

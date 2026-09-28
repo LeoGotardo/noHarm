@@ -50,11 +50,17 @@ import { FriendSearch } from "./screens/friends/FriendSearch.jsx";
 import { FriendsScreen } from "./screens/friends/FriendsScreen.jsx";
 import { PublicProfile } from "./screens/friends/PublicProfile.jsx";
 import { CheckInModal } from "./screens/home/CheckInModal.jsx";
+import { AdminDashboard } from "./screens/admin/AdminDashboard.jsx";
 import { ModerationQueue } from "./screens/moderation/ModerationQueue.jsx";
 import { ReportReview } from "./screens/moderation/ReportReview.jsx";
 import { Dashboard } from "./screens/home/Dashboard.jsx";
 import { StreakHistory } from "./screens/home/StreakHistory.jsx";
 import { EditProfile } from "./screens/profile/EditProfile.jsx";
+import { ConsentGate } from "./screens/legal/ConsentGate.jsx";
+import { CrisisResources } from "./screens/legal/CrisisResources.jsx";
+import { LegalDocument } from "./screens/legal/LegalDocument.jsx";
+import { DataAndPrivacy } from "./screens/profile/DataAndPrivacy.jsx";
+import { ForcedRename } from "./screens/profile/ForcedRename.jsx";
 import { MyProfile } from "./screens/profile/MyProfile.jsx";
 import { Settings } from "./screens/profile/Settings.jsx";
 import { checkinReminder } from "./services/checkinReminder.js";
@@ -412,6 +418,7 @@ export default function App() {
     performCheckin,
     startFrom,
     loading: streakLoading,
+    refetch: refetchStreak,
   } = useStreak();
   const {
     friends: friendshipData,
@@ -790,6 +797,16 @@ export default function App() {
 
   // ── Screen routing ────────────────────────────────────────────────────────
   let body;
+  // Moderation reset this account's username and the app shows one screen
+  // until a new one is chosen. Read in several places below, so it is named
+  // once rather than spelled out at each of them.
+  const mustRename = phase === "app" && !!me?.must_change_username;
+  // Something was republished — or this account never answered — and the app
+  // shows the consent screen and nothing else until it does. Ahead of the
+  // rename below: picking a username is using the service, and the terms are
+  // what govern that.
+  const owesConsent =
+    phase === "app" && (me?.pending_consents?.length ?? 0) > 0;
   // Set below; read again by the screen-animation key, which must not treat a
   // pane swap as a page change.
   let chatPane = false;
@@ -824,6 +841,20 @@ export default function App() {
     );
   } else if (phase === "deleted") {
     body = <DeletedScreen onRestart={() => setPhase("splash")} />;
+  } else if (owesConsent) {
+    // Instead of the app rather than beside it, for the same reason the rename
+    // screen is: a prompt someone can dismiss leaves an account using the
+    // service under terms it never accepted, which is the state this exists to
+    // make impossible.
+    body = <ConsentGate onDone={refetchMe} />;
+  } else if (mustRename) {
+    // Moderation took the username away and the account owes a new one. This
+    // is not a nag beside the app, it is instead of it: a screen the user can
+    // dismiss leaves accounts sitting under a generated handle for ever, and
+    // the whole point of the sanction was that the old name stopped being in
+    // use. Everything else about the account is untouched, which is why this
+    // is a screen and not a sign-out.
+    body = <ForcedRename me={me} onDone={refetchMe} />;
   } else {
     const top = stack[stack.length - 1];
 
@@ -1051,8 +1082,43 @@ export default function App() {
               onNotifPrefChange={setNotifPref}
               isModerator={isModerator}
               onOpenModeration={() => push("moderation")}
+              onOpenAdmin={() => push("admin")}
+              onOpenCrisis={() => push("crisis")}
+              onOpenPrivacy={() => push("privacy")}
             />
           );
+          break;
+        case "privacy":
+          body = (
+            <DataAndPrivacy
+              onBack={pop}
+              onOpenDocument={(docKey, version) =>
+                push("legalDoc", { docKey, version })
+              }
+              onConsentChange={async () => {
+                // Withdrawing deletes every streak and giving it back starts
+                // from zero, so the home screen is wrong either way until both
+                // of these have run.
+                await refetchMe();
+                await refetchStreak();
+              }}
+            />
+          );
+          break;
+        case "legalDoc":
+          body = (
+            <LegalDocument
+              docKey={top.props.docKey}
+              version={top.props.version}
+              onBack={pop}
+            />
+          );
+          break;
+        case "crisis":
+          body = <CrisisResources onBack={pop} />;
+          break;
+        case "admin":
+          body = <AdminDashboard onBack={pop} />;
           break;
         case "moderation":
           body = (
@@ -1107,6 +1173,11 @@ export default function App() {
                 setStartDate(todayISO());
                 setStartOpen(true);
               }}
+              // The tracker is the only thing the health-data consent covers,
+              // and `POST /streaks/start` answers 403 without it. The server
+              // is the authority here, as it is for `pending_consents`.
+              healthConsent={me?.health_data_consent !== false}
+              onOpenPrivacy={() => push("privacy")}
             />
           );
           break;
@@ -1214,7 +1285,15 @@ export default function App() {
   // The bottom bar hides behind a pushed screen because a phone cannot show
   // both; the side rail stays, because a desktop can — and a rail that
   // disappeared every time you opened a chat would be worse than none.
-  const showNav = phase === "app" && (wide || stack.length === 0);
+  // Neither full-screen gate has navigation over it. Both are shown *instead*
+  // of the app, and a tab bar on top of one is a control that changes a screen
+  // nobody can see — on a desktop the rail sits beside a screen that is
+  // supposed to be the only thing there.
+  const showNav =
+    phase === "app" &&
+    !owesConsent &&
+    !mustRename &&
+    (wide || stack.length === 0);
   const showBanner = banner && phase === "app";
 
   return (
@@ -1281,8 +1360,13 @@ export default function App() {
           <NoticeSheet notice={notice} onAcknowledge={acknowledgeNotice} />
         )}
 
+        {/* Not while the rename screen is up. Asking "all clean today?" of
+            someone who cannot use the app until they rename themselves is the
+            same wrong order the notice already avoids. */}
         <CheckInModal
-          open={phase === "app" && !notice && needsCheckin}
+          open={
+            phase === "app" && !notice && !owesConsent && !mustRename && needsCheckin
+          }
           missedDays={missedDays}
           lastCheckinDate={lastCheckinDate}
           onConfirm={onCheckinConfirm}

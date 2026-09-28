@@ -56,6 +56,15 @@ silently tests that app instead. Point it elsewhere when that happens:
 
 Env vars: `VITE_API_URL` (REST base URL) and `VITE_SOCKET_URL` (Socket.IO URL, falls back to `VITE_API_URL`). Both are **relative and empty** for the web build — see Deployment below. Every `VITE_*` is inlined by Vite at build time, so changing one needs a rebuild, not a restart.
 
+Three more are **copy, not behaviour**, and the backend is the authority on all
+three: `VITE_MINIMUM_AGE` and `VITE_DELETION_GRACE_DAYS` mirror
+`MINIMUM_AGE_YEARS` and `ACCOUNT_DELETION_GRACE_DAYS`, and `VITE_SUPPORT_EMAIL`
+is the appeal address on a notice and on a refused sign-in. Each has a fallback
+in the code, so a missing one does not break the build — it ships a screen
+stating a number the server does not enforce. See `.env.example` for the full
+list; anything added there has to be added to `docker/Dockerfile`,
+`docker/deploy-host.sh` and `.github/workflows/deploy.yml` as well.
+
 `npm run dev`'s proxy in `vite.config.js` mirrors the nginx routes (`/api` stripped, `/ws` passed through), which is what lets the app use the same relative URLs in dev and in production.
 
 ## Architecture
@@ -94,13 +103,14 @@ services/ import from connectors/
 | `src/app.jsx` | Root component: nav state machine, theme wiring, screen routing, global state |
 | `src/main.jsx` | Mounts `<App>`, imports `theme.css` |
 | `src/theme.css` | CSS custom properties for all four theme variants, the layout tokens the breakpoint drives, and the hover/focus rules. Theme token blocks are attribute-only selectors so `<html>` resolves them too — see Theming and Responsive layout |
-| `src/ui/index.js` | Low-level primitives: `Icon`, `Avatar`/`OnlineDot`, `Btn`, `Card`, `Field`, `Skeleton`, `GeoBackground`, `Divider`, `SectionLabel`, plus `cx` helper, the tap guards from `guards.js` (`useGuardedCallback`, `useDebouncedValue`) and `useWide` from `useBreakpoint.js` (see Responsive layout) |
-| `src/components/index.js` | Composite widgets: `Screen`, `Header`, `Banner`, `Toast`, `BottomSheet`, `TabBar`/`SideNav`, `SplitView`/`NoSelection`, `StreakRing`/`BadgeMedallion`, `EmptyState`, `Logo`, `GoogleButton`, `PersonRow`, `SegTabs`, plus format helpers from `utils.js` (`hashHue`, `fmtTime`, `fmtLongDate`, `fmtRelDate`, `fmtShortDay`) |
+| `src/ui/index.js` | Low-level primitives: `Icon`, `Avatar`/`OnlineDot`, `Btn`, `Card`, `Checkbox`, `Field`, `Skeleton`, `GeoBackground`, `Divider`, `SectionLabel`, plus `cx` helper, the tap guards from `guards.js` (`useGuardedCallback`, `useDebouncedValue`) and `useWide` from `useBreakpoint.js` (see Responsive layout) |
+| `src/components/index.js` | Composite widgets: `Screen`, `Header`, `Banner`, `Toast`, `BottomSheet`, `TabBar`/`SideNav`, `SplitView`/`NoSelection`, `StreakRing`/`BadgeMedallion`, `EmptyState`, `Mark`/`Wordmark`/`Logo`, `GoogleButton`, `PersonRow`, `SegTabs`, plus format helpers from `utils.js` (`hashHue`, `fmtTime`, `fmtLongDate`, `fmtRelDate`, `fmtShortDay`) |
 | `src/connectors/` | Transport layer (see diagram above) |
-| `src/services/api/` | `auth`, `badge`, `chat`, `friendship`, `message`, `moderation`, `notice`, `report`, `streak`, `user`, `device` |
+| `src/services/api/` | `auth`, `badge`, `chat`, `consent`, `friendship`, `message`, `moderation`, `notice`, `report`, `streak`, `user`, `device` |
 | `src/services/ws/` | `chat`, `connection`, `friendship`, `presence` |
 | `src/services/notifications.js` | Browser Notification API wrapper (`notif.send/requestPermission/granted`) |
 | `src/services/push.js` | Capacitor FCM wrapper (`push.register/onForeground/onTap`) |
+| `src/services/download.js` | `downloadJson` / `copyText` / `isNativeApp`. The web build saves a file; the native shell has no download manager and no Filesystem plugin, so it reports `{ok:false}` and `DataAndPrivacy` shows the JSON to copy instead of failing silently |
 | `src/services/checkinReminder.js` | Capacitor LocalNotifications — schedules daily 9 PM reminder (id 1001) |
 | `src/store/cache.js` | localStorage cache helpers (`cacheRead/cacheWrite/cacheClear/cacheValid`), prefix `nh_cache_` |
 | `src/store/useBadges.js` | Fetches badges; 1 h cache; normalises `items` → `badges` |
@@ -118,8 +128,9 @@ services/ import from connectors/
 | `src/screens/friends/` | `FriendsScreen`, `FriendRequests`, `FriendSearch`, `PublicProfile`, `ReportSheet` |
 | `src/screens/chat/` | `ChatList`, `ChatThread` |
 | `src/screens/badges/` | `BadgesScreen`, `BadgeDetail` |
-| `src/screens/profile/` | `MyProfile`, `EditProfile`, `Settings` |
-| `src/screens/moderation/` | `ModerationQueue`, `ReportReview`, `SuspendSheet`, `WarnSheet` — admin only; the Settings row that opens them is absent for everyone else |
+| `src/screens/profile/` | `MyProfile`, `EditProfile`, `Settings`, `DataAndPrivacy`, `ForcedRename` (shown instead of the app while a username reset is outstanding) |
+| `src/screens/legal/` | `legalContent.js` (the documents' text — **placeholders today**, and the only place to edit them), `LegalDocument` (renders one, reached from Settings, the register screen and the gate — all three show the same page), `ConsentGate` (shown instead of the app while a consent is outstanding), `CrisisResources` + `crisisResources.js` (the numbers the "not medical care" clause points at — the one list in this folder that must be verified, not drafted) |
+| `src/screens/moderation/` | `ModerationQueue`, `ReportReview`, `SuspendSheet`, `WarnSheet`, `ProfileSanctionSheet` — admin only; the Settings row that opens them is absent for everyone else |
 | `src/dev/TweaksPanel.jsx` | Dev overlay: `useTweaks`, `TweaksPanel`, `TweakSection`, `TweakRadio`, `TweakToggle` |
 
 ## Tap guards
@@ -211,7 +222,15 @@ Only three navigation primitives: `push(screen, props)` / `pop()` / `resetTo(tab
 
 Overlay screens today: `streakHistory`, `friendRequests`, `friendSearch`,
 `publicProfile`, `chatThread`, `badgeDetail`, `editProfile`, `settings`,
-`moderation`, `reportReview`.
+`privacy`, `legalDoc`, `crisis`, `moderation`, `reportReview`.
+
+**Two screens are shown *instead of* the app, not pushed over it**, checked in
+`app.jsx` before the stack is read. `ConsentGate` when `me.pending_consents` is
+non-empty, then `ForcedRename` when `me.must_change_username` is set — consent
+first, because picking a username is using the service and the terms are what
+govern that. Both are deliberately inescapable: a prompt someone can dismiss is
+one they dismiss, and the state it leaves behind is the state each exists to
+prevent.
 
 ## Responsive layout
 
@@ -243,10 +262,16 @@ What the breakpoint actually changes:
 | `TabBar` pinned to the bottom, hidden behind a pushed screen | `SideNav` down the left edge, **kept** while a screen is pushed — a desktop has the room, and a rail that vanished on every chat would be worse than none |
 | Screens fill the 480px shell | `<Screen>` centres its children in a `--content-max` column; `ChatThread` builds its own frame and centres each of its three bands itself |
 | `BottomSheet` slides up, with a drag handle | the same component renders a centred dialog (`role="dialog"`, 460px, no handle) |
+| Auth fills the screen, button under the thumb | `<Screen panel>` draws the column as a centred card (`.nh-panel`), and `.nh-thumb-gap` collapses — the gap exists to reach a thumb, and a mouse has none |
 | Scrollbars hidden | thin scrollbar returns — with a mouse it is the only sign the page continues |
 | Chat list, then the transcript over it | `SplitView`: list and transcript together, `ChatRow` marks the open one |
 
-Two details that are easy to get wrong:
+Three details that are easy to get wrong:
+
+- **The auth panel centres with `margin: auto`, never `justify-content:
+  center`.** A centred flex line clips its own overflow at the top, and the
+  register form is taller than a 900px window — so the header would become
+  unreachable on exactly the screen this layout is for.
 
 - **`--nav-w` is a width, `--nav-offset` is an occupancy.** `--nav-w` stays
   240px on a desktop whether or not a rail is drawn; `app.jsx` sets
@@ -276,6 +301,101 @@ size; `desktop` re-runs the navigation, chat, friends and profile specs at
 breakpoint. Test helpers address the nav badge by `.nh-tabbadge` and the back
 arrow inside `#nh-stage`, because the bottom bar and the side rail nest them
 differently.
+
+## The mark
+
+`src/components/Logo.jsx` is the one place the logo's geometry is written down —
+`Mark` (the symbol), `Wordmark` (the name) and `Logo` (both, stacked). The ring
+is the streak in progress and the check is today, done, which is why the arc is
+**open**: a closed circle would say the work is over.
+
+Two variants, and they differ in colour and ground only — **never in shape**:
+
+| Variant | Where | Why it differs |
+|---------|-------|----------------|
+| `plain` | splash, side rail, auth, gates | track at 0.22 opacity, which is what reads on a page background |
+| `tile` | app icon, the browser tab, any ground the mark does not control | mark reversed in `--on-primary` on a `--primary` square, radius 22.5% of the side; the track goes to 0.32 or it disappears against the fill |
+
+There was a third, `mini`, which dropped the ring below ~32px where its gap
+closes up. It is gone, and `public/favicon.svg` with it: **the tab points at
+`icon.svg` like everything else**. The simplification read better at 16px and
+cost more than it bought — the tab is where the icon is seen most often, and a
+logo that changes shape by size is two logos.
+
+The exported masters live beside the generated files, all in `public/` because
+that is the only directory Vite serves — a `static/` folder next to it ships
+nothing:
+
+| File | What it is |
+|------|------------|
+| `noharm-mark.svg` | the mark alone, the master these were all cut from |
+| `noharm-lockup.svg` | mark + wordmark, horizontal |
+| `noharm-lockup.png` | the same, rasterised **with Figtree applied** |
+| `icon.svg` · `icon-192.png` · `icon-512.png` · `apple-touch-icon.png` | the tile — the tab, the manifest and the home screen all point here |
+| `og-image.png` | the link preview |
+
+**The lockup SVG sets the wordmark in `<text>`.** Anywhere Figtree is not
+loaded — a preview renderer, an app store listing, an email — it falls back to
+Arial and draws a visibly different logo. That is why `og:image` points at the
+PNG and not at the SVG, and why the PNG exists at all.
+
+The inline lockup at the top of `public/terms.html` / `public/privacy.html` is a
+third copy on purpose: those pages carry no stylesheet and make no network
+request, so an `<img>` to the icon file would break the guarantee that they
+render on a reviewer's machine with nothing cached.
+
+The PNGs are rasterised **through Chromium**, not ImageMagick: `convert` drops
+`stroke-dasharray`, which closes the ring and quietly ships a different logo.
+
+Colours in the standalone files are hex, not the app's `oklch` tokens: a tab
+icon and an app-store page are rendered by tooling far older than the app's
+browsers, and a colour they cannot parse comes out black.
+
+`tests/navigation.spec.js` guards all of it — every icon and logo file the head
+and the manifest name answers 200, `icon.svg` still carries both circles (a
+re-simplified tab icon fails), `/favicon.svg` is asserted to be **gone**, the
+check path appears in the app, in all three SVGs and in both public pages (so a
+logo edited in one place only fails), and `og:image` is asserted not to be an
+SVG.
+
+## Charts
+
+`src/screens/admin/` holds two: `DayChart` (daily counts over a window) and
+`StateBars` (the three ways an account stops being in use). Five decisions are
+worth keeping:
+
+- **Columns, not an area or a line.** A day's sign-ups are discrete events. A
+  line drawn between two days claims the value passed through everything
+  between them, which for `0, 0, 3, 0` is a claim the data does not make.
+- **Two charts, never one with two y-axes.** Sign-ups and reports differ by an
+  order of magnitude; a second scale invents a correlation that is not in the
+  data. Separate plots, one axis each.
+- **Colour is `--primary`**, the theme's own hue, so the chart follows all four
+  themes with no second palette to keep in step. It clears 3:1 against the card
+  surface in every one of them — the check that applies to a lone series. The
+  chroma-floor and lightness-band checks are scoped to *categorical* palettes,
+  where several hues have to stay apart from one another and from gray; there
+  is one hue here.
+- **Every chart has a table view**, and only the busiest day is labelled. A
+  number on every column goes unread, and identity never rests on being able to
+  see the shape.
+- **`StateBars` gives all three bars one hue.** Disabled, deleted and banned are
+  nominal categories with no order between them; colouring them
+  darker-where-bigger would encode bar length twice and burn the only free
+  channel on what the chart already shows. Three bars is few enough to
+  direct-label every value, which keeps the numbers reachable without hovering.
+
+The period filter is **one row above the charts**, presets only (7 / 30 / 90) —
+nobody reaches for "the last 37 days" — and it scopes everything below it. A
+change refetches while the charts **hold their previous render at 40% opacity**:
+no skeleton, no layout jump, no flash. The server cache is keyed by period, or
+switching the range would hand back the previous window's numbers under the new
+label.
+
+The series come from the backend with **every day present, zeros included**
+(`AdminService._compute` → `countCreatedPerDay`). Filling the gaps server-side
+keeps one description of the window; a client that filled them would be a second
+place for the window length to drift.
 
 ## Theming
 
@@ -341,6 +461,33 @@ See `noHarmBack/docs/FRONTEND_DESIGN_BRIEF.md` for full API shapes. Key invarian
   server-side by `startStreak` from `start_at`, so backfilling earns nothing
   either. `src/store/useStreak.js` sends **one** conditional check-in;
   `tests/streak.spec.js` covers a 30-day backdate to keep it that way.
+- **Consent gates the app, and health-data consent gates the tracker.**
+  Registration sends a birth date and three separate answers
+  (`acceptedTerms`, `acceptedPrivacy`, `healthDataConsent`); the backend refuses
+  without the first two and below `MINIMUM_AGE_YEARS`. The third is a real
+  choice: declining creates a working account with the streak tracker off, and
+  `POST /streaks/start` answers 403 `HEALTH_CONSENT_REQUIRED` until it is given.
+  Withdrawing it (Settings → Privacy & data, or the gate) **deletes every
+  streak**, history and personal record included, with no undo — so both places
+  confirm first, and `app.jsx` refetches the profile *and* the streak
+  afterwards.
+- **A consent is answered, never toggled.** The register screen and the gate use
+  `Checkbox`, not `ToggleRow`: a switch is a setting you change, and a switch
+  that happens to be on is not something anyone agreed to.
+- **The app never names a document version.** `POST /users/me/consents` sends
+  document keys only; the server stamps whatever revision is live. The version
+  shown on `LegalDocument` comes from `GET /users/me/consents` → `versions`,
+  never from `legalContent.js` — two local sources of "which revision is this"
+  is how an app shows one text and records agreement to another.
+- **The documents live in two places and must be kept in step**:
+  `src/screens/legal/legalContent.js` for the in-app screens, and
+  `public/terms.html` / `public/privacy.html` for the copies served without a
+  login. The second pair is not optional — an app store review needs a privacy
+  policy at a URL anyone can open, and nginx (`app_locations.conf`) rewrites
+  `/terms` and `/privacy` to them. Both are **placeholder text today**;
+  publishing means writing both, clearing `draft: true`, and bumping the
+  matching version in the backend config, which is what asks every existing
+  account to accept it.
 - **Friendship status codes**: 2=deleted, 3=blocked, 4=pending, 5=accepted, 6=rejected.
 - **Reporting is private and inert.** `POST /reports/{userId}` takes one of six
   reasons (`services/api/report.js` holds the list and its copy) plus up to 1000
@@ -374,6 +521,33 @@ See `noHarmBack/docs/FRONTEND_DESIGN_BRIEF.md` for full API shapes. Key invarian
   is never reading the same conversation; reading the evidence is logged
   against the moderator. Suspending and closing are two buttons because they
   are two decisions — closing a report never touches an account.
+- **Two reports are about the profile, not the conduct.** An impersonating
+  username and a picture that does not belong beside a recovery conversation
+  are not answered by the warn/suspend ladder: a ban is far too much for a
+  handle and a warning is far too little, because it leaves the thing exactly
+  where it is. `ReportReview` offers two more actions for `impersonation` and
+  `inappropriate` only — resetting the username and removing the picture — and
+  draws the captured profile as a profile, the photo and the name at a size a
+  moderator can actually judge, rather than as "Picture: set". A username reset
+  renames the account **immediately** to `user_xxxxxxxx`; `must_change_username`
+  then makes `app.jsx` show `ForcedRename` instead of the app until a real name
+  is chosen, with no tab bar, no side rail and no check-in modal. Choosing one
+  is the only thing that lifts it. A blocked picture is refused by `PUT
+  /users/me` — which is why `putMe` sends only the fields that changed — and
+  cannot come back from the Google account at the next sign-in either. Neither
+  sanction bans, limits or touches the streak, the friends or the history.
+- **The queue names the reporter; the reporter's own list never does.**
+  `reporter_username` is on `ModeratedReportResponse` and nowhere else. The
+  promise of anonymity is owed to the *reported* user; a moderator cannot weigh
+  a complaint without knowing whether the same person filed the last four, and
+  a uid does not tell them that.
+- **Withdrawing health consent turns the tracker off, not the account.** The
+  dashboard's empty state reads `me.health_data_consent`: with it withdrawn it
+  says "Tracking is off" and offers Privacy & data instead of "Start my streak",
+  which could only ever answer 403 `HEALTH_CONSENT_REQUIRED`. The way back is
+  that screen and not a shortcut here — a second consent prompt is a quieter
+  version of the same question. The copy also says the deleted streaks are not
+  coming back, because they are not.
 - **Moderation talks back.** `useNotices` fetches what moderation has said to
   this account and `NoticeSheet` shows it over everything on open — **before
   the check-in modal**, because being asked "all clean today?" with an unread

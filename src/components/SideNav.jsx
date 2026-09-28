@@ -1,6 +1,6 @@
 import { Icon } from "@ui/Icon.jsx";
 import { useGuardedCallback } from "@ui/guards.js";
-import { Logo } from "./Logo.jsx";
+import { Mark, Wordmark } from "./Logo.jsx";
 import { TABS } from "./TabBar.jsx";
 
 /**
@@ -42,18 +42,8 @@ export function SideNav({ active, onChange, badges = {} }) {
           padding: "0 8px 18px",
         }}
       >
-        <Logo size={32} />
-        <div
-          style={{
-            fontFamily: "var(--font-display)",
-            fontWeight: "var(--display-weight)",
-            fontSize: 20,
-            color: "var(--ink)",
-            letterSpacing: -0.4,
-          }}
-        >
-          No<span style={{ color: "var(--primary)" }}>Harm</span>
-        </div>
+        <Mark size={32} title="NoHarm" />
+        <Wordmark size={20} />
       </div>
 
       {TABS.map((t) => (

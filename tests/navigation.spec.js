@@ -26,6 +26,96 @@ async function openTweaks(page) {
   await expect(page.locator(".twk-panel")).toBeVisible();
 }
 
+test.describe("Brand", () => {
+  test("The icon set is wired, and the tab uses the same image as the rest", async ({
+    page,
+  }) => {
+    await page.goto("/");
+
+    const icons = await page.evaluate(() => ({
+      favicon: document.querySelector('link[rel="icon"]')?.getAttribute("href"),
+      apple: document.querySelector('link[rel="apple-touch-icon"]')?.getAttribute("href"),
+      manifest: document.querySelector('link[rel="manifest"]')?.getAttribute("href"),
+      themeColors: [...document.querySelectorAll('meta[name="theme-color"]')].length,
+    }));
+    expect(icons).toEqual({
+      favicon: "/icon.svg",
+      apple: "/apple-touch-icon.png",
+      manifest: "/manifest.webmanifest",
+      themeColors: 2,
+    });
+
+    // Every file the manifest and the head point at has to exist: a 404 here
+    // is an app that installs with a blank tile and nothing says so.
+    for (const path of [
+      "/icon.svg",
+      "/icon-192.png",
+      "/icon-512.png",
+      "/apple-touch-icon.png",
+      "/manifest.webmanifest",
+      "/noharm-mark.svg",
+      "/noharm-lockup.svg",
+      "/noharm-lockup.png",
+      "/og-image.png",
+    ]) {
+      const res = await page.request.get(path);
+      expect(res.status(), path).toBe(200);
+    }
+
+    // One image everywhere, the tab included. There used to be a second file
+    // that dropped the ring for small sizes; a logo that changes shape by size
+    // is two logos, so the tab gets the same drawing as the home screen.
+    const icon = await (await page.request.get("/icon.svg")).text();
+    expect(icon.match(/<circle/g)).toHaveLength(2);
+
+    // And the simplified file is really gone. Not a 404 check: both the dev
+    // server and nginx fall back to index.html for an unknown path, so the
+    // question is whether anything still answers with an image.
+    const stale = await page.request.get("/favicon.svg");
+    expect(stale.headers()["content-type"]).not.toContain("svg");
+  });
+
+  test("One drawing: the app, the icon file and the public pages agree", async ({
+    page,
+  }) => {
+    // The check path is the part of the mark that survives every variant, so
+    // it is the cheap way to catch a logo that was edited in one place only.
+    const CHECK = "M32 52 L44 64 L70 34";
+
+    await page.goto("/");
+    await expect(page.locator(`svg path[d="${CHECK}"]`).first()).toBeVisible();
+
+    for (const path of [
+      "/icon.svg",
+      "/noharm-mark.svg",
+      "/noharm-lockup.svg",
+      "/terms.html",
+      "/privacy.html",
+    ]) {
+      const body = await (await page.request.get(path)).text();
+      expect(body, path).toContain(CHECK);
+    }
+  });
+
+  test("A shared link previews as something", async ({ page }) => {
+    await page.goto("/");
+    const og = await page.evaluate(() =>
+      Object.fromEntries(
+        [...document.querySelectorAll('meta[property^="og:"], meta[name^="twitter:"]')].map(
+          (m) => [m.getAttribute("property") ?? m.getAttribute("name"), m.content],
+        ),
+      ),
+    );
+    expect(og["og:image"]).toBe("/og-image.png");
+    expect(og["og:title"]).toBe("NoHarm");
+    expect(og["twitter:card"]).toBe("summary_large_image");
+
+    // A PNG, not the lockup SVG: that file sets the wordmark in <text>, and no
+    // preview renderer loads Figtree — it would draw Arial and a different logo.
+    expect(og["og:image"]).not.toMatch(/\.svg$/);
+  });
+});
+
 test.describe("Navigation / Tabs", () => {
   test("TabBar — switches between the five tabs", async ({ appA, page }) => {
     await expect(page.getByText("Begin your journey")).toBeVisible();

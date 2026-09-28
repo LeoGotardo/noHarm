@@ -4,6 +4,38 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>NoHarm</title>
+
+  <!--
+    One icon, everywhere: the tab, the manifest and the home screen all point at
+    the same drawing. There was a second, simplified file for the tab — the
+    check without its ring, which reads more clearly at 16 px — and it is gone
+    because a logo that changes shape by size is two logos.
+  -->
+  <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+
+  <!-- The browser chrome takes the page background, not the brand green: a
+       green bar over a sage app is a seam, and in dark mode it glows. -->
+  <meta name="theme-color" content="#f3f7f2" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#131c17" media="(prefers-color-scheme: dark)" />
+  <meta name="description" content="One clean day at a time. Track your streak, lean on friends, celebrate every milestone." />
+
+  <!--
+    Link previews. A shared link showed nothing at all before this. The image
+    is a PNG and not the lockup SVG on purpose: that file sets the wordmark in
+    `<text>`, so anywhere Figtree is not loaded — which is every preview
+    renderer — it falls back to Arial and draws a different logo.
+  -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="NoHarm" />
+  <meta property="og:title" content="NoHarm" />
+  <meta property="og:description" content="One clean day at a time. Track your streak, lean on friends, celebrate every milestone." />
+  <meta property="og:image" content="/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900&family=Manrope:wght@400;500;600;700;800&family=Spectral:ital,wght@0,400;0,500;0,600;0,700;0,800;1,500&display=swap" rel="stylesheet" />

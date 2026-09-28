@@ -24,6 +24,12 @@ export function Screen({
   // Forms read better narrower than a list does. `--form-max` is 100% below
   // the breakpoint, so this changes nothing on a phone.
   maxWidth = "var(--content-max)",
+  // Draw the column as a card, centred in the window. Only past the
+  // breakpoint: on a phone the screen *is* the card, and a border around the
+  // whole viewport is a border around nothing. For auth, where a 440px column
+  // floating against 1000px of empty background reads as a phone screenshot
+  // rather than a page.
+  panel,
 }) {
   return (
     <div
@@ -51,6 +57,7 @@ export function Screen({
         }}
       >
         <div
+          className={panel ? "nh-panel" : undefined}
           style={{
             width: "100%",
             maxWidth,

@@ -63,13 +63,26 @@ export async function reactivate(idToken) {
  * Register via Google popup, then create the account from the verified token.
  * Stores access + refresh tokens in localStorage on success.
  *
- * Only the username comes from this app. Email, profile picture and the
- * email-verified flag are read from the token's claims server-side: sending
- * them would let a patched client mark itself verified.
+ * Only the username, the declared birth date and the three consent answers
+ * come from this app. Email, profile picture and the email-verified flag are
+ * read from the token's claims server-side: sending them would let a patched
+ * client mark itself verified.
  *
+ * The consents are three separate answers rather than one. Terms and privacy
+ * are a condition of holding an account and the backend refuses without both;
+ * `healthDataConsent` covers the streak tracker alone — declining it creates a
+ * working account with tracking off, and it can be given or withdrawn later.
+ *
+ * No version is sent. The backend stamps whichever revision is live when it
+ * writes the record, so a client cannot claim agreement to a text it never
+ * displayed.
+ *
+ * @param {string} username
+ * @param {{ birthDate: string, acceptedTerms: boolean, acceptedPrivacy: boolean, healthDataConsent: boolean }} consent
+ *        `birthDate` as `YYYY-MM-DD`.
  * @returns {Promise<object | { success: false, errorCode: string, errorMessage: string }>}
  */
-export async function signUp(username) {
+export async function signUp(username, consent) {
   const userData = await fbLogin();
   if (!userData.success) return userData;
 
@@ -78,6 +91,10 @@ export async function signUp(username) {
     result = await api.post("/auth/register", {
       idToken: userData.idToken,
       username,
+      birthDate: consent.birthDate,
+      acceptedTerms: consent.acceptedTerms,
+      acceptedPrivacy: consent.acceptedPrivacy,
+      healthDataConsent: consent.healthDataConsent,
     });
   } catch (e) {
     // Signing up with an account that is mid-deletion is the same intent as

@@ -107,6 +107,21 @@ export const api = {
 };
 
 let seq = 0;
+/**
+ * What registration now needs besides a token and a username.
+ *
+ * A fixed adult birth date, and the two binding consents — the backend refuses
+ * without either, which is the point of both. `healthDataConsent` is true
+ * because every suite that touches a streak needs it: `POST /streaks/start`
+ * answers 403 HEALTH_CONSENT_REQUIRED without it.
+ */
+const REGISTRATION_CONSENT = {
+  birthDate: "1990-06-15",
+  acceptedTerms: true,
+  acceptedPrivacy: true,
+  healthDataConsent: true,
+};
+
 /** Collision-proof identifier for a throwaway account. */
 function newUid(tag) {
   seq += 1;
@@ -127,6 +142,7 @@ export async function createUser(tag = "u") {
     body: {
       idToken: fakeIdToken(uid, email),
       username: uid,
+      ...REGISTRATION_CONSENT,
     },
   });
   return {
@@ -314,7 +330,9 @@ async function _moderator(uid, username) {
   const idToken = fakeIdToken(uid, email);
   let res;
   try {
-    res = await api.post("/auth/register", { body: { idToken, username } });
+    res = await api.post("/auth/register", {
+      body: { idToken, username, ...REGISTRATION_CONSENT },
+    });
   } catch {
     // Already registered — by a previous run, or by a sibling worker moments
     // ago. Logging in is the same account either way.

@@ -110,6 +110,11 @@ export function Dashboard({
   onOpenHistory,
   onProfile,
   onStartStreak,
+  // False once the account withdrew consent to hold recovery data. The tracker
+  // is the only thing that consent covers, so this changes the empty state and
+  // nothing else — the chat, the friends and the badges are untouched.
+  healthConsent = true,
+  onOpenPrivacy,
   pulseKey,
 }) {
   const openProfile = useGuardedCallback(onProfile);
@@ -166,14 +171,21 @@ export function Dashboard({
                 width: 72,
                 height: 72,
                 borderRadius: "50%",
-                background: "var(--primary-soft)",
+                background: healthConsent
+                  ? "var(--primary-soft)"
+                  : "var(--surface-2)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 margin: "0 auto 18px",
               }}
             >
-              <Icon name="flame" size={34} color="var(--primary)" sw={1.4} />
+              <Icon
+                name={healthConsent ? "flame" : "lock"}
+                size={34}
+                color={healthConsent ? "var(--primary)" : "var(--ink-3)"}
+                sw={1.4}
+              />
             </div>
             <div
               style={{
@@ -184,7 +196,7 @@ export function Dashboard({
                 lineHeight: 1.2,
               }}
             >
-              Begin your journey
+              {healthConsent ? "Begin your journey" : "Tracking is off"}
             </div>
             <div
               style={{
@@ -195,19 +207,52 @@ export function Dashboard({
                 padding: "0 12px",
               }}
             >
-              Every recovery starts with a single day. When did yours begin?
+              {healthConsent
+                ? "Every recovery starts with a single day. When did yours begin?"
+                : "You asked us to stop keeping your recovery data, so there is nothing to count. Everything else about your account still works."}
             </div>
           </div>
           <div style={{ width: "100%" }}>
-            <Btn
-              kind="primary"
-              size="lg"
-              full
-              icon="flame"
-              onClick={onStartStreak}
-            >
-              Start my streak
-            </Btn>
+            {healthConsent ? (
+              <Btn
+                kind="primary"
+                size="lg"
+                full
+                icon="flame"
+                onClick={onStartStreak}
+              >
+                Start my streak
+              </Btn>
+            ) : (
+              <>
+                {/* Not a second consent flow: the one in Privacy & data is the
+                    path that already explains what is being agreed to, and a
+                    shortcut here would be a quieter version of the same
+                    question. */}
+                <Btn
+                  kind="outline"
+                  size="lg"
+                  full
+                  icon="lock"
+                  onClick={onOpenPrivacy}
+                >
+                  Turn tracking back on
+                </Btn>
+                <div
+                  style={{
+                    fontSize: 12.5,
+                    color: "var(--ink-3)",
+                    textAlign: "center",
+                    lineHeight: 1.55,
+                    padding: "12px 8px 0",
+                  }}
+                >
+                  Your previous streaks were deleted when you withdrew, and they
+                  cannot be brought back. A new count starts from the day you
+                  choose.
+                </div>
+              </>
+            )}
           </div>
         </div>
       ) : (

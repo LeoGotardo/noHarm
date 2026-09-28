@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 120" width="840" height="240">
+  <g transform="translate(4 10)">
+    <circle cx="50" cy="50" r="42" fill="none" stroke="#558969" stroke-width="6" opacity="0.22" />
+    <circle cx="50" cy="50" r="42" fill="none" stroke="#558969" stroke-width="7" stroke-linecap="round"
+      stroke-dasharray="264" stroke-dashoffset="79" transform="rotate(-90 50 50)" />
+    <path d="M32 52 L44 64 L70 34" fill="none" stroke="#558969" stroke-width="8"
+      stroke-linecap="round" stroke-linejoin="round" />
+  </g>
+  <text x="118" y="72" font-family="Figtree, 'Helvetica Neue', Arial, sans-serif" font-weight="800"
+    font-size="52" letter-spacing="-1.5" fill="#253129">No<tspan fill="#558969">Harm</tspan></text>
+</svg>

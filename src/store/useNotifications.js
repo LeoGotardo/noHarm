@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { registerDeviceToken } from "../services/api/device.js";
 import { notif } from "../services/notifications.js";
 import { push } from "../services/push.js";
+import { onAdminAlert } from "../services/ws/admin.js";
 import { onMessage } from "../services/ws/chat.js";
 import { onFriendAccept, onFriendRequest } from "../services/ws/friendship.js";
 
@@ -14,6 +15,9 @@ const ID = {
   message: (chatId) => 2000 + (Math.abs(hashStr(chatId)) % 999),
   friendRequest: 3001,
   friendAccept: 3002,
+  // 4000s are the system's own alerts, kept clear of the 2000s and 3000s so a
+  // scheduled reminder can never replace an SSH alert by collision.
+  admin: 4001,
 };
 
 function hashStr(str = "") {
@@ -99,6 +103,19 @@ export function useNotifications(meId, prefs = {}) {
               "Your request was accepted",
               "friend-accept",
             );
+          }),
+
+          // System alerts, for accounts on the backend's admin allowlist. No
+          // check here: the backend emits only to those uids' rooms, so an
+          // ordinary account simply never receives one.
+          //
+          // Deliberately not behind the notification preferences. Those are a
+          // user choosing how much this app interrupts them about friends and
+          // messages; an SSH login to the server is not that, and an admin who
+          // muted message notifications has not asked to stop hearing about it.
+          onAdminAlert(({ title, body }) => {
+            if (!title) return;
+            send(ID.admin, title, body ?? "", "admin-alert");
           }),
         );
       } catch {}

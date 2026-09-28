@@ -21,12 +21,16 @@ export function EditProfile({ me, onBack, onSave }) {
     setSaving(true);
     setError(null);
     try {
-      await putMe(username.trim(), me?.profile_picture ?? null);
+      // Username only: the picture is not editable here, and sending it back
+      // unchanged is refused outright once moderation has blocked it.
+      await putMe(username.trim());
       onSave();
     } catch (e) {
       if (e?.status === 409) setError("That username is already taken.");
       else if (e?.status === 422)
         setError("Invalid username. Use only letters, numbers, _ or -.");
+      else if (e?.status === 403)
+        setError(errorMessage(e, "Moderation has blocked this change."));
       else setError(errorMessage(e, "Could not save. Please try again."));
     } finally {
       setSaving(false);
