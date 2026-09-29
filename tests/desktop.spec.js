@@ -58,8 +58,7 @@ test.describe("Desktop shell", () => {
   });
 
   test("Auth is a centred card, not a phone column on a wall", async ({ page }) => {
-    await page.goto("/");
-    await page.getByText("I already have an account").click();
+    await page.goto("/?start=login");
     await expect(page.getByText("Good to see you again")).toBeVisible();
 
     const panel = page.locator(".nh-panel");
@@ -77,8 +76,7 @@ test.describe("Desktop shell", () => {
   test("The register form is taller than the window and still reaches its top", async ({
     page,
   }) => {
-    await page.goto("/");
-    await page.getByText("Get started").click();
+    await page.goto("/?start=register");
     await expect(page.getByText("Create account")).toBeVisible();
 
     // `margin: auto` rather than `justify-content: center`, because a centred

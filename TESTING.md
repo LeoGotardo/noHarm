@@ -225,6 +225,20 @@ allowlist decides both, so `useModerator`'s single probe answers for both rows.
       login on the box _(manual)_
 - [ ] **Pagination past one page** — needs more than 25 accounts _(manual)_
 
+## Public home page
+
+- [x] 🤖 **A visitor lands on it** — `/` with no session goes to `/about`; its
+      buttons open Register and Login, and back from either returns to it
+- [x] 🤖 **A session never sees it** — `/` with a token goes straight into the app
+- [x] 🤖 **Logout, "Start over" and a lost session return to it**
+- [ ] **Never in the installed app** — the Android/iOS build opens on the
+      splash, not the landing _(needs a device — manual)_
+- [x] 🤖 **`/about` needs no login** — names the app, links the Privacy Policy
+      and the Terms, and loads nothing from another origin
+- [x] 🤖 **Same mark** — the check path in `about.html` matches the app's
+- [ ] **Registered with Google** — `https://noharm.site/about` is the "App home
+      page" on the OAuth consent screen _(manual)_
+
 ## Legal & consent
 
 The gate decides whether an account gets into the app at all, and one of its

@@ -28,8 +28,24 @@ export default defineConfig(({ mode }) => {
     })
   }
 
+  // Mirrors the `location = /about`, `/terms` and `/privacy` blocks in
+  // app_locations.conf: nginx serves those paths from the static pages in
+  // public/, and without the same rewrite here `/about` falls through to the
+  // SPA — which, for a visitor with no session, sends them straight back to
+  // `/about`. Same contract as the proxy below, written twice.
+  const publicPages = (req, _res, next) => {
+    const m = req.url && req.url.match(/^\/(about|terms|privacy)(\?.*)?$/)
+    if (m) req.url = `/${m[1]}.html${m[2] ?? ''}`
+    next()
+  }
+  const publicPagesPlugin = {
+    name: 'noharm-public-pages',
+    configureServer: (server) => { server.middlewares.use(publicPages) },
+    configurePreviewServer: (server) => { server.middlewares.use(publicPages) },
+  }
+
   return {
-    plugins: [react()],
+    plugins: [react(), publicPagesPlugin],
     resolve: {
       alias: {
         '@components': path.resolve(__dirname, 'src/components'),

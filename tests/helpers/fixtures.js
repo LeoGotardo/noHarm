@@ -37,9 +37,10 @@ export async function seedSession(page, user, { checkedInToday = false } = {}) {
 
 /** Seed a session and land on the app. */
 export async function openApp(page, user, opts) {
-  // First load lands on the splash (no token, no API traffic); seed the session
-  // there, then reload so the app boots authenticated.
-  await page.goto("/");
+  // First load opens the login screen (no token, no API traffic) — `/` alone
+  // would send a visitor to the landing page. Seed the session there, then
+  // reload so the app boots authenticated.
+  await page.goto("/?start=login");
   await seedSession(page, user, opts);
   await page.reload();
   return page;

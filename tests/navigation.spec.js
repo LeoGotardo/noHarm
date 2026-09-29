@@ -30,7 +30,9 @@ test.describe("Brand", () => {
   test("The icon set is wired, and the tab uses the same image as the rest", async ({
     page,
   }) => {
-    await page.goto("/");
+    // `/` alone sends a visitor to the landing page; these read the app's
+    // own index.html.
+    await page.goto("/?start=login");
 
     const icons = await page.evaluate(() => ({
       favicon: document.querySelector('link[rel="icon"]')?.getAttribute("href"),
@@ -82,7 +84,9 @@ test.describe("Brand", () => {
     // it is the cheap way to catch a logo that was edited in one place only.
     const CHECK = "M32 52 L44 64 L70 34";
 
-    await page.goto("/");
+    // `/` alone sends a visitor to the landing page; these read the app's
+    // own index.html.
+    await page.goto("/?start=login");
     await expect(page.locator(`svg path[d="${CHECK}"]`).first()).toBeVisible();
 
     for (const path of [
@@ -91,6 +95,7 @@ test.describe("Brand", () => {
       "/noharm-lockup.svg",
       "/terms.html",
       "/privacy.html",
+      "/about.html",
     ]) {
       const body = await (await page.request.get(path)).text();
       expect(body, path).toContain(CHECK);
@@ -98,7 +103,9 @@ test.describe("Brand", () => {
   });
 
   test("A shared link previews as something", async ({ page }) => {
-    await page.goto("/");
+    // `/` alone sends a visitor to the landing page; these read the app's
+    // own index.html.
+    await page.goto("/?start=login");
     const og = await page.evaluate(() =>
       Object.fromEntries(
         [...document.querySelectorAll('meta[property^="og:"], meta[name^="twitter:"]')].map(
@@ -221,5 +228,29 @@ test.describe("Theming (TweaksPanel)", () => {
       () => document.querySelectorAll('#nh-screen div[style*="z-index: 88"] span').length,
     );
     expect(confetti).toBe(0);
+  });
+});
+
+test.describe("Public home page", () => {
+  test("describes the app and links the documents, without a login", async ({
+    page,
+  }) => {
+    // The page Google's OAuth review opens. What it checks: the app's name,
+    // what it does, and a Privacy Policy link — on a page with no sign-in.
+    await page.goto("/about.html");
+    await expect(page).toHaveTitle(/NoHarm/);
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(page.locator('a[href="/privacy"]').first()).toBeVisible();
+    await expect(page.locator('a[href="/terms"]').first()).toBeVisible();
+    await expect(page.locator('a[href="/"]').first()).toBeVisible();
+
+    // Self-contained like the legal pages: nothing from another origin, so it
+    // renders under the CSP and on a reviewer's machine with nothing cached.
+    const external = await page.evaluate(() =>
+      [...document.querySelectorAll('link[rel="stylesheet"], link[rel~="icon"], script[src], img[src]')]
+        .map((el) => el.href || el.src)
+        .filter((u) => new URL(u).origin !== location.origin),
+    );
+    expect(external).toEqual([]);
   });
 });

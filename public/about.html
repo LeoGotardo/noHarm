@@ -1,0 +1,783 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NoHarm · One clean day at a time</title>
+<meta name="description" content="NoHarm is a free recovery companion: count your clean days, check in once a day, earn milestone badges and stay close to the people walking the same road. No ads, no trackers.">
+<link rel="canonical" href="https://noharm.site/about">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#558969">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="NoHarm">
+<meta property="og:title" content="NoHarm · One clean day at a time">
+<meta property="og:description" content="Count your clean days, check in once a day, earn milestone badges and stay close to the people walking the same road.">
+<meta property="og:url" content="https://noharm.site/about">
+<meta property="og:image" content="https://noharm.site/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<!--
+  The public home page: what NoHarm is, why someone would use it, who runs it
+  and what it does with data — readable without an account. It is also the
+  "App home page" on the Google OAuth consent screen, and a reviewer judges the
+  app by it, so it must describe the app, link the Privacy Policy, and use the
+  same name as the consent screen. nginx serves it at /about
+  (app_locations.conf). src/main.jsx sends a web visitor with no session
+  from `/` to here; the buttons go back as /?start=register and
+  /?start=login, which app.jsx opens directly. Never shown in the installed
+  app — see src/landing.js.
+
+  Same rules as terms.html and privacy.html: no stylesheet, no script, no font
+  or image from another origin. The FAQ is <details>, not JavaScript.
+
+  "Open source" rests on both repositories being public on GitHub (front end
+  MIT, server Apache 2.0); make either private and that claim is false.
+
+  Every claim here is a claim about the app. The numbers — ten milestones, the
+  30-day deletion window, the 9 PM reminder, the 20 messages a report copies —
+  come from the code, and the "Your data" section repeats
+  src/screens/legal/legalContent.js in short. Change one of those and this page
+  is wrong until it is edited too. The phone and the cards are drawings, not
+  screenshots: they follow the theme and cost no image request.
+-->
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #fbfaf7;
+    --bg-2: #f1f5f0;
+    --surface: #ffffff;
+    --line: #e4e8e3;
+    --ink: #1b1f1d;
+    --ink-2: #3c4542;
+    --ink-3: #6b7671;
+    --primary: #558969;
+    --primary-ink: #1f6f52;
+    --on-primary: #ffffff;
+    --soft: #e6f0e9;
+    --warm: #fdeee4;
+    --warm-ink: #7a3d14;
+    --shadow: 0 1px 2px rgba(20, 40, 30, .06), 0 12px 32px rgba(20, 40, 30, .08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141816;
+      --bg-2: #181d1a;
+      --surface: #1d2320;
+      --line: #2a312d;
+      --ink: #e7ece9;
+      --ink-2: #b3bdb8;
+      --ink-3: #8b9691;
+      --primary: #7fd3ac;
+      --primary-ink: #7fd3ac;
+      --on-primary: #10231a;
+      --soft: #213029;
+      --warm: #3a2415;
+      --warm-ink: #f2c9a6;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 12px 32px rgba(0, 0, 0, .35);
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  body {
+    margin: 0;
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+  }
+  a { color: var(--primary-ink); }
+  .wrap { max-width: 68rem; margin: 0 auto; padding: 0 20px; }
+  .eyebrow {
+    display: inline-block;
+    font-size: .8rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--primary-ink);
+    margin-bottom: 10px;
+  }
+
+  /* ── header ───────────────────────────────────────────── */
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+  }
+  header .wrap {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding-top: 14px;
+    padding-bottom: 14px;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.3rem;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    color: var(--ink);
+    text-decoration: none;
+  }
+  .brand b { color: var(--primary); font-weight: 800; }
+  nav { display: flex; align-items: center; gap: 22px; font-size: .95rem; }
+  nav a { color: var(--ink-2); text-decoration: none; }
+  nav a:hover { color: var(--ink); }
+
+  .btn {
+    display: inline-block;
+    padding: 13px 24px;
+    border-radius: 999px;
+    font-weight: 650;
+    text-decoration: none;
+    border: 1.5px solid transparent;
+    transition: transform .15s ease;
+  }
+  .btn:hover { transform: translateY(-1px); }
+  @media (prefers-reduced-motion: reduce) { .btn:hover { transform: none; } }
+  .btn-primary { background: var(--primary); color: var(--on-primary); box-shadow: 0 6px 18px color-mix(in srgb, var(--primary) 35%, transparent); }
+  .btn-ghost { color: var(--ink); border-color: var(--line); background: var(--surface); }
+  header .btn { padding: 8px 18px; box-shadow: none; }
+  nav a.btn-primary { color: var(--on-primary); }
+
+  /* ── hero ─────────────────────────────────────────────── */
+  .hero {
+    display: grid;
+    grid-template-columns: 1.1fr .9fr;
+    gap: 48px;
+    align-items: center;
+    padding-top: 64px;
+    padding-bottom: 120px;
+  }
+  h1 {
+    font-size: clamp(2.3rem, 5.2vw, 3.8rem);
+    line-height: 1.05;
+    letter-spacing: -0.04em;
+    margin: 0 0 20px;
+  }
+  h1 em { font-style: normal; color: var(--primary); }
+  .lead { font-size: 1.18rem; color: var(--ink-2); margin: 0 0 30px; max-width: 34rem; }
+  .actions { display: flex; flex-wrap: wrap; gap: 12px; }
+  .trust { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 22px 0 0; padding: 0; list-style: none; font-size: .9rem; color: var(--ink-3); }
+  .trust li::before { content: "✓ "; color: var(--primary); font-weight: 700; }
+
+  .stage { position: relative; justify-self: center; width: min(100%, 330px); }
+  .phone {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 38px;
+    padding: 22px 20px 26px;
+    box-shadow: var(--shadow);
+  }
+  .phone .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .phone .hi { font-size: .78rem; color: var(--ink-3); }
+  .phone .name { font-weight: 700; }
+  .avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--soft); display: grid; place-items: center; font-weight: 700; color: var(--primary-ink); font-size: .9rem; flex: none; }
+  .ring { display: block; width: 100%; max-width: 230px; margin: 0 auto; }
+  .ring .track, .ring .arc { fill: none; stroke: var(--primary); }
+  .ring .track { opacity: .16; }
+  .ring .num { fill: var(--ink); font-family: inherit; }
+  .ring .unit { fill: var(--ink-3); font-family: inherit; }
+  .since { text-align: center; font-size: .8rem; color: var(--ink-3); margin: 2px 0 14px; }
+  .mini { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .mini div { background: var(--bg-2); border-radius: 14px; padding: 10px 12px; }
+  .mini small { display: block; font-size: .7rem; color: var(--ink-3); }
+  .mini strong { font-size: .92rem; }
+  .float {
+    position: absolute;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 10px 14px;
+    box-shadow: var(--shadow);
+    font-size: .82rem;
+    line-height: 1.35;
+  }
+  .float.chat { left: -52px; bottom: -62px; max-width: 200px; }
+  .float.chat small { display: block; color: var(--ink-3); font-size: .7rem; margin-bottom: 2px; }
+  .float.badge { right: -24px; top: -22px; display: flex; gap: 8px; align-items: center; }
+  .float.badge small { color: var(--ink-3); }
+  .float.badge .dot { width: 30px; height: 30px; border-radius: 50%; background: var(--primary); color: var(--on-primary); display: grid; place-items: center; font-size: .8rem; font-weight: 800; }
+
+  /* ── sections ─────────────────────────────────────────── */
+  section { padding: 88px 0; }
+  section.tint { background: var(--bg-2); }
+  h2 { font-size: clamp(1.7rem, 3.4vw, 2.4rem); letter-spacing: -0.03em; line-height: 1.15; margin: 0 0 12px; }
+  .intro { color: var(--ink-2); font-size: 1.08rem; margin: 0 0 44px; max-width: 42rem; }
+  .center { text-align: center; }
+  .center .intro { margin-left: auto; margin-right: auto; }
+
+  .reasons { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .reason { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 26px; }
+  .reason h3 { font-size: 1.08rem; margin: 0 0 10px; }
+  .reason p { margin: 0; color: var(--ink-2); font-size: .95rem; }
+
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; counter-reset: step; }
+  .step { padding: 26px 24px; border-radius: 20px; background: var(--surface); border: 1px solid var(--line); }
+  .step::before {
+    counter-increment: step;
+    content: counter(step);
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: var(--on-primary);
+    font-weight: 800;
+    margin-bottom: 14px;
+  }
+  .step h3 { margin: 0 0 6px; font-size: 1.1rem; }
+  .step p { margin: 0; color: var(--ink-2); font-size: .95rem; }
+
+  .benefits { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 24px; }
+  .card h3 { font-size: 1.05rem; margin: 0 0 6px; }
+  .card p { margin: 0; color: var(--ink-2); font-size: .93rem; }
+  .icon { width: 40px; height: 40px; border-radius: 12px; background: var(--soft); color: var(--primary); display: grid; place-items: center; margin-bottom: 14px; }
+  .feature { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: center; padding: 40px 0; }
+  .feature + .feature { border-top: 1px solid var(--line); }
+  .feature.flip .art { order: -1; }
+  .feature h3 { font-size: 1.5rem; letter-spacing: -0.02em; line-height: 1.25; margin: 0 0 12px; }
+  .feature p { color: var(--ink-2); margin: 0 0 12px; }
+  .feature ul { margin: 0; padding-left: 20px; color: var(--ink-2); }
+  .feature li { margin: 5px 0; }
+  .art { background: var(--surface); border: 1px solid var(--line); border-radius: 24px; padding: 26px; box-shadow: var(--shadow); }
+  .art .label { font-size: .75rem; color: var(--ink-3); margin-bottom: 10px; text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
+  .checkin h4 { margin: 0 0 4px; font-size: 1.25rem; }
+  .checkin p { margin: 0 0 18px; color: var(--ink-3); font-size: .9rem; }
+  .checkin .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .pill { display: block; text-align: center; padding: 11px; border-radius: 999px; font-weight: 650; font-size: .92rem; }
+  .pill.yes { background: var(--primary); color: var(--on-primary); }
+  .pill.no { border: 1.5px solid var(--line); color: var(--ink-2); }
+  .bubbles { display: flex; flex-direction: column; gap: 8px; }
+  .bubble { max-width: 80%; padding: 9px 14px; border-radius: 18px; font-size: .92rem; line-height: 1.4; }
+  .bubble.them { background: var(--bg-2); border-bottom-left-radius: 6px; }
+  .bubble.me { align-self: flex-end; background: var(--primary); color: var(--on-primary); border-bottom-right-radius: 6px; }
+  .typing { font-size: .78rem; color: var(--ink-3); margin-top: 6px; }
+  .friends { display: grid; gap: 14px; }
+  .friend { display: flex; align-items: center; gap: 12px; }
+  .friend .avatar { position: relative; }
+  .friend .avatar i { position: absolute; right: -1px; bottom: -1px; width: 10px; height: 10px; border-radius: 50%; background: #3fb07a; border: 2px solid var(--surface); }
+  .friend b { display: block; font-size: .95rem; }
+  .friend small { color: var(--ink-3); font-size: .8rem; }
+  .friend .days { margin-left: auto; font-weight: 800; color: var(--primary-ink); }
+  .report { display: grid; gap: 8px; }
+  .report div:not(.label) { padding: 10px 14px; border: 1.5px solid var(--line); border-radius: 14px; font-size: .9rem; color: var(--ink-2); }
+  .report div.on { border-color: var(--primary); color: var(--ink); font-weight: 600; }
+  .report small { color: var(--ink-3); font-size: .8rem; margin-top: 4px; }
+
+  .ladder { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+  .medal { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px 12px; text-align: center; }
+  .medal .n {
+    width: 54px;
+    height: 54px;
+    margin: 0 auto 10px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-weight: 800;
+    font-size: 1.05rem;
+    color: var(--primary-ink);
+    background: var(--soft);
+    border: 3px solid color-mix(in srgb, var(--primary) 45%, transparent);
+  }
+  .medal b { display: block; font-size: .92rem; }
+  .medal small { color: var(--ink-3); font-size: .78rem; }
+
+  .facts { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .facts li { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 20px 22px; color: var(--ink-2); }
+  .facts strong { display: block; color: var(--ink); margin-bottom: 4px; }
+
+  .care { background: var(--warm); color: var(--warm-ink); border-radius: 24px; padding: 34px; display: grid; grid-template-columns: 1.1fr .9fr; gap: 30px; }
+  .care h2 { color: inherit; font-size: 1.6rem; }
+  .care p { margin: 0 0 10px; }
+  .care a { color: inherit; font-weight: 650; }
+  .lines { display: grid; gap: 10px; align-content: start; }
+  .lines div { background: color-mix(in srgb, var(--surface) 55%, transparent); border-radius: 14px; padding: 12px 16px; }
+  .lines strong { font-size: 1.3rem; margin-right: 10px; }
+
+  .faq { max-width: 46rem; margin: 0 auto; }
+  details { border-bottom: 1px solid var(--line); }
+  summary {
+    cursor: pointer;
+    list-style: none;
+    padding: 18px 36px 18px 0;
+    font-weight: 650;
+    font-size: 1.05rem;
+    position: relative;
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: "+"; position: absolute; right: 6px; top: 13px; font-size: 1.4rem; color: var(--primary); font-weight: 400; }
+  details[open] summary::after { content: "–"; }
+  details p { margin: 0 0 20px; color: var(--ink-2); }
+
+  .cta { text-align: center; background: var(--primary); color: var(--on-primary); border-radius: 28px; padding: 60px 24px; }
+  .cta h2 { color: inherit; }
+  .cta p { margin: 0 auto 28px; max-width: 34rem; opacity: .92; font-size: 1.08rem; }
+  .cta .btn { background: var(--on-primary); color: var(--primary-ink); box-shadow: none; }
+  .cta .signin { margin: 18px 0 0; font-size: .95rem; }
+  .cta .signin a { color: inherit; font-weight: 650; }
+
+  footer { border-top: 1px solid var(--line); padding: 32px 0 48px; font-size: .9rem; color: var(--ink-3); }
+  footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 14px; }
+  footer nav { gap: 18px; }
+  footer nav a { color: var(--ink-3); }
+
+  /* Seven links fit from about 1040px; below that only Log in and the button
+     stay, and the sections are one scroll away. */
+  @media (max-width: 1040px) {
+    header nav a:not(.btn):not(.login) { display: none; }
+    header nav { gap: 16px; }
+  }
+  @media (max-width: 900px) {
+    .hero { grid-template-columns: 1fr; padding-top: 36px; padding-bottom: 72px; gap: 56px; }
+    .float.chat { left: -8px; }
+    .float.badge { right: -8px; }
+    .reasons, .steps { grid-template-columns: 1fr; }
+    .benefits { grid-template-columns: repeat(2, 1fr); }
+    .feature { grid-template-columns: 1fr; gap: 28px; }
+    .feature.flip .art { order: 0; }
+    .ladder { grid-template-columns: repeat(2, 1fr); }
+    .facts { grid-template-columns: 1fr; }
+    .care { grid-template-columns: 1fr; padding: 26px; }
+    section { padding: 64px 0; }
+  }
+  @media (max-width: 640px) {
+    .benefits { grid-template-columns: 1fr; }
+    .stage { width: min(100%, 290px); }
+    .float.chat { bottom: -62px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <a class="brand" href="/about" aria-label="NoHarm home">
+      <svg width="32" height="32" viewBox="0 0 100 100" aria-hidden="true">
+        <circle cx="50" cy="50" r="42" fill="none" stroke="#558969" stroke-width="6" opacity="0.22"/>
+        <circle cx="50" cy="50" r="42" fill="none" stroke="#558969" stroke-width="7" stroke-linecap="round" stroke-dasharray="264" stroke-dashoffset="79" transform="rotate(-90 50 50)"/>
+        <path d="M32 52 L44 64 L70 34" fill="none" stroke="#558969" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span>No<b>Harm</b></span>
+    </a>
+    <nav aria-label="Main">
+      <a href="#how">How it works</a>
+      <a href="#benefits">Why NoHarm</a>
+      <a href="#features">Features</a>
+      <a href="#privacy">Privacy</a>
+      <a href="#faq">FAQ</a>
+      <a class="login" href="/?start=login">Log in</a>
+      <a class="btn btn-primary" href="/?start=register">Get started</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <!-- ── hero ── -->
+  <div class="wrap hero">
+    <div>
+      <span class="eyebrow">A free recovery companion</span>
+      <h1>Every clean day <em>counts.</em> Let&nbsp;someone count them with&nbsp;you.</h1>
+      <p class="lead">
+        NoHarm keeps track of your days free from addiction, asks how you are
+        once a day, marks every milestone, and keeps the people who have your
+        back one message away.
+      </p>
+      <div class="actions">
+        <a class="btn btn-primary" href="/?start=register">Start my streak — it's free</a>
+        <a class="btn btn-ghost" href="#how">See how it works</a>
+      </div>
+      <ul class="trust">
+        <li>Free, no ads</li>
+        <li>Open source</li>
+        <li>No trackers</li>
+        <li>Your data, yours to download</li>
+        <li>18+</li>
+      </ul>
+    </div>
+
+    <div class="stage" aria-hidden="true">
+      <div class="phone">
+        <div class="top">
+          <div><div class="hi">Good evening</div><div class="name">Sam</div></div>
+          <div class="avatar">S</div>
+        </div>
+        <svg class="ring" viewBox="0 0 200 200">
+          <circle class="track" cx="100" cy="100" r="82" stroke-width="13"/>
+          <circle class="arc" cx="100" cy="100" r="82" stroke-width="14" stroke-linecap="round" stroke-dasharray="515" stroke-dashoffset="112" transform="rotate(-90 100 100)"/>
+          <text class="num" x="100" y="106" text-anchor="middle" font-size="58" font-weight="800" letter-spacing="-2">47</text>
+          <text class="unit" x="100" y="134" text-anchor="middle" font-size="15">clean days</text>
+        </svg>
+        <div class="since">Since 12 August</div>
+        <div class="mini">
+          <div><small>Next badge in 13 days</small><strong>Two Months</strong></div>
+          <div><small>Personal best</small><strong>47 days</strong></div>
+        </div>
+      </div>
+      <div class="float badge"><span class="dot">30</span><span><b>One Month</b><br><small>unlocked</small></span></div>
+      <div class="float chat"><small>Maya</small>Proud of you. Same time tomorrow? 💚</div>
+    </div>
+  </div>
+
+  <!-- ── why ── -->
+  <section class="tint">
+    <div class="wrap">
+      <div class="center">
+        <span class="eyebrow">Why NoHarm</span>
+        <h2>Recovery is mostly ordinary days.<br>They deserve to be noticed.</h2>
+        <p class="intro">
+          The hard part is rarely one big moment. It is the quiet evening, the
+          week nobody asked, the milestone that slipped past unmarked. NoHarm is
+          built for those.
+        </p>
+      </div>
+      <div class="reasons">
+        <div class="reason">
+          <h3>The count keeps itself</h3>
+          <p>Your streak runs from the day you actually stopped, without you keeping track, and your longest one is kept as your personal best.</p>
+        </div>
+        <div class="reason">
+          <h3>Someone asks, every day</h3>
+          <p>Once a day, NoHarm asks one question. A single tap answers it, and on your phone it can remind you at 9 PM.</p>
+        </div>
+        <div class="reason">
+          <h3>You are not doing this alone</h3>
+          <p>Add the few people you trust. They see your streak, you see theirs, and a private conversation is always one tap away.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── how ── -->
+  <section id="how">
+    <div class="wrap">
+      <div class="center">
+        <span class="eyebrow">How it works</span>
+        <h2>Up and running in a minute</h2>
+        <p class="intro">No long forms, no questionnaire about your past. Three steps, and the counting starts.</p>
+      </div>
+      <div class="steps">
+        <div class="step">
+          <h3>Sign in with Google</h3>
+          <p>Pick a username and confirm you are 18 or older. No password to remember, and nothing is ever posted to your Google account.</p>
+        </div>
+        <div class="step">
+          <h3>Start your streak</h3>
+          <p>From today, or from the day you really stopped — weeks ago counts too. The ring starts filling straight away.</p>
+        </div>
+        <div class="step">
+          <h3>Check in each day</h3>
+          <p>One question, one tap. Unlock badges as the days add up, and bring the people who matter along.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── benefits ── -->
+  <section id="benefits" class="tint">
+    <div class="wrap">
+      <div class="center">
+        <span class="eyebrow">Why it's different</span>
+        <h2>Free, open and honest — on purpose</h2>
+        <p class="intro">Most apps pay for themselves with your attention or your data. NoHarm does neither, and you do not have to trust us on that: you can check.</p>
+      </div>
+      <div class="benefits">
+        <div class="card">
+          <div class="icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.6-7 10-7 10z"/></svg></div>
+          <h3>Free, for good</h3>
+          <p>No subscription, no premium tier, no trial that runs out. Every feature is for everyone, and nothing is held back to sell to you later.</p>
+        </div>
+        <div class="card">
+          <div class="icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 8l-4 4 4 4M16 8l4 4-4 4M13.5 5l-3 14"/></svg></div>
+          <h3>Open source</h3>
+          <p>The whole app is public on GitHub — the <a href="https://github.com/LeoGotardo/noHarm">app</a> and the <a href="https://github.com/LeoGotardo/noHarmBack">server</a>. Anyone can read exactly what it does with your data, instead of taking our word for it.</p>
+        </div>
+        <div class="card">
+          <div class="icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/></svg></div>
+          <h3>Transparent about the hard parts</h3>
+          <p>The Privacy Policy says what is encrypted and what is not, who can read a conversation and when, and how long everything is kept — in numbers, not "as long as necessary".</p>
+        </div>
+        <div class="card">
+          <div class="icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div>
+          <h3>No ads, no trackers</h3>
+          <p>No advertising, no analytics, no data brokers. Your recovery is never a product, and nothing about you is sold or shared for profit.</p>
+        </div>
+        <div class="card">
+          <div class="icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg></div>
+          <h3>Your data, your call</h3>
+          <p>Download everything NoHarm holds about you whenever you want, and delete your account at any time. Your recovery data is only kept with a separate yes.</p>
+        </div>
+        <div class="card">
+          <div class="icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18.5 20a6.5 6.5 0 0 0-3-5.5"/></svg></div>
+          <h3>Private by default</h3>
+          <p>Only the friends you accept see your streak. No public profile full of numbers, no feed, no follower counts.</p>
+        </div>
+        <div class="card">
+          <div class="icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg></div>
+          <h3>Moderated by people</h3>
+          <p>Every report is read by a person, not an algorithm, and anyone moderation acts on is told what was decided and how to appeal.</p>
+        </div>
+        <div class="card">
+          <div class="icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></div>
+          <h3>Nothing to install</h3>
+          <p>It runs in any modern browser, on your phone or your computer. Sign in and you are in.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── features ── -->
+  <section id="features">
+    <div class="wrap">
+      <div class="center">
+        <span class="eyebrow">Features</span>
+        <h2>Everything you need, nothing you don't</h2>
+        <p class="intro">No feed, no follower counts, no strangers in your inbox. Just your days, your milestones and your people.</p>
+      </div>
+
+      <div class="feature">
+        <div>
+          <h3>A daily check-in that meets you where you are</h3>
+          <p>Once a day, NoHarm asks one question: <em>all clean today?</em></p>
+          <ul>
+            <li>"Yes" keeps your streak going, with one tap.</li>
+            <li>Missed a few days? The next check-in asks about each one, so the count stays honest.</li>
+            <li>If you slipped, you say so. A fresh streak begins in the same moment, and your history — personal best included — is kept.</li>
+          </ul>
+        </div>
+        <div class="art checkin" aria-hidden="true">
+          <div class="label">Daily check-in</div>
+          <h4>All clean today?</h4>
+          <p>Day 47 · Tuesday</p>
+          <div class="row"><span class="pill yes">Yes, all clean</span><span class="pill no">I slipped</span></div>
+        </div>
+      </div>
+
+      <div class="feature flip">
+        <div>
+          <h3>Friends who keep you honest</h3>
+          <p>Accountability works best with people you chose. Find someone by username and send a request; once they accept, you can follow each other's progress.</p>
+          <ul>
+            <li>Only friends see your streak, your badges and when you are online.</li>
+            <li>Get a notification when someone sends or accepts a request.</li>
+            <li>Remove or block anyone, at any time.</li>
+          </ul>
+        </div>
+        <div class="art" aria-hidden="true">
+          <div class="label">Your friends</div>
+          <div class="friends">
+            <div class="friend"><div class="avatar">M<i></i></div><div><b>Maya</b><small>online</small></div><span class="days">112 d</span></div>
+            <div class="friend"><div class="avatar">J</div><div><b>Jonas</b><small>offline</small></div><span class="days">31 d</span></div>
+            <div class="friend"><div class="avatar">R<i></i></div><div><b>Rita</b><small>online</small></div><span class="days">8 d</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="feature">
+        <div>
+          <h3>Private, one-on-one conversations</h3>
+          <p>For the hard evenings and the good news alike. Chat with any friend, just the two of you — no groups, no public replies.</p>
+          <ul>
+            <li>See when your friend is typing, and when your message was read.</li>
+            <li>Notifications for new messages, which you can switch off.</li>
+            <li>Messages are encrypted in storage.</li>
+          </ul>
+        </div>
+        <div class="art" aria-hidden="true">
+          <div class="label">Maya</div>
+          <div class="bubbles">
+            <div class="bubble them">Rough day?</div>
+            <div class="bubble me">Yeah. Almost called my old number.</div>
+            <div class="bubble them">But you didn't. That's the whole thing. Walk tomorrow at 7?</div>
+            <div class="bubble me">Deal. Thank you 💚</div>
+          </div>
+          <div class="typing">Maya is typing…</div>
+        </div>
+      </div>
+
+      <div class="feature flip">
+        <div>
+          <h3>A space that stays safe</h3>
+          <p>People come here at a vulnerable moment, so NoHarm takes behaviour seriously.</p>
+          <ul>
+            <li>Report anyone from their profile. They are never told who reported them.</li>
+            <li>A real person reviews every report — never an algorithm.</li>
+            <li>If moderation ever acts on your account, you are told what was decided, why, and how to appeal.</li>
+          </ul>
+        </div>
+        <div class="art report" aria-hidden="true">
+          <div class="label">Report · private</div>
+          <div>Harassment or bullying</div>
+          <div class="on">Offering or selling substances</div>
+          <div>Pretending to be someone else</div>
+          <small>They won't know you reported them.</small>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── milestones ── -->
+  <section class="tint">
+    <div class="wrap">
+      <div class="center">
+        <span class="eyebrow">Milestones</span>
+        <h2>Ten milestones on the way to a year</h2>
+        <p class="intro">Close together at the start, when every day is work, and further apart as the new routine takes hold. Each one unlocks a badge and a few words for the day you reach it.</p>
+      </div>
+      <div class="ladder">
+        <div class="medal"><div class="n">1</div><b>First Day</b><small>1 day</small></div>
+        <div class="medal"><div class="n">3</div><b>Three Days</b><small>3 days</small></div>
+        <div class="medal"><div class="n">7</div><b>One Week</b><small>7 days</small></div>
+        <div class="medal"><div class="n">14</div><b>Two Weeks</b><small>14 days</small></div>
+        <div class="medal"><div class="n">30</div><b>One Month</b><small>30 days</small></div>
+        <div class="medal"><div class="n">60</div><b>Two Months</b><small>60 days</small></div>
+        <div class="medal"><div class="n">90</div><b>Ninety Days</b><small>90 days</small></div>
+        <div class="medal"><div class="n">180</div><b>Six Months</b><small>180 days</small></div>
+        <div class="medal"><div class="n">270</div><b>Nine Months</b><small>270 days</small></div>
+        <div class="medal"><div class="n">365</div><b>One Year</b><small>365 days</small></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── privacy ── -->
+  <section id="privacy">
+    <div class="wrap">
+      <div class="center">
+        <span class="eyebrow">Your data</span>
+        <h2>Private by design, honest by default</h2>
+        <p class="intro">
+          A recovery app holds things people do not say out loud. Here is what
+          NoHarm does with them. The <a href="/privacy">Privacy Policy</a> has
+          every detail.
+        </p>
+      </div>
+      <ul class="facts">
+        <li><strong>No ads, no analytics, never sold</strong>There are no trackers in the app, and your data is never used for advertising or passed to anyone who does.</li>
+        <li><strong>Your recovery data needs its own yes</strong>Clean days and check-ins are health information, so NoHarm asks for them separately. Say no and the rest of the app still works; withdraw later and every streak is erased.</li>
+        <li><strong>Signing in with Google</strong>NoHarm receives your email, your Google account ID and your profile picture — only to create your account and show your picture to others.</li>
+        <li><strong>Encrypted, and plain about how</strong>Messages and personal details are encrypted in storage. It is not end-to-end encryption: a moderator reads a conversation's last messages only when someone in it files a report.</li>
+        <li><strong>Take it with you</strong>Download everything NoHarm holds about you from Settings, whenever you want, as a file.</li>
+        <li><strong>Leave whenever you like</strong>Delete your account from Settings. It is erased for good after 30 days — a window in case you change your mind.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ── care ── -->
+  <section>
+    <div class="wrap">
+      <div class="care">
+        <div>
+          <h2>NoHarm walks beside you. It is not medical care.</h2>
+          <p>
+            It is a tracker and a way to stay close to people in recovery. It is
+            not treatment or therapy, nobody in it is a clinician, and nobody is
+            watching to make sure you are safe. It works best alongside the help
+            you already have — or as a nudge to find some.
+          </p>
+          <p>Outside Brazil, <a href="https://findahelpline.com">findahelpline.com</a> lists crisis lines by country.</p>
+        </div>
+        <div class="lines">
+          <div><strong>192</strong>SAMU — medical emergency, 24 h</div>
+          <div><strong>188</strong>CVV — someone to talk to, free and confidential, 24 h</div>
+          <div><strong>CAPS AD</strong>Free public care for alcohol and drugs, no referral needed</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── faq ── -->
+  <section id="faq" class="tint">
+    <div class="wrap">
+      <div class="center">
+        <span class="eyebrow">Questions</span>
+        <h2>Before you start</h2>
+        <p class="intro">The things people usually want to know first.</p>
+      </div>
+      <div class="faq">
+        <details>
+          <summary>Is NoHarm really free?</summary>
+          <p>Yes, completely and permanently. There is no subscription, no premium tier and no advertising, and no feature is held back for paying users. It is built and run by one person who wanted it to exist.</p>
+        </details>
+        <details>
+          <summary>Is NoHarm open source?</summary>
+          <p>Yes. The app and the server are public on GitHub — <a href="https://github.com/LeoGotardo/noHarm">LeoGotardo/noHarm</a> (MIT licence) and <a href="https://github.com/LeoGotardo/noHarmBack">LeoGotardo/noHarmBack</a> (Apache 2.0). You can read how your data is stored and who can see it, report a problem, or suggest a change.</p>
+        </details>
+        <details>
+          <summary>What happens if I relapse?</summary>
+          <p>You tell the check-in, and a new streak starts in that same moment. Nothing is deleted: your history and your personal best stay, because the days you had still happened.</p>
+        </details>
+        <details>
+          <summary>Can I count days from before I joined?</summary>
+          <p>Yes. When you start your streak you can choose the day you actually stopped, and the milestones you have already passed are yours straight away.</p>
+        </details>
+        <details>
+          <summary>What if I forget to check in?</summary>
+          <p>Nothing is lost. The next time you open the app, the check-in asks about each day since the last one, and you mark the ones that were clean.</p>
+        </details>
+        <details>
+          <summary>Who can see my streak?</summary>
+          <p>Only the people you accept as friends. Anyone else who finds your profile sees your username and picture, and nothing about your recovery.</p>
+        </details>
+        <details>
+          <summary>Are my messages private?</summary>
+          <p>They are between you and your friend, and encrypted in storage. They are not end-to-end encrypted: if one of you reports the other, a moderator can read the last 20 messages of that conversation to decide the report. Nobody reads them otherwise.</p>
+        </details>
+        <details>
+          <summary>Why do I have to sign in with Google?</summary>
+          <p>It means no password for NoHarm to store or for you to forget, and every account belongs to a real email address. NoHarm only receives your email, account ID and picture.</p>
+        </details>
+        <details>
+          <summary>Where can I use it?</summary>
+          <p>In any modern browser, on your phone or your computer, at <a href="/?start=login">noharm.site</a>. Apps for Android and iPhone are in the works.</p>
+        </details>
+        <details>
+          <summary>What if someone bothers me?</summary>
+          <p>Block them from their profile: they can no longer see your profile or message you. You can also report them, privately; a person reviews every report.</p>
+        </details>
+        <details>
+          <summary>How do I get my data, or delete it?</summary>
+          <p>Both are in Settings. "Privacy &amp; data" downloads everything as a file; "Delete account" erases it all after a 30-day window in which you can still change your mind.</p>
+        </details>
+        <details>
+          <summary>Who is behind NoHarm?</summary>
+          <p>NoHarm is built and run by Leonardo da Silva Gotardo, in Londrina, Brazil. Questions, appeals and privacy requests all go to one inbox, read by a person: <a href="mailto:noharm@leogotardo.com.br">noharm@leogotardo.com.br</a>.</p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── final cta ── -->
+  <section>
+    <div class="wrap">
+      <div class="cta">
+        <h2>Today can be day one.</h2>
+        <p>Or day forty-seven. Wherever you are, NoHarm will count it with you — free, private, and one day at a time.</p>
+        <a class="btn" href="/?start=register">Start my streak</a>
+        <p class="signin">Already have an account? <a href="/?start=login">Log in</a></p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 NoHarm · Leonardo da Silva Gotardo · Londrina, Brazil</span>
+    <nav aria-label="Legal">
+      <a href="/privacy">Privacy Policy</a>
+      <a href="/terms">Terms of Use</a>
+      <a href="https://github.com/LeoGotardo/noHarm">Source code</a>
+      <a href="mailto:noharm@leogotardo.com.br">Contact</a>
+    </nav>
+  </div>
+</footer>
+
+</body>
+</html>

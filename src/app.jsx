@@ -78,6 +78,7 @@ import { useUser } from "./store/useUser.js";
 
 // ── Domain constants (see CLAUDE.md for full status code reference) ───────────
 import { STATUS_CONSTANTS } from "./services/constants.js";
+import { goToLanding, landingApplies, requestedStart } from "./landing.js";
 
 // ── Theme defaults ────────────────────────────────────────────────────────────
 const TWEAK_DEFAULTS = {
@@ -523,9 +524,29 @@ export default function App() {
   // ── Navigation ────────────────────────────────────────────────────────────
   // phase: 'splash' | 'register' | 'login' | 'app' | 'deleted'
   // stack: overlay screens pushed on top of the active tab root
+  // A session wins; otherwise a `?start=` link from the landing page picks the
+  // first screen (see src/landing.js), and the installed app starts on the
+  // splash.
   const [phase, setPhase] = useState(() =>
-    tokens.getAccess() ? "app" : "splash",
+    tokens.getAccess() ? "app" : (requestedStart() ?? "splash"),
   );
+
+  // The query has done its job once read; left in the address bar it would
+  // reopen the same screen on every reload.
+  useEffect(() => {
+    if (requestedStart()) {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }, []);
+
+  // Where "back to the start" goes. On the web that is the landing page — the
+  // splash's two buttons are the landing's own, so showing both would be the
+  // same question asked twice. The installed app has no landing and keeps the
+  // splash.
+  const toFront = useCallback(() => {
+    if (landingApplies()) goToLanding();
+    else setPhase("splash");
+  }, []);
 
   // What the socket connector does when the server refuses the handshake. It
   // stays out of connectors/socket.js on purpose: api.js already imports that
@@ -547,10 +568,10 @@ export default function App() {
         tokens.clear();
         cacheClearAll();
         setStack([]);
-        setPhase("splash");
+        toFront();
       },
     }),
-    [],
+    [toFront],
   );
 
   // Open the realtime socket during the FIRST render (before any subscribe
@@ -820,7 +841,7 @@ export default function App() {
   } else if (phase === "register") {
     body = (
       <RegisterScreen
-        onBack={() => setPhase("splash")}
+        onBack={toFront}
         onDone={() => {
           // Reboot so store hooks fetch fresh for the just-authed account.
           cacheClearAll();
@@ -831,7 +852,7 @@ export default function App() {
   } else if (phase === "login") {
     body = (
       <LoginScreen
-        onBack={() => setPhase("splash")}
+        onBack={toFront}
         onDone={() => {
           // Reboot so store hooks fetch fresh for the just-authed account.
           cacheClearAll();
@@ -840,7 +861,7 @@ export default function App() {
       />
     );
   } else if (phase === "deleted") {
-    body = <DeletedScreen onRestart={() => setPhase("splash")} />;
+    body = <DeletedScreen onRestart={toFront} />;
   } else if (owesConsent) {
     // Instead of the app rather than beside it, for the same reason the rename
     // screen is: a prompt someone can dismiss leaves an account using the

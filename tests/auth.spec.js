@@ -11,32 +11,36 @@ import { api, as, createUser, fakeIdToken } from "./helpers/api.js";
 import { purgeUid, rowsFor } from "./helpers/cleanup.js";
 
 test.describe("Auth / Onboarding", () => {
-  test('Splash — "Get started" opens Register, "I already have an account" opens Login', async ({
+  test("Landing — a visitor lands on it, and its buttons open Register and Login", async ({
     page,
   }) => {
+    // On the web the landing page is the front door; the splash is the
+    // installed app's (src/landing.js).
     await page.goto("/");
-    await expect(page.getByText("One clean day at a time.")).toBeVisible();
+    await expect(page).toHaveURL(/\/about$/);
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 
-    await page.getByRole("button", { name: "Get started" }).click();
+    await page.getByRole("link", { name: "Get started" }).click();
     await expect(page.getByText("Create account")).toBeVisible();
     await expect(page.getByPlaceholder("3–50 characters")).toBeVisible();
+    // The ?start= query is consumed, so a reload does not reopen this screen.
+    await expect(page).toHaveURL(/\/$/);
 
-    // Back → splash
+    // Back → the landing, not the splash
     await page.locator("#nh-stage button").first().click();
-    await expect(page.getByRole("button", { name: "Get started" })).toBeVisible();
+    await expect(page).toHaveURL(/\/about$/);
 
-    await page.getByRole("button", { name: "I already have an account" }).click();
+    await page.getByRole("link", { name: "Log in" }).first().click();
     await expect(page.getByText("Good to see you again")).toBeVisible();
 
     await page.locator("#nh-stage button").first().click();
-    await expect(page.getByRole("button", { name: "Get started" })).toBeVisible();
+    await expect(page).toHaveURL(/\/about$/);
   });
 
   test("Register — username validation (min. 3 chars) enables the Google button", async ({
     page,
   }) => {
-    await page.goto("/");
-    await page.getByRole("button", { name: "Get started" }).click();
+    await page.goto("/?start=register");
 
     const field = page.getByPlaceholder("3–50 characters");
     await field.fill("ab");
@@ -87,25 +91,26 @@ test.describe("Auth / Onboarding", () => {
 
     await page.reload();
     await expect(page.getByText(userA.username)).toBeVisible();
-    await expect(page.getByRole("button", { name: "Get started" })).toBeHidden();
+    // A session is never sent to the landing page.
+    await page.goto("/");
+    await expect(page.getByText(userA.username)).toBeVisible();
+    await expect(page).not.toHaveURL(/\/about/);
   });
 
-  test("No token — lands on the splash", async ({ page }) => {
+  test("No token — lands on the landing page", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("button", { name: "Get started" })).toBeVisible();
+    await expect(page).toHaveURL(/\/about$/);
     await expect(tab(page, "Home")).toBeHidden();
   });
 
-  test("Logout — clears tokens, returns to the splash", async ({ appA, page }) => {
+  test("Logout — clears tokens, returns to the landing page", async ({ appA, page }) => {
     await tab(page, "Profile").click();
     await page.locator("#nh-stage button").first().click(); // gear → Settings
     await expect(page.getByText("Settings")).toBeVisible();
 
     await page.getByRole("button", { name: /Log out/ }).click();
 
-    await expect(page.getByRole("button", { name: "Get started" })).toBeVisible({
-      timeout: 15_000,
-    });
+    await expect(page).toHaveURL(/\/about$/, { timeout: 15_000 });
     const stored = await page.evaluate(() => ({
       access: localStorage.getItem("nh_access"),
       cacheKeys: Object.keys(localStorage).filter((k) => k.startsWith("nh_cache_")),
@@ -141,7 +146,7 @@ test.describe("Auth / Onboarding", () => {
     await expect(page.getByText("Your account is deleted")).toBeVisible();
     await expect(page.getByText(/signing in brings your streak/)).toBeVisible();
     await page.getByRole("button", { name: "Start over" }).click();
-    await expect(page.getByRole("button", { name: "Get started" })).toBeVisible();
+    await expect(page).toHaveURL(/\/about$/);
 
     // Backend-side the account reads as gone to everyone, grace window or not:
     // its still-unexpired access token no longer resolves a profile.
