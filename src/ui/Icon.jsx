@@ -1,5 +1,6 @@
 import {
   Award,
+  BadgeCheck,
   Ban,
   Bell,
   Camera,
@@ -20,6 +21,7 @@ import {
   Send,
   Settings,
   Share2,
+  ShieldCheck,
   Trash2,
   User,
   Users,
@@ -52,6 +54,8 @@ const ICONS = {
   home: Home,
   profile: User,
   share: Share2,
+  official: BadgeCheck,
+  shield: ShieldCheck,
 };
 
 export function Icon({

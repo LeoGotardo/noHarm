@@ -10,15 +10,14 @@ import {
 import { Card, Divider, Icon, useGuardedCallback } from "@ui";
 import { Fragment, useEffect, useState } from "react";
 import { getUser } from "../../services/api/user.js";
-import { cacheRead, cacheWrite } from "../../store/cache.js";
+import { cachedUser, cacheWrite } from "../../store/cache.js";
 
 async function enrichRequest(friendship, meId) {
   const otherId =
     friendship.sender === meId ? friendship.reciver : friendship.sender;
   const cacheKey = `user_${otherId}`;
-  const cached = cacheRead(cacheKey);
   const user =
-    cached?.data ??
+    cachedUser(otherId) ??
     (await getUser(otherId)
       .then((u) => {
         cacheWrite(cacheKey, u);
@@ -30,6 +29,7 @@ async function enrichRequest(friendship, meId) {
     id: otherId,
     username: user?.username ?? otherId.slice(0, 8),
     profile_picture: user?.profile_picture ?? null,
+    role: user?.role ?? null,
     hue: hashHue(user?.username),
     streak: null,
     when: fmtRelDate(friendship.send_at ?? friendship.created_at),

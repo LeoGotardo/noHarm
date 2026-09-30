@@ -1,0 +1,33 @@
+# NoHarm
+
+> NoHarm is a free, open-source recovery companion for adults (18+) recovering from addiction. It counts clean days, asks one check-in question a day, marks ten milestones on the way to a year, and keeps a few trusted friends one private message away. No ads, no trackers, no subscription. It is a tracker and a support tool, not medical care.
+
+NoHarm runs in any modern browser at https://noharm.site, on phone or computer; Android and iPhone apps are in the works. Sign-in is with Google. It is built and run by one person, Leonardo da Silva Gotardo, in Londrina, Brazil.
+
+What it does:
+
+- **Streak tracking**: the count runs from the day the person actually stopped, including days before they joined; the longest streak is kept as a personal best.
+- **Daily check-in**: one question, "all clean today?". A relapse starts a new streak at once and keeps the history. Missed days are asked about on the next check-in.
+- **Milestones**: badges at 1, 3, 7, 14, 30, 60, 90, 180, 270 and 365 days.
+- **Friends and chat**: friends are added by username and accepted; only friends see each other's streak. Chat is one-on-one between friends only, with no groups or public feed.
+- **Moderation by people**: any user can be reported privately; a person reviews every report, and anyone moderation acts on is told why and how to appeal.
+- **Privacy**: recovery data needs its own separate consent; messages and personal details are encrypted in storage (not end-to-end); all data can be downloaded, and a deleted account is erased after 30 days.
+
+It is not treatment or therapy and nobody in it is a clinician. In a crisis in Brazil: SAMU 192 (medical emergency), CVV 188 (emotional support, 24 h). Elsewhere: https://findahelpline.com.
+
+## Pages
+
+- [About NoHarm](https://noharm.site/about): what the app is, how it works, features, milestones, data practices and FAQ
+- [Privacy Policy](https://noharm.site/privacy): what is collected, encrypted and kept, for how long, and the user's rights under Brazil's LGPD
+- [Terms of Use](https://noharm.site/terms): rules of use, moderation and appeals, and the "not medical care" clause
+
+## Source code
+
+- [noHarm](https://github.com/LeoGotardo/noHarm): the web and mobile front end (React + Capacitor), MIT licence
+- [noHarmBack](https://github.com/LeoGotardo/noHarmBack): the server (FastAPI + PostgreSQL + Socket.IO), Apache 2.0
+
+## Contact
+
+- General questions and privacy requests: contact@noharm.site
+- Appeals of a moderation decision: support@noharm.site
+- Suggestions: suggestions@noharm.site

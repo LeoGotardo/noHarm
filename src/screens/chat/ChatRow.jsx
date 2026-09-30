@@ -1,4 +1,4 @@
-import { fmtTime, hashHue } from "@components";
+import { fmtTime, hashHue, RoleBadge } from "@components";
 import { Avatar, useGuardedCallback } from "@ui";
 import { STATUS_CONSTANTS } from "../../services/constants.js";
 
@@ -54,6 +54,7 @@ export function ChatRow({ c, meId, users, onOpen, onOpenProfile, selected }) {
           >
             {username}
           </span>
+          <RoleBadge role={u?.role} />
           {pending && (
             <span
               style={{

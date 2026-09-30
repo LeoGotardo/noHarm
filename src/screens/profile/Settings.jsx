@@ -3,6 +3,7 @@ import { Btn, Card, Divider, Field, Icon, SectionLabel } from "@ui";
 import { useState } from "react";
 import { deleteMe } from "../../services/api/user.js";
 import { LinkRow } from "./LinkRow.jsx";
+import { SuggestionBox } from "./SuggestionBox.jsx";
 import { ToggleRow } from "./ToggleRow.jsx";
 
 // Mirrors the backend's ACCOUNT_DELETION_GRACE_DAYS. Only ever shown to the
@@ -150,6 +151,13 @@ export function Settings({
               disabled={!masterOn}
               onChange={(v) => onNotifPrefChange("checkinReminder", v)}
             />
+          </Card>
+        </div>
+
+        <div>
+          <SectionLabel>Suggestions</SectionLabel>
+          <Card pad={8}>
+            <SuggestionBox />
           </Card>
         </div>
 

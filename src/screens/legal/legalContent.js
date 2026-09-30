@@ -40,8 +40,8 @@
  */
 
 const CONTROLLER = "Leonardo da Silva Gotardo";
-const PRIVACY_EMAIL = "noharm@leogotardo.com.br";
-const SUPPORT_EMAIL = PRIVACY_EMAIL;
+const PRIVACY_EMAIL = "contact@noharm.site";
+const SUPPORT_EMAIL = "support@noharm.site";
 const EFFECTIVE = "28 September 2026";
 
 export const LEGAL_DOCUMENTS = {

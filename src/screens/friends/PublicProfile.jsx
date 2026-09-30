@@ -2,12 +2,13 @@ import {
   BottomSheet,
   hashHue,
   Header,
+  RoleBadge,
   Screen
 } from "@components";
 import { Avatar, Btn, Card, Icon, Skeleton } from "@ui";
 import { useEffect, useState } from "react";
 import { getUser, getUserStats } from "../../services/api/user.js";
-import { cacheRead, cacheWrite } from "../../store/cache.js";
+import { cachedUser, cacheWrite } from "../../store/cache.js";
 import { ReportSheet } from "./ReportSheet.jsx";
 import { SheetAction } from "./SheetAction.jsx";
 
@@ -24,7 +25,7 @@ export function PublicProfile({
   onReport,
 }) {
   const [user, setUser] = useState(
-    () => cacheRead(`user_${userId}`)?.data ?? null,
+    () => cachedUser(userId),
   );
   const [rel, setRel] = useState(relation);
   const [menu, setMenu] = useState(false);
@@ -38,9 +39,9 @@ export function PublicProfile({
 
   useEffect(() => {
     if (!userId) return;
-    const cached = cacheRead(`user_${userId}`);
+    const cached = cachedUser(userId);
     if (cached) {
-      setUser(cached.data);
+      setUser(cached);
       setLoading(false);
       return;
     }
@@ -139,6 +140,11 @@ export function PublicProfile({
             >
               {username}
             </div>
+            {user?.role && (
+              <div style={{ marginTop: 6 }}>
+                <RoleBadge role={user.role} size="md" />
+              </div>
+            )}
             <div
               style={{ fontSize: 13.5, color: "var(--ink-3)", marginTop: 3 }}
             >

@@ -1,4 +1,4 @@
-import { BadgeMedallion, hashHue, Header, Screen } from "@components";
+import { BadgeMedallion, hashHue, Header, RoleBadge, Screen } from "@components";
 import { milestoneDays } from "../../services/badges.js";
 import { Avatar, Btn, Card, Icon, useGuardedCallback } from "@ui";
 
@@ -71,6 +71,11 @@ export function MyProfile({
         >
           {username || "—"}
         </div>
+        {me?.role && (
+          <div style={{ marginTop: 6 }}>
+            <RoleBadge role={me.role} size="md" />
+          </div>
+        )}
         {joinedLabel && (
           <div style={{ fontSize: 13.5, color: "var(--ink-3)", marginTop: 3 }}>
             Member since {joinedLabel}

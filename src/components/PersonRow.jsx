@@ -1,4 +1,5 @@
 import { Avatar, Icon, useGuardedCallback } from "@ui";
+import { RoleBadge } from "./RoleBadge.jsx";
 
 export function PersonRow({ person, right, onClick, sub }) {
   const run = useGuardedCallback(onClick);
@@ -22,8 +23,26 @@ export function PersonRow({ person, right, onClick, sub }) {
         src={person.profile_picture}
       />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 15.5, fontWeight: 600, color: "var(--ink)" }}>
-          {person.username}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 7,
+            fontSize: 15.5,
+            fontWeight: 600,
+            color: "var(--ink)",
+          }}
+        >
+          <span
+            style={{
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {person.username}
+          </span>
+          <RoleBadge role={person.role} />
         </div>
         <div
           style={{

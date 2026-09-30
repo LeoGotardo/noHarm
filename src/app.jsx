@@ -474,6 +474,7 @@ export default function App() {
             id: u.id,
             username: u.username,
             profile_picture: u.profile_picture ?? null,
+            role: u.role ?? null,
             hue: hashHue(u.username),
             rel: isFriend ? "friend" : isPending ? "pending" : "none",
           };

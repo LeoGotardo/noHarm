@@ -105,7 +105,7 @@ services/ import from connectors/
 | `src/landing.js` | When the landing page applies (web, not native, not an installed PWA), the `?start=` query it links back with, and `goToLanding` |
 | `src/theme.css` | CSS custom properties for all four theme variants, the layout tokens the breakpoint drives, and the hover/focus rules. Theme token blocks are attribute-only selectors so `<html>` resolves them too — see Theming and Responsive layout |
 | `src/ui/index.js` | Low-level primitives: `Icon`, `Avatar`/`OnlineDot`, `Btn`, `Card`, `Checkbox`, `Field`, `Skeleton`, `GeoBackground`, `Divider`, `SectionLabel`, plus `cx` helper, the tap guards from `guards.js` (`useGuardedCallback`, `useDebouncedValue`) and `useWide` from `useBreakpoint.js` (see Responsive layout) |
-| `src/components/index.js` | Composite widgets: `Screen`, `Header`, `Banner`, `Toast`, `BottomSheet`, `TabBar`/`SideNav`, `SplitView`/`NoSelection`, `StreakRing`/`BadgeMedallion`, `EmptyState`, `Mark`/`Wordmark`/`Logo`, `GoogleButton`, `PersonRow`, `SegTabs`, plus format helpers from `utils.js` (`hashHue`, `fmtTime`, `fmtLongDate`, `fmtRelDate`, `fmtShortDay`) |
+| `src/components/index.js` | Composite widgets: `Screen`, `Header`, `Banner`, `Toast`, `BottomSheet`, `TabBar`/`SideNav`, `SplitView`/`NoSelection`, `StreakRing`/`BadgeMedallion`, `EmptyState`, `Mark`/`Wordmark`/`Logo`, `GoogleButton`, `PersonRow`, `RoleBadge` (the Official/Admin mark beside a name, from the API's `role` — see Domain rules), `SegTabs`, plus format helpers from `utils.js` (`hashHue`, `fmtTime`, `fmtLongDate`, `fmtRelDate`, `fmtShortDay`) |
 | `src/connectors/` | Transport layer (see diagram above) |
 | `src/services/api/` | `auth`, `badge`, `chat`, `consent`, `friendship`, `message`, `moderation`, `notice`, `report`, `streak`, `user`, `device` |
 | `src/services/ws/` | `chat`, `connection`, `friendship`, `presence` |
@@ -495,13 +495,17 @@ See `noHarmBack/docs/FRONTEND_DESIGN_BRIEF.md` for full API shapes. Key invarian
   200-character push, the 20 messages a report copies); change one of those
   and the document is wrong until it is edited too. There is deliberately no
   postal address: the controller is a natural person, and the contact the LGPD
-  asks for is the one mailbox every email in the app points at.
+  asks for is `contact@noharm.site`. Appeals go to `support@noharm.site`
+  (`VITE_SUPPORT_EMAIL`). Both are ImprovMX aliases on the domain.
 - **`public/about.html` is the web's front door** (`/about` via nginx, and the
   same rewrite in `vite.config.js` for dev), and the "App home page" on the
   Google OAuth consent screen. `src/main.jsx` sends a visitor — web, no
   session, at `/` — there before React renders; its buttons come back as
   `/?start=register` / `/?start=login`, which `app.jsx` opens directly and then
-  strips. Every "back to the start" on the web (back from auth, logout, the
+  strips. The reverse holds too: a signed-in visitor (an `nh_access` token)
+  opening `/about` is sent back to `/` by `public/about-redirect.js` — a
+  same-origin file, because the CSP allows no inline script. Every "back to
+  the start" on the web (back from auth, logout, the
   session ending, "Start over") goes to it too, via `toFront`. **Never in the
   installed app** or an installed PWA (`src/landing.js`): the native shell has
   no `/about`, and the splash stays its front door. Hand-written, not generated
@@ -510,6 +514,19 @@ See `noHarmBack/docs/FRONTEND_DESIGN_BRIEF.md` for full API shapes. Key invarian
   same reason a visitor does not stay on `/`. It also says NoHarm is **open source**, which
   rests on both GitHub repositories being public (this one MIT, the backend
   Apache 2.0) — making either private makes the page false.
+- **Crawlers get three files in `public/`**: `robots.txt` (keeps `/api/`,
+  `/ws/` and the `?start=` links out), `sitemap.xml` (the three public pages
+  only — bump `<lastmod>` when one changes) and `llms.txt` (a plain summary
+  for LLMs, restating claims from the landing page, so it goes stale with
+  it). `terms.html` / `privacy.html` carry a canonical link because nginx
+  serves each at two URLs; `build-legal.mjs` leaves the head alone, so it
+  survives `npm run legal`.
+- **Official and Admin marks are the backend's call.** Every user object
+  carries `role` — `"official"` (`OFFICIAL_USER_IDS`), `"admin"`
+  (`ADMIN_USER_IDS`) or null — and `RoleBadge` draws it in rows, the chat
+  header and both profiles. Display only: moderation access is still the
+  `useModerator` probe. `user_<id>` cache entries never expire, so
+  `cachedUser()` treats one without a `role` key as a miss.
 - **Friendship status codes**: 2=deleted, 3=blocked, 4=pending, 5=accepted, 6=rejected.
 - **Reporting is private and inert.** `POST /reports/{userId}` takes one of six
   reasons (`services/api/report.js` holds the list and its copy) plus up to 1000

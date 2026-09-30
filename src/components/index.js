@@ -10,6 +10,7 @@ export { Header } from "./Header.jsx";
 export { Logo, Mark, Wordmark } from "./Logo.jsx";
 export { NoticeSheet } from "./NoticeSheet.jsx";
 export { PersonRow } from "./PersonRow.jsx";
+export { RoleBadge } from "./RoleBadge.jsx";
 export { Screen } from "./Screen.jsx";
 export { SegTabs } from "./SegTabs.jsx";
 export { SideNav } from "./SideNav.jsx";

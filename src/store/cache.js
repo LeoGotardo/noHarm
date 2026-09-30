@@ -38,3 +38,13 @@ export function cacheValid(key, maxAgeMs) {
   const c = cacheRead(key);
   return !!c && Date.now() - c.at < maxAgeMs;
 }
+
+/**
+ * Another user's public profile, cached under `user_<id>` with no expiry.
+ * An entry written before `role` existed on the API has no such key and would
+ * never show the Official/Admin mark, so it counts as a miss and is refetched.
+ */
+export function cachedUser(id) {
+  const data = cacheRead(`user_${id}`)?.data;
+  return data && "role" in data ? data : null;
+}

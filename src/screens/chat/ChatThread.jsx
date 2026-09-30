@@ -1,4 +1,4 @@
-import { hashHue } from "@components";
+import { hashHue, RoleBadge } from "@components";
 import { Avatar, Btn, GeoBackground, Icon, useGuardedCallback } from "@ui";
 import { useEffect, useRef, useState } from "react";
 import { acceptChat, rejectChat } from "../../services/api/chat.js";
@@ -238,9 +238,17 @@ export function ChatThread({
             <Avatar name={username} size={38} hue={hue} src={src} />
             <div>
               <div
-                style={{ fontSize: 15.5, fontWeight: 700, color: "var(--ink)" }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 7,
+                  fontSize: 15.5,
+                  fontWeight: 700,
+                  color: "var(--ink)",
+                }}
               >
                 {username}
+                <RoleBadge role={otherUser?.role} />
               </div>
               <div
                 style={{

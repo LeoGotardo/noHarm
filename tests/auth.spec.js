@@ -95,6 +95,10 @@ test.describe("Auth / Onboarding", () => {
     await page.goto("/");
     await expect(page.getByText(userA.username)).toBeVisible();
     await expect(page).not.toHaveURL(/\/about/);
+    // …and one that opens the landing directly is sent back to the app.
+    await page.goto("/about");
+    await expect(page.getByText(userA.username)).toBeVisible();
+    await expect(page).not.toHaveURL(/\/about/);
   });
 
   test("No token — lands on the landing page", async ({ page }) => {

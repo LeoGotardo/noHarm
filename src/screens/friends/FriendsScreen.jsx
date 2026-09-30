@@ -8,15 +8,14 @@ import {
 import { Btn, Card, Divider, Icon } from "@ui";
 import { Fragment, useEffect, useState } from "react";
 import { getUser } from "../../services/api/user.js";
-import { cacheRead, cacheWrite } from "../../store/cache.js";
+import { cachedUser, cacheWrite } from "../../store/cache.js";
 
 async function enrichFriendship(friendship, meId) {
   const otherId =
     friendship.sender === meId ? friendship.reciver : friendship.sender;
   const cacheKey = `user_${otherId}`;
-  const cached = cacheRead(cacheKey);
   const user =
-    cached?.data ??
+    cachedUser(otherId) ??
     (await getUser(otherId)
       .then((u) => {
         cacheWrite(cacheKey, u);
@@ -28,6 +27,7 @@ async function enrichFriendship(friendship, meId) {
     id: otherId,
     username: user?.username ?? otherId.slice(0, 8),
     profile_picture: user?.profile_picture ?? null,
+    role: user?.role ?? null,
     hue: hashHue(user?.username),
     online: false,
     streak: null,

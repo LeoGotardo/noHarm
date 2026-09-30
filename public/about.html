@@ -9,6 +9,8 @@
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <meta name="theme-color" content="#558969">
+<script src="/about-redirect.js"></script>
+<script src="/suggest.js" defer></script>
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="NoHarm">
 <meta property="og:title" content="NoHarm · One clean day at a time">
@@ -28,7 +30,10 @@
   app — see src/landing.js.
 
   Same rules as terms.html and privacy.html: no stylesheet, no script, no font
-  or image from another origin. The FAQ is <details>, not JavaScript.
+  or image from another origin. The FAQ is <details>, not JavaScript. The one
+  exceptions are /about-redirect.js, which sends a signed-in visitor back to
+  the app, and /suggest.js, which turns the suggestion box into an email —
+  both same origin.
 
   "Open source" rests on both repositories being public on GitHub (front end
   MIT, server Apache 2.0); make either private and that claim is false.
@@ -317,6 +322,19 @@
   summary::after { content: "+"; position: absolute; right: 6px; top: 13px; font-size: 1.4rem; color: var(--primary); font-weight: 400; }
   details[open] summary::after { content: "–"; }
   details p { margin: 0 0 20px; color: var(--ink-2); }
+
+  .suggest { max-width: 46rem; margin: 56px auto 0; background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 28px; }
+  .suggest h3 { margin: 0 0 6px; font-size: 1.2rem; }
+  .suggest p { margin: 0 0 16px; color: var(--ink-2); }
+  .suggest textarea {
+    display: block; width: 100%; box-sizing: border-box; min-height: 120px; resize: vertical;
+    padding: 14px 16px; font: inherit; color: var(--ink); background: var(--bg);
+    border: 1.5px solid var(--line); border-radius: 14px;
+  }
+  .suggest textarea:focus { outline: none; border-color: var(--primary); }
+  .suggest .row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; }
+  .suggest .note { font-size: .9rem; color: var(--ink-3); margin: 0; }
+  .suggest button { font: inherit; cursor: pointer; }
 
   .cta { text-align: center; background: var(--primary); color: var(--on-primary); border-radius: 28px; padding: 60px 24px; }
   .cta h2 { color: inherit; }
@@ -748,9 +766,20 @@
         </details>
         <details>
           <summary>Who is behind NoHarm?</summary>
-          <p>NoHarm is built and run by Leonardo da Silva Gotardo, in Londrina, Brazil. Questions, appeals and privacy requests all go to one inbox, read by a person: <a href="mailto:noharm@leogotardo.com.br">noharm@leogotardo.com.br</a>.</p>
+          <p>NoHarm is built and run by Leonardo da Silva Gotardo, in Londrina, Brazil. Both inboxes are read by a person: questions and privacy requests go to <a href="mailto:contact@noharm.site">contact@noharm.site</a>, appeals of a moderation decision to <a href="mailto:support@noharm.site">support@noharm.site</a>.</p>
         </details>
       </div>
+      <!-- Sent by the visitor's own mail app, via /suggest.js. Nothing is
+           stored by NoHarm. -->
+      <form class="suggest" id="suggest-form">
+        <h3><label for="suggestion">Have an idea for NoHarm?</label></h3>
+        <p>Something missing, something confusing, something you would love to see. Every suggestion is read by a person.</p>
+        <textarea id="suggestion" name="suggestion" maxlength="600" required placeholder="I wish NoHarm could…"></textarea>
+        <div class="row">
+          <p class="note">Opens your email app, addressed to <a href="mailto:suggestions@noharm.site">suggestions@noharm.site</a>.</p>
+          <button class="btn btn-primary" type="submit">Send suggestion</button>
+        </div>
+      </form>
     </div>
   </section>
 
@@ -774,7 +803,7 @@
       <a href="/privacy">Privacy Policy</a>
       <a href="/terms">Terms of Use</a>
       <a href="https://github.com/LeoGotardo/noHarm">Source code</a>
-      <a href="mailto:noharm@leogotardo.com.br">Contact</a>
+      <a href="mailto:contact@noharm.site">Contact</a>
     </nav>
   </div>
 </footer>

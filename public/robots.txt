@@ -1,0 +1,14 @@
+# NoHarm — https://noharm.site
+#
+# The public pages are /about (the home page), /privacy and /terms. Everything
+# else is the app behind a sign-in, or the API it talks to.
+
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /ws/
+# The landing page's "Log in" / "Get started" links. Same app as `/`, so
+# crawling them only produces duplicates of a sign-in screen.
+Disallow: /*?start=
+
+Sitemap: https://noharm.site/sitemap.xml
