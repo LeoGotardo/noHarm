@@ -108,7 +108,7 @@
   <li>From your Google sign-in: your email address, a Google account identifier and, if you have one, the address of your Google profile picture.</li>
   <li>What you give us: a username, your date of birth, and your answers to the consent questions, with the date and document version of each.</li>
   <li>Your recovery data: when each streak started and ended, when you last checked in, and which was your longest. This is health information.</li>
-  <li>Your social activity: friend requests and friendships, blocks, and the messages you send and receive.</li>
+  <li>Your social activity: friend requests and friendships, blocks, the messages you send and receive, and your posts, comments and likes, with who each post was shared with.</li>
   <li>Badges you have earned.</li>
   <li>Moderation: reports you file (with any note you add), reports about you, the evidence attached to them, and any warning or sanction and its notice.</li>
   <li>Technical data: a notification token for your device if you allow notifications, with the kinds of notification you chose, sign-in sessions, a log of security-relevant account events, and — when a request fails with a server error — the error, which may be linked to your account.</li>
@@ -118,17 +118,19 @@
 
 <h2>Why we collect it, and on what basis</h2>
 <ul>
-  <li>Your account, friends and messages: to provide the service you signed up for (performance of a contract — LGPD art. 7 V).</li>
+  <li>Your account, friends, messages, posts, comments and likes: to provide the service you signed up for (performance of a contract — LGPD art. 7 V).</li>
   <li>Your recovery data: only with your specific, separate consent (LGPD art. 11 I; GDPR art. 9(2)(a)). You can decline it at sign-up and still use the rest of the app, and withdraw it at any time.</li>
   <li>Date of birth: to confirm you are old enough to hold an account.</li>
   <li>Reports, moderation, security logs, IP addresses and error logs: to keep people safe, prevent abuse and keep the service working (legitimate interests — LGPD art. 7 IX).</li>
   <li>Notification token: to send the notifications you turned on.</li>
 </ul>
+<p>A post or comment can say something about your health. What you write there, and who sees it, is your choice; we show it to that audience and use it for nothing else. Posts are not part of your recovery data: withdrawing that consent does not delete them, and deleting a post does not touch your streaks.</p>
 <p>We never sell your data, and never use it for advertising or to build a profile of you.</p>
 
-<h2>How your messages are protected</h2>
-<p>Messages, your email address, username, date of birth, profile picture address and several other fields are encrypted in our database. Connections between the app and our server are encrypted in transit.</p>
+<h2>How your messages and posts are protected</h2>
+<p>Messages, posts, comments, your email address, username, date of birth, profile picture address and several other fields are encrypted in our database. Connections between the app and our server are encrypted in transit.</p>
 <p>This is not end-to-end encryption. The server holds the key, so it can read messages — that is what lets it deliver them and attach them to a report. No one reads your conversations as a matter of routine. A moderator sees the last 20 messages of a conversation only when one of its two participants reports the other.</p>
+<p>Encryption in our database protects posts from someone who gets hold of the database, not from the people you shared them with: they can read them, by design. A moderator sees a post or comment when someone reports it, and, for a reported comment, the post it answers.</p>
 
 <h2>Notifications</h2>
 <p>If you allow notifications on your phone, a new-message notification includes the first 200 characters of the message, so that you can read it from the lock screen. To reach your device, that notification passes through Google's Firebase Cloud Messaging and, on iPhone, Apple's push service. Friend-request notifications carry no personal content.</p>
@@ -137,6 +139,7 @@
 
 <h2>Who else sees your data</h2>
 <p>Other NoHarm users can see your username and profile picture. Only your friends see whether you are online, your current streak and how many badges you have earned. Messages are seen only by the person you send them to.</p>
+<p>A post shared with everyone is seen by every NoHarm user, and one shared with friends by your friends only — in both cases minus anyone you have blocked or who has blocked you. Comments are seen by whoever can see the post. Anyone who can see a post sees how many likes and comments it has, but not who liked it.</p>
 <p>We use these service providers, who process data on our behalf and only for these purposes:</p>
 <ul>
   <li>Amazon Web Services — hosting of our server and database.</li>
@@ -153,7 +156,9 @@
 <ul>
   <li>Your account and everything in it: until you delete it. After deletion we keep it for 30 days so you can restore it, then permanently erase it, including your streaks, friendships and conversations.</li>
   <li>Recovery data: until you withdraw consent, which erases every streak immediately and cannot be undone, or until the account is erased.</li>
-  <li>Evidence attached to a report: 180 days after a moderator closes the report.</li>
+  <li>Posts, comments and likes: until you delete them, which erases them at once, or until the account is erased. Deleting a post erases its comments and likes with it.</li>
+  <li>A post or comment a moderator removed: kept hidden for 30 days, so it can be restored if you appeal, then erased.</li>
+  <li>Evidence attached to a report — the messages, post or comment copied when it was filed: 180 days after a moderator closes the report, even if the original was deleted before then.</li>
   <li>Reports and moderation decisions: kept as the record of what was decided, including after the account is erased.</li>
   <li>Security event log: kept, but no longer linked to you once your account is erased.</li>
   <li>Error logs: 90 days after the error was last seen.</li>
@@ -166,9 +171,9 @@
 <h2>Your rights, and how to use them</h2>
 <p>You have the right to know what we hold about you, get a copy, correct it, have it deleted, withdraw consent, object to how we use it, and know who we share it with (LGPD art. 18). Most of this you can do yourself:</p>
 <ul>
-  <li>Copy of your data: Settings → Privacy &amp; data → download. You get a file with your profile, consents, streaks, friends, badges, conversations and the notices sent to you. It does not include reports filed about you or who filed them, because that would identify the people who reported you.</li>
+  <li>Copy of your data: Settings → Privacy &amp; data → download. You get a file with your profile, consents, streaks, friends, badges, conversations, your posts and comments, the posts you liked and the notices sent to you. It does not include reports filed about you or who filed them, because that would identify the people who reported you.</li>
   <li>Correction: edit your profile.</li>
-  <li>Deletion: Settings → delete account.</li>
+  <li>Deletion: Settings → delete account, or delete a single post or comment from its menu.</li>
   <li>Withdrawing recovery-data consent: Settings → Privacy &amp; data.</li>
   <li>Notifications: Settings.</li>
 </ul>
