@@ -105,9 +105,9 @@ services/ import from connectors/
 | `src/landing.js` | When the landing page applies (web, not native, not an installed PWA), the `?start=` query it links back with, and `goToLanding` |
 | `src/theme.css` | CSS custom properties for all four theme variants, the layout tokens the breakpoint drives, and the hover/focus rules. Theme token blocks are attribute-only selectors so `<html>` resolves them too — see Theming and Responsive layout |
 | `src/ui/index.js` | Low-level primitives: `Icon`, `Avatar`/`OnlineDot`, `Btn`, `Card`, `Checkbox`, `Field`, `Skeleton`, `GeoBackground`, `Divider`, `SectionLabel`, plus `cx` helper, the tap guards from `guards.js` (`useGuardedCallback`, `useDebouncedValue`) and `useWide` from `useBreakpoint.js` (see Responsive layout) |
-| `src/components/index.js` | Composite widgets: `Screen`, `Header`, `Banner`, `Toast`, `BottomSheet`, `TabBar`/`SideNav`, `SplitView`/`NoSelection`, `StreakRing`/`BadgeMedallion`, `EmptyState`, `Mark`/`Wordmark`/`Logo`, `GoogleButton`, `PersonRow`, `RoleBadge` (the Official/Admin mark beside a name, from the API's `role` — see Domain rules), `SegTabs`, plus format helpers from `utils.js` (`hashHue`, `fmtTime`, `fmtLongDate`, `fmtRelDate`, `fmtShortDay`) |
+| `src/components/index.js` | Composite widgets: `Screen`, `Header`, `Banner`, `Toast`, `BottomSheet`, `TabBar`/`SideNav`, `SplitView`/`NoSelection`, `StreakRing`/`BadgeMedallion`, `EmptyState`, `Mark`/`Wordmark`/`Logo`, `GoogleButton`, `PersonRow`, `RoleBadge` (the Official/Admin mark beside a name, from the API's `role` — see Domain rules), `SegTabs`, `ConfirmSheet` + `CONFIRM_COPY` (see Confirmations), plus format helpers from `utils.js` (`hashHue`, `fmtTime`, `fmtLongDate`, `fmtRelDate`, `fmtShortDay`) |
 | `src/connectors/` | Transport layer (see diagram above) |
-| `src/services/api/` | `auth`, `badge`, `chat`, `consent`, `friendship`, `message`, `moderation`, `notice`, `report`, `streak`, `user`, `device` |
+| `src/services/api/` | `auth`, `badge`, `chat`, `consent`, `friendship`, `message`, `moderation`, `notice`, `post`, `report`, `streak`, `user`, `device` |
 | `src/services/ws/` | `chat`, `connection`, `friendship`, `presence` |
 | `src/services/notifications.js` | Browser Notification API wrapper (`notif.send/requestPermission/granted`) |
 | `src/services/push.js` | Capacitor FCM wrapper (`push.register/onForeground/onTap`) |
@@ -119,6 +119,8 @@ services/ import from connectors/
 | `src/store/useFriends.js` | Friend list + WS subscriptions |
 | `src/store/useStreak.js` | Active streak data |
 | `src/store/useUser.js` | Current user profile |
+| `src/store/usePosts.js` | The Community feed, both scopes, in one module-level store (`useSyncExternalStore`) held in memory for the session — never localStorage. `patchPost`/`dropPost`/`dropAuthor` walk every copy of a post; `setLiked` is the optimistic like |
+| `src/store/useComments.js` | Comments of the open post; writes the count back to the feed store |
 | `src/store/useModeration.js` | `useModerator(enabled)` — probes `GET /reports` once per session to find out whether this account can moderate |
 | `src/store/useNotices.js` | Moderation notices waiting for this user; `acknowledge` marks one read |
 | `src/store/useNotifPrefs.js` | Persists notification prefs to `nh_notif_prefs` in localStorage; keys: `master`, `messages`, `friendRequests`, `friendAccepted`, `checkinReminder` |
@@ -128,7 +130,9 @@ services/ import from connectors/
 | `src/screens/home/` | `Dashboard`, `StreakHistory`, `CheckInModal` |
 | `src/screens/friends/` | `FriendsScreen`, `FriendRequests`, `FriendSearch`, `PublicProfile`, `ReportSheet` |
 | `src/screens/chat/` | `ChatList`, `ChatThread` |
-| `src/screens/badges/` | `BadgesScreen`, `BadgeDetail` |
+| `src/screens/notifications/` | `NotificationsScreen` — what is *pending* (received friend requests, conversations with unread messages, blocked ones excluded), built from state the app already holds; the backend keeps no notification history. The bell's count is the length of that same list |
+| `src/screens/community/` | `CommunityScreen` (tab root), `PostDetail`, `PostCard`/`CommentRow`/`AuthorLine`, `ComposeSheet` (+ `CrisisLink`), `ItemMenu` (delete / report / block on a post or comment) |
+| `src/screens/badges/` | `BadgesScreen` (pushed from Profile — not a tab since Community took its place), `BadgeDetail` |
 | `src/screens/profile/` | `MyProfile`, `EditProfile`, `Settings`, `DataAndPrivacy`, `ForcedRename` (shown instead of the app while a username reset is outstanding) |
 | `src/screens/legal/` | `legalContent.js` (the documents' text, in force since 2026-09-28, and the only place to edit them), `LegalDocument` (renders one, reached from Settings, the register screen and the gate — all three show the same page), `ConsentGate` (shown instead of the app while a consent is outstanding), `CrisisResources` + `crisisResources.js` (the numbers the "not medical care" clause points at — the one list in this folder that must be verified, not drafted) |
 | `src/screens/moderation/` | `ModerationQueue`, `ReportReview`, `SuspendSheet`, `WarnSheet`, `ProfileSanctionSheet` — admin only; the Settings row that opens them is absent for everyone else |
@@ -165,6 +169,44 @@ typed word is one search, not one per letter.
 
 `tests/chat.spec.js` fires two clicks in a single tick and asserts one
 `POST /messages`.
+
+## Confirmations
+
+**Every action that changes a relationship with another person asks first**:
+block, unblock, remove a friend, decline a request, cancel a sent one, ignore
+a conversation request. So does anything that cannot be taken back (deleting a
+post, a comment, the account; withdrawing health consent). Accepting a request
+or adding a friend does not — that is the thing being asked for.
+
+`ConfirmSheet` (`src/components/ConfirmSheet.jsx`) is the one sheet for it, and
+`CONFIRM_COPY` holds the words per action, so a block reads the same from a
+profile, a post and a comment. The copy says what changes **for the other
+person** and whether they are told — the part people do not picture — and every
+such sentence is a claim about the backend: unblocking does not restore the
+friendship (the row goes to `disabled`), ignoring a chat only deletes the
+pending invitation and does not stop a new one.
+
+The button that *opens* a confirmation is not tap-guarded: the request is
+guarded by the confirm button (`Btn`), and a guard on the opener swallowed a
+second tap made within 400 ms of answering "Keep it".
+
+Unblocking needs somewhere to happen, because a blocked person drops out of
+the feed and search: Settings → **Blocked people** (`BlockedPeople.jsx`), fed
+by the blocked rows `GET /friendships` already returns with `blocked_by`, and
+the Unblock button on their profile. `DELETE /users/{id}/block` lifts it; only
+the person who blocked may.
+
+**A blocker keeps seeing whom they blocked, and can do nothing with them but
+unblock.** `app.jsx` derives two sets from the blocked rows: `blockedIds` (I
+blocked them) and `blockedMeIds` (they blocked me). Someone in the first set is
+listed in Blocked people, marked "Blocked" in search (no Add), opens to a
+profile with only Unblock — named from the row's `sender_user`/`reciver_user`,
+since their own `GET /users/{id}` answers 403 to the blocker — and any old
+conversation with them is read-only. Someone in the second set drops out of
+search, and their conversation is read-only with neutral wording ("You can't
+send messages in this conversation"), never "you were blocked". The composer is
+closed in the front end because **the backend still accepts a message into a
+chat that existed before the block**, in both directions.
 
 ## Deployment
 
@@ -216,7 +258,7 @@ Custom stack-on-tabs — no router library:
 - `phase`: `'splash' | 'register' | 'login' | 'app' | 'deleted'` — `splash` is
   the installed app's only; on the web the landing page (`public/about.html`)
   takes its place
-- `tab`: `'home' | 'friends' | 'chat' | 'badges' | 'profile'`
+- `tab`: `'home' | 'friends' | 'chat' | 'community' | 'profile'`
 - `stack`: `{ screen, props }[]` pushed over the active tab
 
 Only three navigation primitives: `push(screen, props)` / `pop()` / `resetTo(tab)`.
@@ -224,8 +266,15 @@ Only three navigation primitives: `push(screen, props)` / `pop()` / `resetTo(tab
 **Adding a screen**: add a `case` to the `switch (top.screen)` block (overlay screens) or `switch (tab)` block (tab roots) in `src/app.jsx`, implement the component in the appropriate `src/screens/*/` folder.
 
 Overlay screens today: `streakHistory`, `friendRequests`, `friendSearch`,
-`publicProfile`, `chatThread`, `badgeDetail`, `editProfile`, `settings`,
-`privacy`, `legalDoc`, `crisis`, `moderation`, `reportReview`.
+`publicProfile`, `chatThread`, `postDetail`, `badges`, `badgeDetail`,
+`editProfile`, `settings`, `blocked`, `notifications`, `privacy`, `legalDoc`,
+`crisis`, `moderation`, `reportReview`.
+
+**A sheet opened from a tab root needs `<BottomSheet portal>`.** `#nh-stage`
+animates with a transform, so it is a stacking context and nothing inside it
+can rise above the tab bar: the Community composer slid up *behind* the bar,
+buttons and all. `portal` renders the sheet into `#nh-screen`, where the
+app-level sheets already live. Pushed screens hide the bar and do not need it.
 
 **Two screens are shown *instead of* the app, not pushed over it**, checked in
 `app.jsx` before the stack is read. `ConsentGate` when `me.pending_consents` is
@@ -263,6 +312,7 @@ What the breakpoint actually changes:
 | Compact | ≥ 900px |
 |---------|---------|
 | `TabBar` pinned to the bottom, hidden behind a pushed screen | `SideNav` down the left edge, **kept** while a screen is pushed — a desktop has the room, and a rail that vanished on every chat would be worse than none |
+| Notifications is the bell on Home; Settings is the gear on Profile | both are pinned to the foot of the rail, one click from any tab. They push a screen rather than switch tab (`openOver` never stacks a second copy), and the rail marks the open one via `extra` |
 | Screens fill the 480px shell | `<Screen>` centres its children in a `--content-max` column; `ChatThread` builds its own frame and centres each of its three bands itself |
 | `BottomSheet` slides up, with a drag handle | the same component renders a centred dialog (`role="dialog"`, 460px, no handle) |
 | Auth fills the screen, button under the thumb | `<Screen panel>` draws the column as a centred card (`.nh-panel`), and `.nh-thumb-gap` collapses — the gap exists to reach a thumb, and a mouse has none |
@@ -620,4 +670,16 @@ See `noHarmBack/docs/FRONTEND_DESIGN_BRIEF.md` for full API shapes. Key invarian
   `useFriends` refetch over REST there. Connecting is the one instant the
   client knows it has a gap. Cost: one extra fetch per connect, including the
   silent token refresh every 15 minutes.
+- **Posts (Community)** — contract in `noHarmBack/docs/POSTS_PLAN.md`, where
+  decisions D1–D8 are argued. Text only (post 1000, comment 500). The author
+  picks the audience per post, `friends` or `community`, and the composer
+  starts on `friends` every time. No editing. Like and unlike are `PUT` /
+  `DELETE` — idempotent, never a toggle. Any 404 on a post means *gone for
+  this viewer* (deleted, removed, author blocked or suspended), so the item is
+  dropped with a toast, never an error screen. A report about a post or a
+  comment is still a report about its author: `reportUser(userId, reason,
+  details, { chatId, postId | commentId })`, ids only. Blocking from the feed
+  goes through `blockUser(userId)` when there is no friendship to name — a
+  stranger has none, and `POST /friendships/{id}/block` needs one. The feed
+  is not live: it refreshes on every visit to the tab.
 - **WebSocket** (Socket.IO): JWT-authenticated at connect. Events: `chat` (join/leave/send/mark_read/typing), `presence` (get_online_status/online_status), friend notifications (friend_request/accept/reject/remove/block/unblock).

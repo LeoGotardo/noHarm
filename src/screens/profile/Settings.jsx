@@ -28,6 +28,7 @@ export function Settings({
   onOpenPrivacy,
   onOpenCrisis,
   onOpenAdmin,
+  onOpenBlocked,
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmText, setConfirmText] = useState("");
@@ -168,6 +169,11 @@ export function Settings({
               icon="lock"
               label="Privacy & data"
               onClick={onOpenPrivacy}
+            />
+            <LinkRow
+              icon="block"
+              label="Blocked people"
+              onClick={onOpenBlocked}
             />
             {/* The other half of the Terms' "NoHarm is not medical care"
                 clause. A disclaimer with nowhere to send anyone is only half

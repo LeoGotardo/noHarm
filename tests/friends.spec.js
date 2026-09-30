@@ -1,6 +1,14 @@
 /** TESTING.md → "Friends" */
-import { test, expect, openApp, tab, tabBadge } from "./helpers/fixtures.js";
-import { api, as, makeFriends, sendRequest } from "./helpers/api.js";
+import {
+  test,
+  expect,
+  openApp,
+  tab,
+  tabBadge,
+  confirmDialog,
+  confirmWith,
+} from "./helpers/fixtures.js";
+import { api, as, makeFriends, sendMessage, sendRequest } from "./helpers/api.js";
 
 const openFriends = async (page) => {
   await tab(page, "Friends").click();
@@ -152,6 +160,13 @@ test.describe("Friends", () => {
     await expect(page.getByText(userB.username)).toBeVisible();
 
     await page.getByRole("button", { name: "Cancel" }).click();
+    // Asked first; "Keep it" changes nothing.
+    await expect(confirmDialog(page)).toContainText("Cancel your request");
+    await confirmWith(page, "Keep it");
+    await expect(page.getByText(userB.username)).toBeVisible();
+
+    await page.getByRole("button", { name: "Cancel" }).click();
+    await confirmWith(page, "Cancel request");
     await expect(page.getByText("No pending requests")).toBeVisible();
 
     const sent = await api.get("/friendships/sent", as(userA));
@@ -270,6 +285,8 @@ test.describe("Friends", () => {
     await expect(page.getByText("Block this user")).toBeVisible();
 
     await page.getByText("Remove friend").click();
+    await expect(confirmDialog(page)).toContainText(`Remove ${userB.username}`);
+    await confirmWith(page, "Remove");
     await expect(page.getByText("Friend removed")).toBeVisible();
 
     const after = await api.get("/friendships", as(userA));
@@ -289,8 +306,86 @@ test.describe("Friends", () => {
     await page.locator("#nh-stage button").nth(1).click();
     await page.getByText("Block this user").click();
 
+    // Nothing happens until the confirmation is answered.
+    await expect(confirmDialog(page)).toContainText(`Block ${userB.username}?`);
+    await confirmWith(page, "Cancel");
+    expect(
+      (await api.get("/friendships", as(userA))).friendships.filter((f) => f.status === 3),
+    ).toHaveLength(0);
+
+    await page.locator("#nh-stage button").nth(1).click();
+    await page.getByText("Block this user").click();
+    await confirmWith(page, "Block");
+
     await expect(page.getByText("User blocked")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Blocked" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Unblock" })).toBeVisible();
+    const blocked = (await api.get("/friendships", as(userA))).friendships;
+    expect(blocked.filter((f) => f.status === 3 && f.blocked_by === userA.id)).toHaveLength(1);
+  });
+
+  test("Blocked people — the blocker still sees them, with nothing to do but unblock", async ({
+    page,
+    userA,
+    userB,
+  }) => {
+    await makeFriends(userA, userB);
+    await api.post(`/users/${userB.id}/block`, as(userA));
+    await openApp(page, userA, { checkedInToday: true });
+
+    await tab(page, "Profile").click();
+    await page.locator("#nh-stage button").first().click(); // gear → Settings
+    await page.getByText("Blocked people").click();
+
+    // The row opens their profile — named, although that profile answers 403
+    // to the person who blocked them — with Unblock and no way to interact.
+    await page.getByText(userB.username).click();
+    await expect(page.getByText(userB.username)).toBeVisible();
+    await expect(page.getByText("You blocked them")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Unblock" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Message/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Add friend/ })).toHaveCount(0);
+  });
+
+  test("Blocked — a conversation from before the block is read-only for the blocker", async ({
+    page,
+    userA,
+    userB,
+  }) => {
+    await makeFriends(userA, userB);
+    await sendMessage(userB, { to: userA, content: "before the block" });
+    await api.post(`/users/${userB.id}/block`, as(userA));
+    await openApp(page, userA, { checkedInToday: true });
+
+    await tab(page, "Chat").click();
+    await page.getByText("before the block").click();
+
+    await expect(page.getByText("before the block").last()).toBeVisible();
+    await expect(page.getByText("Unblock them to message again")).toBeVisible();
+    await expect(page.getByPlaceholder("Message…")).toHaveCount(0);
+  });
+
+  test("Unblock — asked first, from the profile and from Settings → Blocked people", async ({
+    page,
+    userA,
+    userB,
+  }) => {
+    await makeFriends(userA, userB);
+    await api.post(`/users/${userB.id}/block`, as(userA));
+    await openApp(page, userA, { checkedInToday: true });
+
+    await tab(page, "Profile").click();
+    await page.locator("#nh-stage button").first().click(); // gear → Settings
+    await page.getByText("Blocked people").click();
+    await expect(page.getByText(userB.username)).toBeVisible();
+
+    await page.getByRole("button", { name: "Unblock" }).click();
+    await expect(confirmDialog(page)).toContainText(`Unblock ${userB.username}?`);
+    await confirmWith(page, "Unblock");
+
+    await expect(page.getByText("Unblocked")).toBeVisible();
+    await expect(page.getByText("Nobody blocked")).toBeVisible();
+    const rows = (await api.get("/friendships", as(userA))).friendships;
+    expect(rows.filter((f) => f.status === 3)).toHaveLength(0);
   });
 
   test("Public profile — a received request shows Accept/Decline", async ({

@@ -40,3 +40,16 @@ export function fmtShortDay(iso) {
     day: "numeric",
   });
 }
+
+/** "now" / "5m" / "3h" / "2d" / "Jan 15" — for posts, where minutes matter. */
+export function fmtAgo(iso) {
+  if (!iso) return "";
+  // The backend sends naive UTC timestamps; read them as UTC, not local time.
+  const d = new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(iso) ? iso : iso + "Z");
+  const s = Math.floor((Date.now() - d) / 1000);
+  if (s < 60) return "now";
+  if (s < 3600) return `${Math.floor(s / 60)}m`;
+  if (s < 86_400) return `${Math.floor(s / 3600)}h`;
+  if (s < 7 * 86_400) return `${Math.floor(s / 86_400)}d`;
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}

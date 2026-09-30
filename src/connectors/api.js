@@ -75,7 +75,11 @@ async function request(method, path, body, retry = true, params) {
     body: body != null ? JSON.stringify(body) : undefined,
   });
 
-  if (res.status === 401 && retry) {
+  // A 401 from /auth/* is an answer about the credentials just sent — a bad
+  // Google token, say — not about a session, so there is nothing to refresh.
+  // Treating it as one threw away the body and told someone signing in that
+  // their session had expired.
+  if (res.status === 401 && retry && !path.startsWith("/auth/")) {
     // Refresh once, then retry the original request
     const refreshToken = tokens.getRefresh();
     if (!refreshToken) throw new ApiError(401, null);

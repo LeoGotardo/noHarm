@@ -13,8 +13,12 @@ import {
  * `onSubmit(reason, details)` does the request. A rejection keeps the sheet
  * open with the message inline — a report is not something to make someone
  * retype — and a resolve closes it, leaving the toast to the caller.
+ *
+ * `title` names what is being reported when it is not the person as a whole —
+ * "Report this post". The promise underneath stays about the person, because
+ * a report about a post is still a report about its author.
  */
-export function ReportSheet({ open, onClose, username, onSubmit }) {
+export function ReportSheet({ open, onClose, username, onSubmit, title, portal }) {
   const [reason, setReason] = useState(null);
   const [details, setDetails] = useState("");
   const [sending, setSending] = useState(false);
@@ -45,7 +49,7 @@ export function ReportSheet({ open, onClose, username, onSubmit }) {
   };
 
   return (
-    <BottomSheet open={open} onClose={sending ? undefined : onClose}>
+    <BottomSheet open={open} onClose={sending ? undefined : onClose} portal={portal}>
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         <div
           style={{
@@ -55,7 +59,7 @@ export function ReportSheet({ open, onClose, username, onSubmit }) {
             padding: "0 4px 2px",
           }}
         >
-          Report {username}
+          {title ?? `Report ${username}`}
         </div>
         <div
           style={{

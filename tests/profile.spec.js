@@ -6,6 +6,7 @@ import {
   stubNotificationsGranted,
   tab,
   toggleRow,
+  backButton,
 } from "./helpers/fixtures.js";
 import { api, as, startStreak } from "./helpers/api.js";
 
@@ -36,10 +37,13 @@ test.describe("Profile", () => {
     await expect(page.getByRole("button", { name: /Edit profile/ })).toBeVisible();
   });
 
-  test("My profile — card de badges leva para a aba Badges", async ({ appA, page }) => {
+  test("My profile — card de badges abre a tela de Badges, com volta", async ({ appA, page }) => {
     await openProfile(page);
     await page.getByText(/badges? earned/).click();
     await expect(page.getByText("All milestones")).toBeVisible();
+    // Pushed over Profile now that it is not a tab: back returns there.
+    await backButton(page).click();
+    await expect(page.getByText(/badges? earned/)).toBeVisible();
   });
 
   test("Edit profile — salva username (toast 'Profile updated') e refaz o fetch", async ({

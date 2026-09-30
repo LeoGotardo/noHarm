@@ -14,8 +14,23 @@ import { TABS } from "./TabBar.jsx";
  * Unlike the tab bar, this stays visible while a screen is pushed on the
  * stack: the bar is hidden there because a phone has no room for both, and a
  * desktop does.
+ *
+ * Below the tabs, pinned to the foot of the rail, sit Notifications and
+ * Settings. On a phone both are a screen or two deep (the bell on Home, the
+ * gear on Profile); a desktop has the room to keep them one click away from
+ * anywhere, and a settings page that has to be hunted for from a wide screen
+ * is the phone layout showing through. They are not tabs: each pushes a
+ * screen over the current tab, so `extra` says which of them is open.
  */
-export function SideNav({ active, onChange, badges = {} }) {
+export function SideNav({
+  active,
+  onChange,
+  badges = {},
+  extra,
+  notifCount,
+  onOpenNotifications,
+  onOpenSettings,
+}) {
   return (
     <nav
       aria-label="Main"
@@ -50,11 +65,38 @@ export function SideNav({ active, onChange, badges = {} }) {
         <NavItem
           key={t.id}
           tab={t}
-          on={active === t.id}
+          on={!extra && active === t.id}
           badge={badges[t.id]}
           onSelect={onChange}
         />
       ))}
+
+      <div
+        style={{
+          marginTop: "auto",
+          paddingTop: 12,
+          borderTop: "1px solid var(--border)",
+          display: "flex",
+          flexDirection: "column",
+          gap: 4,
+        }}
+      >
+        {onOpenNotifications && (
+          <NavItem
+            tab={{ id: "notifications", icon: "bell", label: "Notifications" }}
+            on={extra === "notifications"}
+            badge={notifCount}
+            onSelect={onOpenNotifications}
+          />
+        )}
+        {onOpenSettings && (
+          <NavItem
+            tab={{ id: "settings", icon: "gear", label: "Settings" }}
+            on={extra === "settings"}
+            onSelect={onOpenSettings}
+          />
+        )}
+      </div>
     </nav>
   );
 }

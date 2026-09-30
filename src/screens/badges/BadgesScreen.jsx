@@ -7,7 +7,7 @@ import {
   milestoneDays,
 } from "../../services/badges.js";
 
-export function BadgesScreen({ badges, currentDays, onOpen }) {
+export function BadgesScreen({ badges, currentDays, onOpen, onBack }) {
   const openBadge = useGuardedCallback(onOpen);
   const earned = badges.filter((b) => b.earned);
   const next = badges.find((b) => !b.earned);
@@ -17,6 +17,7 @@ export function BadgesScreen({ badges, currentDays, onOpen }) {
     <Screen geo="badges" padTop={56}>
       <Header
         large
+        onBack={onBack}
         title="Badges"
         sub={`${earned.length} of ${badges.length} earned`}
       />

@@ -29,7 +29,7 @@ import {
   sendFriendRequest,
 } from "./services/api/friendship.js";
 import { reportUser } from "./services/api/report.js";
-import { getUsers } from "./services/api/user.js";
+import { blockUser, getUsers, unblockUser } from "./services/api/user.js";
 import { milestoneDays, withEarnedState } from "./services/badges.js";
 import {
   TweakRadio,
@@ -45,6 +45,8 @@ import { BadgeDetail } from "./screens/badges/BadgeDetail.jsx";
 import { BadgesScreen } from "./screens/badges/BadgesScreen.jsx";
 import { ChatList } from "./screens/chat/ChatList.jsx";
 import { ChatThread } from "./screens/chat/ChatThread.jsx";
+import { CommunityScreen } from "./screens/community/CommunityScreen.jsx";
+import { PostDetail } from "./screens/community/PostDetail.jsx";
 import { FriendRequests } from "./screens/friends/FriendRequests.jsx";
 import { FriendSearch } from "./screens/friends/FriendSearch.jsx";
 import { FriendsScreen } from "./screens/friends/FriendsScreen.jsx";
@@ -52,6 +54,7 @@ import { PublicProfile } from "./screens/friends/PublicProfile.jsx";
 import { CheckInModal } from "./screens/home/CheckInModal.jsx";
 import { AdminDashboard } from "./screens/admin/AdminDashboard.jsx";
 import { ModerationQueue } from "./screens/moderation/ModerationQueue.jsx";
+import { NotificationsScreen } from "./screens/notifications/NotificationsScreen.jsx";
 import { ReportReview } from "./screens/moderation/ReportReview.jsx";
 import { Dashboard } from "./screens/home/Dashboard.jsx";
 import { StreakHistory } from "./screens/home/StreakHistory.jsx";
@@ -59,6 +62,7 @@ import { EditProfile } from "./screens/profile/EditProfile.jsx";
 import { ConsentGate } from "./screens/legal/ConsentGate.jsx";
 import { CrisisResources } from "./screens/legal/CrisisResources.jsx";
 import { LegalDocument } from "./screens/legal/LegalDocument.jsx";
+import { BlockedPeople } from "./screens/profile/BlockedPeople.jsx";
 import { DataAndPrivacy } from "./screens/profile/DataAndPrivacy.jsx";
 import { ForcedRename } from "./screens/profile/ForcedRename.jsx";
 import { MyProfile } from "./screens/profile/MyProfile.jsx";
@@ -73,6 +77,7 @@ import { useNotifications } from "./store/useNotifications.js";
 import { useModerator } from "./store/useModeration.js";
 import { useNotices } from "./store/useNotices.js";
 import { useNotifPrefs } from "./store/useNotifPrefs.js";
+import { dropAuthor } from "./store/usePosts.js";
 import { useStreak } from "./store/useStreak.js";
 import { useUser } from "./store/useUser.js";
 
@@ -438,6 +443,30 @@ export default function App() {
     friendshipData.friendships?.filter(
       (f) => f.status === STATUS_CONSTANTS.accepted,
     ) ?? [];
+  // The people this account blocked. `GET /friendships` returns blocked rows
+  // too, with `blocked_by`; rows from before that column fall back to the
+  // sender, the same rule the backend uses to decide who may lift the block.
+  const blockedRows =
+    friendshipData.friendships?.filter(
+      (f) => f.status === STATUS_CONSTANTS.blocked,
+    ) ?? [];
+  const placedByMe = (f) =>
+    f.blocked_by ? f.blocked_by === me?.id : f.sender === me?.id;
+  const blockedByMe = blockedRows.filter(placedByMe);
+  const otherOf = (f) => (f.sender === me?.id ? f.reciver : f.sender);
+  // Who I blocked, and who blocked me. The first stay visible to me, in
+  // Settings → Blocked people and on their profile, but with nothing to do
+  // except unblock; the second simply stop appearing where I could reach them.
+  const blockedIds = new Set(blockedByMe.map(otherOf));
+  const blockedMeIds = new Set(
+    blockedRows.filter((f) => !placedByMe(f)).map(otherOf),
+  );
+  /** What we know of someone I blocked — their own profile is closed to me. */
+  const blockedUserInfo = (userId) => {
+    const f = blockedByMe.find((x) => otherOf(x) === userId);
+    if (!f) return null;
+    return (f.sender === me?.id ? f.reciver_user : f.sender_user) ?? null;
+  };
   const reqReceived = reqRecvData.friendships ?? [];
   const reqSent = reqSentData.friendships ?? [];
 
@@ -462,7 +491,7 @@ export default function App() {
   const searchPool = useMemo(
     () =>
       userPool
-        .filter((u) => u.id !== me?.id)
+        .filter((u) => u.id !== me?.id && !blockedMeIds.has(u.id))
         .map((u) => {
           const isFriend = friends.some(
             (f) => f.sender === u.id || f.reciver === u.id,
@@ -476,10 +505,16 @@ export default function App() {
             profile_picture: u.profile_picture ?? null,
             role: u.role ?? null,
             hue: hashHue(u.username),
-            rel: isFriend ? "friend" : isPending ? "pending" : "none",
+            rel: blockedIds.has(u.id)
+              ? "blocked"
+              : isFriend
+                ? "friend"
+                : isPending
+                  ? "pending"
+                  : "none",
           };
         }),
-    [userPool, friends, reqSent, reqReceived, me],
+    [userPool, friends, reqSent, reqReceived, me, friendshipData],
   );
 
   // Count unread messages sent by the other user across all chats
@@ -488,6 +523,21 @@ export default function App() {
     () => chatList.reduce((n, c) => n + (c.unread_count ?? 0), 0),
     [chatList],
   );
+
+  // What the bell counts: requests to answer and conversations with something
+  // unread, blocked ones excluded — the same things the Notifications screen
+  // lists, so the number and the list never disagree.
+  const unreadChats = chatList.filter((c) => {
+    const other = c.sender === me?.id ? c.reciver : c.sender;
+    return (c.unread_count ?? 0) > 0 && !blockedIds.has(other) && !blockedMeIds.has(other);
+  });
+  const notifCount = reqReceived.length + unreadChats.length;
+
+  // Notifications and Settings are screens pushed over whatever tab is open.
+  // Opening one that is already on top does nothing, so a second click on the
+  // rail item never stacks a copy.
+  const openOver = (screen) =>
+    setStack((s) => (s[s.length - 1]?.screen === screen ? s : [...s, { screen, props: {} }]));
 
   // The tab bar and the side rail show the same counts; they differ only in
   // where they sit.
@@ -635,7 +685,10 @@ export default function App() {
     );
     const isSent = reqSent.some((r) => r.reciver === userId);
     const isRecv = reqReceived.some((r) => r.sender === userId);
-    const relation = isFriend
+    const isBlocked = blockedIds.has(userId);
+    const relation = isBlocked
+      ? "blocked"
+      : isFriend
       ? "friend"
       : isSent
         ? "pending_out"
@@ -646,6 +699,7 @@ export default function App() {
       userId,
       relation,
       friendshipId: findFriendshipId(userId),
+      initialUser: isBlocked ? blockedUserInfo(userId) : null,
     });
   };
 
@@ -673,6 +727,13 @@ export default function App() {
         }),
       30,
     );
+  };
+
+  // A name tapped in the feed. Your own opens your profile tab, not the public
+  // view of yourself — there is nothing to add, message or report there.
+  const openAuthor = (userId) => {
+    if (userId === me?.id) resetTo("profile");
+    else openProfile(userId);
   };
 
   // ── UI state ──────────────────────────────────────────────────────────────
@@ -704,6 +765,64 @@ export default function App() {
   const showToast = (text, icon = "check") => {
     setToast({ text, icon });
     setTimeout(() => setToast(null), 2200);
+  };
+
+  // The chat two people share, if they have one. A report carries its id so
+  // the backend can copy the conversation as evidence — the id, never the text.
+  const chatWith = (userId) =>
+    chatList.find((x) => x.sender === userId || x.reciver === userId);
+
+  /**
+   * Report a post or a comment. The report is about its author; the item is
+   * what the backend copies as evidence, alongside the conversation if the two
+   * have one. Rethrows so the report sheet stays open on failure.
+   */
+  const reportContent = async ({ kind, item }, reason, details) => {
+    const userId = item.author?.id;
+    const res = await reportUser(userId, reason, details, {
+      chatId: chatWith(userId)?.id,
+      ...(kind === "post" ? { postId: item.id } : { commentId: item.id }),
+    });
+    // An open report about the same person already existed, and this one was
+    // added to it as more evidence rather than filed twice.
+    showToast(
+      res?.appended ? "Added to your earlier report" : "Report sent — thank you",
+      "flag",
+    );
+  };
+
+  /**
+   * Block whoever wrote a post or comment. Through the friendship when there
+   * is one, by user id when there is not — a stranger in the feed has no
+   * friendship to name. Resolves true once blocked.
+   */
+  const blockPerson = async (userId) => {
+    try {
+      const friendshipId = findFriendshipId(userId);
+      if (friendshipId) await blockFriendship(friendshipId);
+      else await blockUser(userId);
+      dropAuthor(userId);
+      await refetchFriends();
+      showToast("User blocked");
+      return true;
+    } catch (e) {
+      showToast(errorMessage(e, "Couldn't block user"), "bell");
+      return false;
+    }
+  };
+  const blockAuthor = ({ item }) => blockPerson(item.author?.id);
+
+  /** Lift a block this account placed. By user id: it works for any row. */
+  const unblockPerson = async (userId) => {
+    try {
+      await unblockUser(userId);
+      await refetchFriends();
+      showToast("Unblocked");
+      return true;
+    } catch (e) {
+      showToast(errorMessage(e, "Couldn't unblock"), "bell");
+      return false;
+    }
   };
 
   useEffect(() => {
@@ -957,6 +1076,7 @@ export default function App() {
             <PublicProfile
               onBack={pop}
               userId={top.props.userId}
+              initialUser={top.props.initialUser}
               relation={top.props.relation}
               onMessage={() => {
                 pop();
@@ -981,13 +1101,17 @@ export default function App() {
                   showToast(errorMessage(e, "Couldn't accept request"), "bell");
                 }
               }}
+              // These resolve false on failure, so the profile only changes
+              // its relation once the server agreed.
               onReject={async () => {
                 try {
                   if (top.props.friendshipId)
                     await rejectFriendship(top.props.friendshipId);
                   await refetchFriends();
+                  return true;
                 } catch (e) {
                   showToast(errorMessage(e, "Couldn't decline request"), "bell");
+                  return false;
                 }
               }}
               onRemove={async () => {
@@ -996,20 +1120,14 @@ export default function App() {
                     await removeFriendship(top.props.friendshipId);
                   await refetchFriends();
                   showToast("Friend removed");
+                  return true;
                 } catch (e) {
                   showToast(errorMessage(e, "Couldn't remove friend"), "bell");
+                  return false;
                 }
               }}
-              onBlock={async () => {
-                try {
-                  if (top.props.friendshipId)
-                    await blockFriendship(top.props.friendshipId);
-                  await refetchFriends();
-                  showToast("User blocked");
-                } catch (e) {
-                  showToast(errorMessage(e, "Couldn't block user"), "bell");
-                }
-              }}
+              onBlock={() => blockPerson(top.props.userId)}
+              onUnblock={() => unblockPerson(top.props.userId)}
               // Rethrows on failure: the report sheet keeps itself open and
               // shows the reason, so the reporter does not lose what they wrote.
               //
@@ -1019,13 +1137,15 @@ export default function App() {
               // the other person never wrote. Without it a moderator has the
               // reporter's sentence and nothing else.
               onReport={async (reason, details) => {
-                const chat = chatList.find(
-                  (x) =>
-                    x.sender === top.props.userId ||
-                    x.reciver === top.props.userId,
+                const res = await reportUser(top.props.userId, reason, details, {
+                  chatId: chatWith(top.props.userId)?.id,
+                });
+                showToast(
+                  res?.appended
+                    ? "Added to your earlier report"
+                    : "Report sent — thank you",
+                  "flag",
                 );
-                await reportUser(top.props.userId, reason, details, chat?.id);
-                showToast("Report sent — thank you", "flag");
               }}
             />
           );
@@ -1036,8 +1156,52 @@ export default function App() {
               onBack={pop}
               chat={top.props.chat}
               meId={me?.id}
+              // A block either way closes the conversation. The backend still
+              // accepts a message into a chat that existed before the block,
+              // so the composer is the only thing that stops it here.
+              blocked={(() => {
+                const c = top.props.chat;
+                const other = c.sender === me?.id ? c.reciver : c.sender;
+                return blockedIds.has(other)
+                  ? { byMe: true, user: blockedUserInfo(other) }
+                  : blockedMeIds.has(other)
+                    ? { byMe: false }
+                    : null;
+              })()}
+              onUnblock={unblockPerson}
               onOpenProfile={openProfile}
               onRead={(chatId) => markChatRead(chatId)}
+            />
+          );
+          break;
+        case "postDetail":
+          body = (
+            <PostDetail
+              key={top.props.postId}
+              postId={top.props.postId}
+              initialPost={top.props.post}
+              focusComment={top.props.focusComment}
+              me={me}
+              onBack={pop}
+              onOpenProfile={openAuthor}
+              onOpenCrisis={() => push("crisis")}
+              onReport={reportContent}
+              onBlock={blockAuthor}
+              showToast={showToast}
+            />
+          );
+          break;
+        case "badges":
+          body = (
+            <BadgesScreen
+              badges={liveBadges}
+              currentDays={days}
+              onBack={pop}
+              onOpen={(id) =>
+                push("badgeDetail", {
+                  badge: liveBadges.find((b) => b.id === id),
+                })
+              }
             />
           );
           break;
@@ -1064,10 +1228,36 @@ export default function App() {
             />
           );
           break;
+        case "notifications":
+          body = (
+            <NotificationsScreen
+              onBack={pop}
+              meId={me?.id}
+              requests={reqReceived}
+              unreadChats={unreadChats}
+              onOpenRequests={() => push("requests")}
+              onOpenChat={openChat}
+              onOpenProfile={openProfile}
+              onOpenSettings={() => openOver("settings")}
+            />
+          );
+          break;
+        case "blocked":
+          body = (
+            <BlockedPeople
+              onBack={pop}
+              blocked={blockedByMe}
+              meId={me?.id}
+              onUnblock={unblockPerson}
+              onOpenProfile={openProfile}
+            />
+          );
+          break;
         case "settings":
           body = (
             <Settings
               onBack={pop}
+              onOpenBlocked={() => push("blocked")}
               mode={mode}
               onToggleMode={() =>
                 setTweak("mode", mode === "dark" ? "light" : "dark")
@@ -1200,6 +1390,8 @@ export default function App() {
               // is the authority here, as it is for `pending_consents`.
               healthConsent={me?.health_data_consent !== false}
               onOpenPrivacy={() => push("privacy")}
+              onOpenNotifications={wide ? undefined : () => openOver("notifications")}
+              notifCount={notifCount}
             />
           );
           break;
@@ -1231,16 +1423,18 @@ export default function App() {
             />
           );
           break;
-        case "badges":
+        case "community":
           body = (
-            <BadgesScreen
-              badges={liveBadges}
-              currentDays={days}
-              onOpen={(id) =>
-                push("badgeDetail", {
-                  badge: liveBadges.find((b) => b.id === id),
-                })
+            <CommunityScreen
+              me={me}
+              onOpenPost={(post, { focusComment = false } = {}) =>
+                push("postDetail", { postId: post.id, post, focusComment })
               }
+              onOpenProfile={openAuthor}
+              onOpenCrisis={() => push("crisis")}
+              onReport={reportContent}
+              onBlock={blockAuthor}
+              showToast={showToast}
             />
           );
           break;
@@ -1256,7 +1450,7 @@ export default function App() {
               joined={me?.created_at ?? ""}
               onEdit={() => push("edit")}
               onSettings={() => push("settings")}
-              onOpenBadges={() => resetTo("badges")}
+              onOpenBadges={() => push("badges")}
             />
           );
           break;
@@ -1371,7 +1565,19 @@ export default function App() {
 
         {showNav &&
           (wide ? (
-            <SideNav active={tab} onChange={resetTo} badges={navBadges} />
+            <SideNav
+              active={tab}
+              onChange={resetTo}
+              badges={navBadges}
+              notifCount={notifCount || undefined}
+              extra={
+                ["notifications", "settings"].includes(stack[stack.length - 1]?.screen)
+                  ? stack[stack.length - 1].screen
+                  : null
+              }
+              onOpenNotifications={() => openOver("notifications")}
+              onOpenSettings={() => openOver("settings")}
+            />
           ) : (
             <TabBar active={tab} onChange={resetTo} badges={navBadges} />
           ))}

@@ -24,9 +24,9 @@
  * one of those changes, the sentence here that states it is now false.
  *
  * The posts and comments passages describe `noHarmBack/docs/POSTS_PLAN.md`
- * (visibility, blocking, author may delete comments, no editing, 30-day hold
- * on removed content, report evidence). They are only true once that ships —
- * this revision must not be released ahead of it.
+ * (visibility, blocking anyone, friend or not, author may delete comments, no
+ * editing, 30-day hold on removed content, report evidence). They are only
+ * true once that ships — this revision must not be released ahead of it.
  *
  * ## Publishing a change
  *
@@ -120,15 +120,15 @@ export const LEGAL_DOCUMENTS = {
         heading: "Posts and comments",
         body: [
           "In Community you can write posts. Each post goes either to your friends only or to everyone on NoHarm: you choose every time, and the app shows which one before you post. A comment is seen by everyone who can see the post it is on.",
-          "Anyone who can see a post can like it and comment on it. You can delete your own posts and comments at any time, and delete comments other people leave on your posts. Posts and comments cannot be edited.",
-          "People you have blocked, and people who have blocked you, do not see your posts or comments, and you do not see theirs.",
+          "Anyone who can see a post can like it and comment on it. You can delete your own posts and comments at any time, and delete comments other people leave on your posts. When a post is deleted, the comments on it are deleted with it. Posts and comments cannot be edited.",
+          "You can block anyone, friend or not, from their profile or from a post or comment. People you have blocked, and people who have blocked you, do not see your posts or comments, and you do not see theirs.",
           "A post to everyone is read by people you do not know, and saying something in it says you are in recovery. Deleting a post removes it from NoHarm, but not from the memory of whoever read it, or from a screenshot. Write only what you are comfortable with them knowing.",
         ],
       },
       {
         heading: "What you write, and what we may do with it",
         body: [
-          "What you write — messages, posts, comments, your username — stays yours. You give us only the permission we need to run the service: to store it, deliver your messages to the people you send them to, show your posts and comments to the people you chose, and show any of it to a moderator when it is part of a report. We do not sell it or use it for advertising, and we never show it to anyone beyond the people you chose.",
+          "What you write — messages, posts, comments, your username — stays yours. You give us only the permission we need to run the service: to store it, deliver your messages to the people you send them to, show your posts and comments to the people you chose, and show any of it to a moderator when it is part of a report. Your username is shown to other users wherever you appear; your messages, posts and comments are never shown to anyone beyond the people you chose. We do not sell any of it or use it for advertising.",
           "Messages are private between you and the other person, but they are not end-to-end encrypted. The Privacy Policy explains exactly who can read what, and when.",
           "Posts are not private: they are seen by your friends or by everyone on NoHarm, as you chose. They are shown only inside the app, to people signed in — not on our website, and not to search engines.",
         ],

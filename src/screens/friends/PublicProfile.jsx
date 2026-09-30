@@ -1,5 +1,7 @@
 import {
   BottomSheet,
+  CONFIRM_COPY,
+  ConfirmSheet,
   hashHue,
   Header,
   RoleBadge,
@@ -15,6 +17,10 @@ import { SheetAction } from "./SheetAction.jsx";
 export function PublicProfile({
   onBack,
   userId,
+  // What the app already knows of someone this account blocked. Their profile
+  // answers 403 to the person who blocked them, and the page still has to say
+  // whose it is and offer the way back.
+  initialUser,
   relation,
   onMessage,
   onAdd,
@@ -22,14 +28,20 @@ export function PublicProfile({
   onReject,
   onRemove,
   onBlock,
+  onUnblock,
   onReport,
 }) {
   const [user, setUser] = useState(
-    () => cachedUser(userId),
+    () => cachedUser(userId) ?? initialUser ?? null,
   );
   const [rel, setRel] = useState(relation);
   const [menu, setMenu] = useState(false);
   const [report, setReport] = useState(false);
+  // Which relationship change is waiting for a yes. Every one of them goes
+  // through a confirmation: they end or reopen something with a person, and
+  // one stray tap is too cheap a way to do that. The handlers resolve false
+  // when they failed (and said so), so the relation only moves on success.
+  const [confirm, setConfirm] = useState(null);
   const [loading, setLoading] = useState(!user);
   // Activity numbers live behind their own endpoint: they are friends-only, and
   // the profile itself is not. Null while loading, and `visible: false` when the
@@ -50,6 +62,7 @@ export function PublicProfile({
         setUser(u);
         cacheWrite(`user_${userId}`, u);
       })
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, [userId]);
 
@@ -148,7 +161,11 @@ export function PublicProfile({
             <div
               style={{ fontSize: 13.5, color: "var(--ink-3)", marginTop: 3 }}
             >
-              {rel === "friend" ? "Friend" : "Add to see activity"}
+              {rel === "friend"
+                ? "Friend"
+                : rel === "blocked"
+                  ? "You blocked them"
+                  : "Add to see activity"}
             </div>
           </>
         )}
@@ -236,10 +253,7 @@ export function PublicProfile({
                 kind="outline"
                 size="lg"
                 full
-                onClick={() => {
-                  setRel("none");
-                  onReject?.();
-                }}
+                onClick={() => setConfirm("declineRequest")}
               >
                 Decline
               </Btn>
@@ -258,8 +272,14 @@ export function PublicProfile({
             </div>
           )}
           {rel === "blocked" && (
-            <Btn kind="quiet" size="lg" full disabled>
-              Blocked
+            <Btn
+              kind="outline"
+              size="lg"
+              full
+              icon="block"
+              onClick={() => setConfirm("unblock")}
+            >
+              Unblock
             </Btn>
           )}
         </div>
@@ -283,8 +303,7 @@ export function PublicProfile({
               label="Remove friend"
               onClick={() => {
                 setMenu(false);
-                setRel("none");
-                onRemove?.();
+                setConfirm("removeFriend");
               }}
             />
           )}
@@ -296,16 +315,26 @@ export function PublicProfile({
               setReport(true);
             }}
           />
-          <SheetAction
-            icon="block"
-            label="Block this user"
-            danger
-            onClick={() => {
-              setMenu(false);
-              setRel("blocked");
-              onBlock?.();
-            }}
-          />
+          {rel === "blocked" ? (
+            <SheetAction
+              icon="block"
+              label="Unblock this user"
+              onClick={() => {
+                setMenu(false);
+                setConfirm("unblock");
+              }}
+            />
+          ) : (
+            <SheetAction
+              icon="block"
+              label="Block this user"
+              danger
+              onClick={() => {
+                setMenu(false);
+                setConfirm("block");
+              }}
+            />
+          )}
           <div
             style={{
               fontSize: 12.5,
@@ -319,6 +348,22 @@ export function PublicProfile({
           </div>
         </div>
       </BottomSheet>
+
+      <ConfirmSheet
+        open={!!confirm}
+        onClose={() => setConfirm(null)}
+        {...(confirm ? CONFIRM_COPY[confirm](username) : {})}
+        onConfirm={async () => {
+          const run = {
+            block: [onBlock, "blocked"],
+            unblock: [onUnblock, "none"],
+            removeFriend: [onRemove, "none"],
+            declineRequest: [onReject, "none"],
+          }[confirm];
+          const ok = await run[0]?.();
+          if (ok !== false) setRel(run[1]);
+        }}
+      />
 
       <ReportSheet
         open={report}

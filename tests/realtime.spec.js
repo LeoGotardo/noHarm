@@ -8,6 +8,7 @@ import {
   tab,
   tabBadge,
   backButton,
+  openBadges,
 } from "./helpers/fixtures.js";
 import {
   currentStreak,
@@ -154,7 +155,7 @@ test.describe("Realtime", () => {
 
     // Without a reload: useBadges cached /user-badges/ for 1 h and had no
     // refetch, so the grid kept showing the pre-unlock response.
-    await tab(page, "Badges").click();
+    await openBadges(page);
     await expect(
       page.getByText(new RegExp(`${earned} of \\d+ earned`)),
     ).toBeVisible({ timeout: 10000 });

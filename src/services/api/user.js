@@ -91,3 +91,20 @@ export async function getUserStats(id) {
 export async function getUsers(paginated = true, page = 1, pageSize = 20) {
   return api.get("/users", { paginated, page, pageSize });
 }
+
+/**
+ * Block someone who is not (or not yet) a friend.
+ *
+ * `POST /friendships/{id}/block` needs a friendship row, and a stranger who
+ * commented on a post has none. This one works from the user id alone and is
+ * what every "Block" goes through when there is no friendship to name.
+ * @param {string} id
+ */
+export async function blockUser(id) {
+  return api.post(`/users/${id}/block`);
+}
+
+/** Undo a block. Only the person who blocked may. */
+export async function unblockUser(id) {
+  return api.delete(`/users/${id}/block`);
+}

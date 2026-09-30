@@ -1,5 +1,13 @@
 /** TESTING.md → "Friends" → "Report a user" */
-import { test, expect, openApp, openSecondApp, tab, tabBadge } from "./helpers/fixtures.js";
+import {
+  test,
+  expect,
+  openApp,
+  openSecondApp,
+  tab,
+  tabBadge,
+  confirmWith,
+} from "./helpers/fixtures.js";
 import {
   api,
   as,
@@ -363,6 +371,7 @@ test.describe("Reports", () => {
     // Blocking afterwards is the deliberate second step.
     await page.locator("#nh-stage button").nth(1).click();
     await page.getByText("Block this user").click();
+    await confirmWith(page, "Block");
     await expect(page.getByText("User blocked")).toBeVisible();
     expect((await myReports(userA)).total).toBe(1);
   });

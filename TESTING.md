@@ -58,6 +58,20 @@ List of app features to test manually. Organized by domain, in usage-flow order.
       reporter typed in "details" never appears among the captured messages —
       the app sends a chat id, and the server copies the text itself
 
+## Confirmations
+
+- [x] 🤖 **Block** (profile) — asks first; Cancel changes nothing; Block stores `blocked_by`, and the profile then offers Unblock
+- [x] 🤖 **Unblock** — Settings → Blocked people lists who you blocked; asks first; the friendship is not restored
+- [x] 🤖 **Blocked, from the blocker's side** — listed in Blocked people; the row opens their profile, named, with only Unblock (no Message, no Add)
+- [x] 🤖 **Blocked conversation** — a chat from before the block is read-only for the blocker, with Unblock
+- [ ] **Blocked, from the blocked side** — the blocker drops out of search; the old chat is read-only with neutral wording _(no coverage)_
+- [ ] **Search** — someone you blocked shows "Blocked", no Add _(no coverage: the directory is stubbed in search tests)_
+- [x] 🤖 **Remove friend** — asks first
+- [x] 🤖 **Cancel a sent request** — asks first; "Keep it" leaves it
+- [ ] **Decline a request** — asks first (list row and profile) _(no coverage)_
+- [ ] **Ignore a conversation request** — asks first _(no coverage)_
+- [ ] **Block from a post or comment** — asks first _(no coverage until posts.spec.js)_
+
 ## Chat
 
 - [x] 🤖 **Chat list** — conversation list; unread counter (tab badge)
@@ -71,9 +85,37 @@ List of app features to test manually. Organized by domain, in usage-flow order.
 - [x] 🤖 **Double tap on Send** — two taps landing before the re-render post one
       message, not two (the tap guard, see CLAUDE.md → Tap guards)
 
+## Community (posts)
+
+Front end built against `noHarmBack/docs/POSTS_PLAN.md`; the backend routes do
+not exist yet, so none of this is 🤖 until `tests/posts.spec.js` can run
+against them.
+
+- [ ] **Feed** — Everyone / Friends tabs; the scope you left is the one you
+      come back to; refreshes on every visit behind what is already shown
+- [ ] **New post** — opens on **Friends** every time; Everyone shows the
+      privacy hint; counter to 1000; a failed post keeps the text in the sheet
+- [ ] **Like** — the heart turns at once; two taps in one tick send one `PUT`;
+      the count is the server's once it answers; a failure puts it back
+- [ ] **Open a post** — comments oldest first; Comment on a card opens it with
+      the field focused; a new comment raises the count on the card behind it
+- [ ] **Delete** — own post behind a confirmation (comments go with it); own
+      comment; someone else's comment on **your** post
+- [ ] **Report a post / comment** — the body carries `postId` or `commentId`
+      (plus `chatId` when you share a chat), never the text; "Added to your
+      earlier report" when the backend answers `appended: true`
+- [ ] **Block from a post** — works for a stranger (`POST /users/{id}/block`),
+      their posts and comments disappear at once
+- [ ] **Gone while open** — a post deleted, removed or blocked under you closes
+      with "This post isn't available anymore", never an error page
+- [ ] **Crisis link** — under the composer and the comments, opens Crisis resources
+- [ ] **Sheets over the tab bar** — the composer and the "…" menu open from a
+      tab root and must sit above the bar (`BottomSheet portal`)
+
 ## Badges
 
-- [x] 🤖 **Badges screen** — grid; earned status from `GET /user-badges/`; "N of M earned" count
+- [x] 🤖 **Badges screen** — reached from the badges card on Profile (no longer
+      a tab), with a back arrow; grid; earned status from `GET /user-badges/`; "N of M earned" count
 - [ ] **Badge detail** — opens the screen 🤖; description 🤖; days remaining 🤖; earned date 🤖; `justUnlocked` flag _(no coverage)_
 - [x] 🤖 **Next badge / milestone** — next unearned badge shown on home
 
@@ -275,9 +317,15 @@ edited alongside it.
 - [ ] **Re-accepting from the gate** — ticking both and continuing returns the
       app _(needs a republished version on a live backend — manual)_
 
+## Notifications screen
+
+- [x] 🤖 **Bell / rail item** — counts pending requests + unread conversations; lists both; a request row leads to Requests
+- [x] 🤖 **Nothing pending** — "You're all caught up"
+- [x] 🤖 **Desktop rail** — Notifications and Settings pinned at the foot; a second click does not stack another Settings
+
 ## Navigation / Tabs
 
-- [x] 🤖 **TabBar** — home / friends / chat / badges / profile; counter badges (friends, chat)
+- [x] 🤖 **TabBar** — home / friends / chat / community / profile; counter badges (friends, chat)
 - [x] 🤖 **Stack** — push / pop / resetTo; tabs hide when there is an overlay on the stack
 - [x] 🤖 **Transition animation** — `nhScreenIn` on screen change
 

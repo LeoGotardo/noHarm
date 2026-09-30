@@ -1,4 +1,4 @@
-import { hashHue, RoleBadge } from "@components";
+import { CONFIRM_COPY, ConfirmSheet, hashHue, RoleBadge } from "@components";
 import { Avatar, Btn, GeoBackground, Icon, useGuardedCallback } from "@ui";
 import { useEffect, useRef, useState } from "react";
 import { acceptChat, rejectChat } from "../../services/api/chat.js";
@@ -25,12 +25,19 @@ export function ChatThread({
   meId,
   onOpenProfile,
   onRead,
+  // `{ byMe: true, user }` when this account blocked the other person,
+  // `{ byMe: false }` when they blocked it, null otherwise. Either way the
+  // conversation is read-only: the history stays, nothing new goes in.
+  blocked,
+  onUnblock,
 }) {
   const [chat, setChat] = useState(initialChat);
   const [otherUser, setOtherUser] = useState(null);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [typing, setPeerTyping] = useState(false);
+  const [confirmIgnore, setConfirmIgnore] = useState(false);
+  const [confirmUnblock, setConfirmUnblock] = useState(false);
   const scrollRef = useRef(null);
   // Outgoing typing indicator: emitted on the first keystroke, then held down
   // by a rolling timer so we send one "start" and one "stop" per burst.
@@ -170,9 +177,12 @@ export function ChatThread({
     onBack();
   });
 
-  const username = otherUser?.username ?? "…";
-  const hue = hashHue(otherUser?.username ?? otherId ?? "");
-  const src = otherUser?.profile_picture ?? null;
+  // Their profile is closed to whoever blocked them, so the name comes from
+  // what the block row already carried.
+  const who = otherUser ?? blocked?.user ?? null;
+  const username = who?.username ?? "…";
+  const hue = hashHue(who?.username ?? otherId ?? "");
+  const src = who?.profile_picture ?? null;
   const ended = chat.status === STATUS_CONSTANTS.disabled;
   const pending = chat.status === STATUS_CONSTANTS.pending;
   const iReceived = pending && chat.reciver === meId;
@@ -248,7 +258,7 @@ export function ChatThread({
                 }}
               >
                 {username}
-                <RoleBadge role={otherUser?.role} />
+                <RoleBadge role={who?.role} />
               </div>
               <div
                 style={{
@@ -256,7 +266,9 @@ export function ChatThread({
                   color: typing ? "var(--primary)" : "var(--ink-3)",
                 }}
               >
-                {typing
+                {blocked?.byMe
+                  ? "blocked"
+                  : typing
                   ? "typing…"
                   : ended
                     ? "conversation ended"
@@ -348,7 +360,39 @@ export function ChatThread({
             margin: "0 auto",
           }}
         >
-          {ended ? (
+          {blocked ? (
+            <div
+              style={{
+                textAlign: "center",
+                color: "var(--ink-3)",
+                fontSize: 13.5,
+                lineHeight: 1.5,
+                padding: "4px 8px",
+              }}
+            >
+              {blocked.byMe ? (
+                <>
+                  You blocked{" "}
+                  <strong style={{ color: "var(--ink)" }}>{username}</strong>.
+                  Unblock them to message again.
+                  <div style={{ marginTop: 10 }}>
+                    <Btn
+                      kind="outline"
+                      full
+                      icon="block"
+                      onClick={() => setConfirmUnblock(true)}
+                    >
+                      Unblock
+                    </Btn>
+                  </div>
+                </>
+              ) : (
+                // Worded like any closed conversation: the person who was
+                // blocked is never told so in as many words.
+                "You can't send messages in this conversation."
+              )}
+            </div>
+          ) : ended ? (
             <div
               style={{
                 textAlign: "center",
@@ -375,7 +419,7 @@ export function ChatThread({
                 to start a conversation.
               </div>
               <div style={{ display: "flex", gap: 10 }}>
-                <Btn kind="outline" full onClick={reject}>
+                <Btn kind="outline" full onClick={() => setConfirmIgnore(true)}>
                   Ignore
                 </Btn>
                 <Btn kind="primary" full icon="check" onClick={accept}>
@@ -443,6 +487,20 @@ export function ChatThread({
           )}
         </div>
       </div>
+
+      <ConfirmSheet
+        open={confirmUnblock}
+        onClose={() => setConfirmUnblock(false)}
+        {...CONFIRM_COPY.unblock(username)}
+        onConfirm={() => onUnblock?.(otherId)}
+      />
+
+      <ConfirmSheet
+        open={confirmIgnore}
+        onClose={() => setConfirmIgnore(false)}
+        {...CONFIRM_COPY.ignoreChat(username)}
+        onConfirm={reject}
+      />
     </div>
   );
 }
