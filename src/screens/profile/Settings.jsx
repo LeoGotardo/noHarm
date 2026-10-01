@@ -2,6 +2,7 @@ import { BottomSheet, Header, Screen } from "@components";
 import { Btn, Card, Divider, Field, Icon, SectionLabel } from "@ui";
 import { useState } from "react";
 import { deleteMe } from "../../services/api/user.js";
+import { BroadcastSheet } from "./BroadcastSheet.jsx";
 import { LinkRow } from "./LinkRow.jsx";
 import { SuggestionBox } from "./SuggestionBox.jsx";
 import { ToggleRow } from "./ToggleRow.jsx";
@@ -25,6 +26,10 @@ export function Settings({
   // to them anyway — this hides a door that is already locked.
   isModerator,
   onOpenModeration,
+  // True for an account on OFFICIAL_USER_IDS — `role` on the user's own
+  // profile. Like isModerator it only hides a door: the broadcast endpoint
+  // answers 404 to everyone else.
+  isOfficial,
   onOpenPrivacy,
   onOpenCrisis,
   onOpenAdmin,
@@ -33,6 +38,7 @@ export function Settings({
   const [confirmText, setConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [permDenied, setPermDenied] = useState(false);
+  const [broadcastOpen, setBroadcastOpen] = useState(false);
 
   const masterOn = notifPrefs.master && notifGranted;
 
@@ -177,6 +183,20 @@ export function Settings({
           </Card>
         </div>
 
+        {isOfficial && (
+          <div>
+            <SectionLabel>Official account</SectionLabel>
+            <Card pad={8}>
+              <LinkRow
+                icon="send"
+                label="Message everyone"
+                onClick={() => setBroadcastOpen(true)}
+                last
+              />
+            </Card>
+          </div>
+        )}
+
         {isModerator && (
           <div>
             <SectionLabel>Moderation</SectionLabel>
@@ -317,6 +337,11 @@ export function Settings({
           </Btn>
         </div>
       </BottomSheet>
+
+      <BroadcastSheet
+        open={broadcastOpen}
+        onClose={() => setBroadcastOpen(false)}
+      />
     </Screen>
   );
 }

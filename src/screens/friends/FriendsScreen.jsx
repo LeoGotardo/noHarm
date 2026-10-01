@@ -42,6 +42,11 @@ export function FriendsScreen({
   onOpenSearch,
   onOpenProfile,
   onMessage,
+  // How many people this account has blocked. They live here, under the
+  // circle, rather than in Settings: a block is about a person, and this is
+  // where people are. The row only shows when there is someone in it.
+  blockedCount = 0,
+  onOpenBlocked,
 }) {
   const [enriched, setEnriched] = useState([]);
 
@@ -231,6 +236,48 @@ export function FriendsScreen({
                 </div>
               </Fragment>
             ))}
+          </Card>
+        )}
+
+        {blockedCount > 0 && (
+          <Card
+            pad={0}
+            onClick={onOpenBlocked}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 13,
+              padding: "12px 16px",
+              marginTop: 14,
+            }}
+          >
+            <div
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 10,
+                background: "var(--surface-2)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Icon name="block" size={19} color="var(--ink-2)" />
+            </div>
+            <div
+              style={{
+                flex: 1,
+                fontSize: 14.5,
+                fontWeight: 600,
+                color: "var(--ink)",
+              }}
+            >
+              Blocked people
+            </div>
+            <span style={{ fontSize: 13, color: "var(--ink-3)" }}>
+              {blockedCount}
+            </span>
+            <Icon name="chevR" size={18} color="var(--ink-3)" />
           </Card>
         )}
       </div>

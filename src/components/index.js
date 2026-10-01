@@ -1,5 +1,7 @@
 export { Banner } from "./Banner.jsx";
 export { BottomSheet } from "./BottomSheet.jsx";
+export { CONFIRM_COPY, ConfirmSheet } from "./ConfirmSheet.jsx";
+export { EmojiButton, EmojiPicker, insertAtCursor } from "./EmojiPicker.jsx";
 export { EmptyState } from "./EmptyState.jsx";
 export {
     GoogleButton,
@@ -19,8 +21,12 @@ export { BadgeMedallion, StreakRing } from "./StreakRing.jsx";
 export { TabBar, TABS } from "./TabBar.jsx";
 export { Toast } from "./Toast.jsx";
 export {
+    fmtAgo,
     fmtLongDate,
     fmtRelDate,
-    fmtShortDay, fmtTime, hashHue
+    bigEmojiCount,
+    clampText,
+    fmtShortDay, fmtTime, hashHue,
+    textLength
 } from "./utils.js";
 

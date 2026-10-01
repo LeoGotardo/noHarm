@@ -1,6 +1,12 @@
 /** TESTING.md → "Navigation / Tabs" and "Theming (TweaksPanel)" */
 import { test, expect, openApp, tab, tabBadge } from "./helpers/fixtures.js";
-import { makeFriends, sendMessage, startStreak } from "./helpers/api.js";
+import {
+  createUser,
+  makeFriends,
+  sendMessage,
+  sendRequest,
+  startStreak,
+} from "./helpers/api.js";
 
 /**
  * Whether the navigation survives a pushed screen.
@@ -123,6 +129,42 @@ test.describe("Brand", () => {
   });
 });
 
+test.describe("Notifications", () => {
+  test("Lists what is pending — a request and an unread message — and leads to each", async ({
+    page,
+    userA,
+    userB,
+  }) => {
+    const userC = await createUser("c"); // swept by the global cleanup
+    await sendRequest(userB, userA);
+    await makeFriends(userA, userC);
+    await sendMessage(userC, { to: userA, content: "are you around?" });
+    await openApp(page, userA, { checkedInToday: true });
+
+    // Phone: the bell on Home. Desktop: the item in the side rail.
+    const opener = navSurvivesPush()
+      ? page.locator("nav[aria-label='Main']").getByRole("button", { name: /Notifications/ })
+      : page.getByRole("button", { name: /^Notifications/ });
+    await expect(opener).toContainText("2");
+    await opener.click();
+
+    await expect(page.getByText("Wants to be your friend")).toBeVisible();
+    await expect(page.getByText("are you around?")).toBeVisible();
+
+    // A request row leads to the Requests screen, where answering it is confirmed.
+    await page.getByText("Wants to be your friend").click();
+    await expect(page.getByRole("button", { name: /Received/ })).toBeVisible();
+  });
+
+  test("Nothing pending — says so", async ({ appA, page }) => {
+    const opener = navSurvivesPush()
+      ? page.locator("nav[aria-label='Main']").getByRole("button", { name: /Notifications/ })
+      : page.getByRole("button", { name: /^Notifications/ });
+    await opener.click();
+    await expect(page.getByText("You're all caught up")).toBeVisible();
+  });
+});
+
 test.describe("Navigation / Tabs", () => {
   test("TabBar — switches between the five tabs", async ({ appA, page }) => {
     await expect(page.getByText("Begin your journey")).toBeVisible();
@@ -133,8 +175,8 @@ test.describe("Navigation / Tabs", () => {
     await tab(page, "Chat").click();
     await expect(page.getByText("Messages")).toBeVisible();
 
-    await tab(page, "Badges").click();
-    await expect(page.getByText("All milestones")).toBeVisible();
+    await tab(page, "Community").click();
+    await expect(page.getByText("What's on your mind today?")).toBeVisible();
 
     await tab(page, "Profile").click();
     await expect(page.getByText("current streak")).toBeVisible();

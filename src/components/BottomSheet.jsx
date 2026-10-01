@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import { useWide } from "@ui/useBreakpoint.js";
 
 /**
@@ -7,11 +8,19 @@ import { useWide } from "@ui/useBreakpoint.js";
  * where it comes from. A sheet slides up from the thumb; stretched across a
  * 1400px monitor it reads as a page that broke, and the eye has to travel the
  * whole width to find the buttons.
+ *
+ * `portal` lifts the sheet out of the screen into `#nh-screen`, beside the tab
+ * bar, for a sheet opened from a **tab root**. `#nh-stage` animates with a
+ * transform, which makes it a stacking context: nothing inside it can rise
+ * above the tab bar, whatever its z-index, and a sheet opened from the feed
+ * slid up behind the bar with its buttons under it. Pushed screens hide the
+ * bar and do not need it; app-level sheets already live in `#nh-screen`.
  */
-export function BottomSheet({ open, onClose, children }) {
+export function BottomSheet({ open, onClose, children, portal }) {
   const wide = useWide();
   if (!open) return null;
-  return (
+  const host = portal ? document.getElementById("nh-screen") : null;
+  const sheet = (
     <div
       style={{
         position: "absolute",
@@ -72,4 +81,5 @@ export function BottomSheet({ open, onClose, children }) {
       </div>
     </div>
   );
+  return host ? createPortal(sheet, host) : sheet;
 }

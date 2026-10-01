@@ -3,11 +3,15 @@ import { Icon } from "@ui/Icon.jsx";
 // The five tab roots, in order. SideNav renders the same list on desktop, so
 // they live here rather than inside a component: two copies drift, and the
 // order is what the user learns.
+//
+// Badges used to be the fourth. It is reached from Profile now, which already
+// shows the earned ones: a sixth tab does not fit the phone's bar, and posts
+// are something people come back to daily in a way a trophy shelf is not.
 export const TABS = [
   { id: "home", icon: "home", label: "Home" },
   { id: "friends", icon: "friends", label: "Friends" },
   { id: "chat", icon: "chat", label: "Chat" },
-  { id: "badges", icon: "badges", label: "Badges" },
+  { id: "community", icon: "community", label: "Community" },
   { id: "profile", icon: "profile", label: "Profile" },
 ];
 

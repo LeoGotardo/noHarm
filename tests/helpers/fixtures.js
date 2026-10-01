@@ -115,12 +115,32 @@ export { expect };
 // ── Shared locators ──────────────────────────────────────────────────────────
 
 /**
- * A TabBar button ('Home' | 'Friends' | 'Chat' | 'Badges' | 'Profile').
+ * A TabBar button ('Home' | 'Friends' | 'Chat' | 'Community' | 'Profile').
  * Matched on the label span, not the accessible name — an unread badge renders
  * inside the button and would otherwise change the name to e.g. "1Chat".
  */
 export const tab = (page, name) =>
   page.locator(`button:has(> span:text-is("${name}"))`);
+
+/**
+ * The Badges screen. It is no longer a tab — Community took its place — and is
+ * reached from the badges card on Profile, the way a user gets there.
+ */
+export const openBadges = async (page) => {
+  await tab(page, "Profile").click();
+  await page.getByText(/badges? earned/).first().click();
+  await expect(page.getByText("All milestones")).toBeVisible();
+};
+
+/**
+ * The confirmation every relationship action goes through (block, unblock,
+ * remove, decline, cancel, ignore). Answer it by its button, scoped to the
+ * dialog so the row button that opened it — often the same word — never
+ * matches.
+ */
+export const confirmDialog = (page) => page.getByRole("alertdialog");
+export const confirmWith = (page, label) =>
+  confirmDialog(page).getByRole("button", { name: label, exact: true }).click();
 
 /** The counter badge on a tab button (empty locator when there is none).
  *  Addressed by class because the bottom bar and the desktop side rail nest it

@@ -116,6 +116,20 @@ export function FriendSearch({
                             />
                             Friends
                           </span>
+                        ) : rel === "blocked" ? (
+                          // Someone you blocked: listed, so a search for them
+                          // does not look like they vanished, but with
+                          // nothing to press — unblocking is on their profile
+                          // and in Friends → Blocked people.
+                          <span
+                            style={{
+                              fontSize: 12.5,
+                              fontWeight: 600,
+                              color: "var(--ink-3)",
+                            }}
+                          >
+                            Blocked
+                          </span>
                         ) : rel === "pending" ? (
                           <span
                             style={{

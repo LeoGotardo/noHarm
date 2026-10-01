@@ -19,20 +19,33 @@ export const REPORT_DETAILS_MAX = 1000;
 /**
  * File a report about another user.
  *
- * `details` is optional free text. `chatId` is optional too, and is an **id,
- * not content**: the backend copies that conversation's last messages out of
- * its own database as evidence attached to the report. Sending the text
- * instead would let a reporter compose the other person's lines, so there is
- * deliberately no parameter for it.
+ * `details` is optional free text. `target` says what the report is about, and
+ * every field of it is an **id, not content**: the backend copies the
+ * conversation's last messages, the post, or the comment (with the post it
+ * answers) out of its own database as evidence. Sending the text instead would
+ * let a reporter compose the other person's lines, so there is deliberately no
+ * parameter for it.
  *
- * Naming a chat the reporter is not in is a 403; one the reported user is not
- * in is a 400. Both are caller mistakes rather than states the UI can reach.
+ * `postId` and `commentId` exclude each other; either combines with `chatId`,
+ * so reporting a post by someone you also talk to keeps the conversation as
+ * evidence too.
+ *
+ * With an open report about the same person already on file, a new post or
+ * comment is attached to that one instead and the response says
+ * `appended: true` — the caller words its confirmation accordingly.
+ *
+ * @param {string} userId
+ * @param {string} reason
+ * @param {string} [details]
+ * @param {{chatId?: string, postId?: string, commentId?: string}} [target]
  */
-export async function reportUser(userId, reason, details, chatId) {
+export async function reportUser(userId, reason, details, target = {}) {
+  const { chatId, postId, commentId } = target;
   return api.post(`/reports/${userId}`, {
     reason,
     details: details?.trim() ? details.trim() : null,
     ...(chatId ? { chatId } : {}),
+    ...(postId ? { postId } : commentId ? { commentId } : {}),
   });
 }
 

@@ -12,7 +12,7 @@
  * The catalogue is global state, so the file runs serially and deletes what it
  * creates. It also sweeps leftovers from a previous crashed run up front.
  */
-import { test, expect, openApp, tab } from "./helpers/fixtures.js";
+import { test, expect, openApp, openBadges } from "./helpers/fixtures.js";
 import {
   createBadge,
   createUser,
@@ -44,11 +44,6 @@ const FAR = {
 let curator;
 let near;
 let far;
-
-const openBadges = async (page) => {
-  await tab(page, "Badges").click();
-  await expect(page.getByText("All milestones")).toBeVisible();
-};
 
 // The badge catalogue is global backend state — run these one at a time.
 test.describe.configure({ mode: "serial" });

@@ -1,4 +1,6 @@
 import {
+  CONFIRM_COPY,
+  ConfirmSheet,
   EmptyState,
   Header,
   PersonRow,
@@ -47,6 +49,9 @@ export function FriendRequests({
   onOpenProfile,
 }) {
   const [tab, setTab] = useState("received");
+  // Declining and cancelling are answered in a confirmation first — they end
+  // something with a person. Accepting is not: it is the thing asked for.
+  const [confirm, setConfirm] = useState(null);
   const [enrichedRecv, setEnrichedRecv] = useState([]);
   const [enrichedSent, setEnrichedSent] = useState([]);
 
@@ -103,8 +108,12 @@ export function FriendRequests({
                     tab={tab}
                     onOpenProfile={onOpenProfile}
                     onAccept={onAccept}
-                    onDecline={onDecline}
-                    onCancel={onCancel}
+                    onDecline={() =>
+                      setConfirm({ kind: "declineRequest", person: p })
+                    }
+                    onCancel={() =>
+                      setConfirm({ kind: "cancelRequest", person: p })
+                    }
                   />
                 </div>
               </Fragment>
@@ -112,6 +121,17 @@ export function FriendRequests({
           </Card>
         )}
       </div>
+
+      <ConfirmSheet
+        open={!!confirm}
+        onClose={() => setConfirm(null)}
+        {...(confirm ? CONFIRM_COPY[confirm.kind](confirm.person.username) : {})}
+        onConfirm={() =>
+          (confirm.kind === "declineRequest" ? onDecline : onCancel)?.(
+            confirm.person.friendshipId,
+          )
+        }
+      />
     </Screen>
   );
 }
@@ -131,8 +151,11 @@ function RequestRow({
   onCancel,
 }) {
   const accept = useGuardedCallback(onAccept);
-  const decline = useGuardedCallback(onDecline);
-  const cancel = useGuardedCallback(onCancel);
+  // Decline and Cancel only open a confirmation now; the request itself is
+  // guarded by the confirm button. Guarding the opener as well swallowed a
+  // second tap within 400 ms of answering "Keep it".
+  const decline = onDecline;
+  const cancel = onCancel;
   return (
     <PersonRow
       person={p}

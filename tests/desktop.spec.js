@@ -3,12 +3,31 @@
  * not. Everything here is layout: the flows themselves are covered by the
  * phone-sized specs, which this project re-runs at desktop width.
  */
-import { expect, openApp, tab, test } from "./helpers/fixtures.js";
+import { expect, openApp, openBadges, tab, test } from "./helpers/fixtures.js";
 import { makeFriends, sendMessage, startStreak } from "./helpers/api.js";
 
 test.use({ viewport: { width: 1440, height: 900 } });
 
 test.describe("Desktop shell", () => {
+  test("The rail keeps Notifications and Settings one click away from any tab", async ({
+    appA,
+    page,
+  }) => {
+    const rail = page.locator("nav[aria-label='Main']");
+    await expect(rail.getByRole("button", { name: /Notifications/ })).toBeVisible();
+    await expect(rail.getByRole("button", { name: "Settings" })).toBeVisible();
+
+    await tab(page, "Community").click();
+    await rail.getByRole("button", { name: "Settings" }).click();
+    await expect(page.getByText("Appearance")).toBeVisible();
+    await expect(rail.getByRole("button", { name: "Settings" })).toHaveAttribute("aria-current", "page");
+
+    // A second click does not stack a second Settings: one back returns to the tab.
+    await rail.getByRole("button", { name: "Settings" }).click();
+    await page.locator("#nh-stage button").first().click();
+    await expect(page.getByText("What's on your mind today?")).toBeVisible();
+  });
+
   test("Side rail replaces the bottom tab bar, and survives a pushed screen", async ({
     appA,
     page,
@@ -19,7 +38,8 @@ test.describe("Desktop shell", () => {
 
     // The tab bar is the thing with a top border pinned to the bottom; on a
     // desktop it must not be rendered at all.
-    await expect(page.locator("nav[aria-label='Main'] button")).toHaveCount(5);
+    // Five tabs plus the two pinned items, Notifications and Settings.
+    await expect(page.locator("nav[aria-label='Main'] button")).toHaveCount(7);
 
     // The bottom bar hides behind a pushed screen. The rail does not.
     await tab(page, "Profile").click();
@@ -32,8 +52,7 @@ test.describe("Desktop shell", () => {
     appA,
     page,
   }) => {
-    await tab(page, "Badges").click();
-    await expect(page.getByText("All milestones")).toBeVisible();
+    await openBadges(page);
 
     const box = await page.getByText("All milestones").boundingBox();
     // Centred in the area right of the 240px rail, and nowhere near 1440 wide.
@@ -45,8 +64,7 @@ test.describe("Desktop shell", () => {
     appA,
     page,
   }) => {
-    await tab(page, "Badges").click();
-    await expect(page.getByText("All milestones")).toBeVisible();
+    await openBadges(page);
     const cols = await page.waitForFunction(() => {
       const grid = [...document.querySelectorAll("div")].find(
         (d) => getComputedStyle(d).display === "grid" && d.children.length > 3,

@@ -116,6 +116,10 @@ export function Dashboard({
   healthConsent = true,
   onOpenPrivacy,
   pulseKey,
+  // The bell, on a phone only: past the breakpoint Notifications lives in the
+  // side rail, and a second bell beside the first is a question about which.
+  onOpenNotifications,
+  notifCount = 0,
 }) {
   const openProfile = useGuardedCallback(onProfile);
   const relapse = useGuardedCallback(onRelapse);
@@ -145,6 +149,51 @@ export function Dashboard({
             {me?.username ?? "…"}
           </div>
         </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        {onOpenNotifications && (
+          <button
+            aria-label={
+              notifCount ? `Notifications, ${notifCount} new` : "Notifications"
+            }
+            onClick={onOpenNotifications}
+            style={{
+              position: "relative",
+              width: 42,
+              height: 42,
+              borderRadius: 13,
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+            }}
+          >
+            <Icon name="bell" size={20} color="var(--ink)" />
+            {notifCount > 0 && (
+              <span
+                style={{
+                  position: "absolute",
+                  top: -4,
+                  right: -4,
+                  minWidth: 18,
+                  height: 18,
+                  padding: "0 5px",
+                  borderRadius: 99,
+                  background: "var(--accent)",
+                  color: "#fff",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                {notifCount > 99 ? "99+" : notifCount}
+              </span>
+            )}
+          </button>
+        )}
         <div onClick={openProfile} style={{ cursor: "pointer" }}>
           <Avatar
             name={me?.username ?? "?"}
@@ -152,6 +201,7 @@ export function Dashboard({
             hue={hashHue(me?.username ?? "")}
             src={me?.profile_picture ?? null}
           />
+        </div>
         </div>
       </div>
 
