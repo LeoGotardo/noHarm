@@ -61,7 +61,7 @@ List of app features to test manually. Organized by domain, in usage-flow order.
 ## Confirmations
 
 - [x] 🤖 **Block** (profile) — asks first; Cancel changes nothing; Block stores `blocked_by`, and the profile then offers Unblock
-- [x] 🤖 **Unblock** — Settings → Blocked people lists who you blocked; asks first; the friendship is not restored
+- [x] 🤖 **Unblock** — Friends → Blocked people (shown only while someone is blocked) lists who you blocked; asks first; the friendship is not restored; either side can send a new request afterwards, and it arrives
 - [x] 🤖 **Blocked, from the blocker's side** — listed in Blocked people; the row opens their profile, named, with only Unblock (no Message, no Add)
 - [x] 🤖 **Blocked conversation** — a chat from before the block is read-only for the blocker, with Unblock
 - [ ] **Blocked, from the blocked side** — the blocker drops out of search; the old chat is read-only with neutral wording _(no coverage)_

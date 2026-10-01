@@ -120,7 +120,7 @@ export function FriendSearch({
                           // Someone you blocked: listed, so a search for them
                           // does not look like they vanished, but with
                           // nothing to press — unblocking is on their profile
-                          // and in Settings → Blocked people.
+                          // and in Friends → Blocked people.
                           <span
                             style={{
                               fontSize: 12.5,

@@ -40,7 +40,7 @@ export function BlockedPeople({ onBack, blocked, meId, onUnblock, onOpenProfile 
   });
 
   return (
-    <Screen geo="history" padTop={56}>
+    <Screen geo="friends" padTop={56}>
       <Header title="Blocked people" onBack={onBack} />
       <div style={{ padding: "14px var(--pad-x) 0" }}>
         {people.length === 0 ? (

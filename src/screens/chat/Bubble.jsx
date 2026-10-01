@@ -1,8 +1,11 @@
-import { fmtTime } from "@components";
+import { bigEmojiCount, fmtTime } from "@components";
 import { Icon } from "@ui";
 import { STATUS_CONSTANTS } from "../../services/constants.js";
 
 export function Bubble({ msg, mine }) {
+  // One to three emoji and nothing else read as a reaction, not a sentence:
+  // drawn large and without the bubble, the way every messenger does it.
+  const big = bigEmojiCount(msg.message);
   return (
     <div
       style={{
@@ -13,7 +16,12 @@ export function Bubble({ msg, mine }) {
     >
       <div style={{ maxWidth: "76%" }}>
         <div
-          style={{
+          style={big ? {
+            fontSize: big === 1 ? 44 : 36,
+            lineHeight: 1.15,
+            padding: "2px 2px",
+            textAlign: mine ? "right" : "left",
+          } : {
             padding: "10px 14px",
             borderRadius: 20,
             fontSize: 15,

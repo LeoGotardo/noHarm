@@ -1,4 +1,12 @@
-import { CONFIRM_COPY, ConfirmSheet, hashHue, RoleBadge } from "@components";
+import {
+  CONFIRM_COPY,
+  ConfirmSheet,
+  EmojiButton,
+  EmojiPicker,
+  hashHue,
+  insertAtCursor,
+  RoleBadge,
+} from "@components";
 import { Avatar, Btn, GeoBackground, Icon, useGuardedCallback } from "@ui";
 import { useEffect, useRef, useState } from "react";
 import { acceptChat, rejectChat } from "../../services/api/chat.js";
@@ -23,6 +31,9 @@ export function ChatThread({
   onBack,
   chat: initialChat,
   meId,
+  // This account's own `role`. Needed to tell, before the peer's profile
+  // loads, which side of an official conversation this is.
+  meRole,
   onOpenProfile,
   onRead,
   // `{ byMe: true, user }` when this account blocked the other person,
@@ -38,7 +49,9 @@ export function ChatThread({
   const [typing, setPeerTyping] = useState(false);
   const [confirmIgnore, setConfirmIgnore] = useState(false);
   const [confirmUnblock, setConfirmUnblock] = useState(false);
+  const [emojiOpen, setEmojiOpen] = useState(false);
   const scrollRef = useRef(null);
+  const inputRef = useRef(null);
   // Outgoing typing indicator: emitted on the first keystroke, then held down
   // by a rolling timer so we send one "start" and one "stop" per burst.
   const typingSentRef = useRef(false);
@@ -133,6 +146,7 @@ export function ChatThread({
     if (!input.trim() || sending) return;
     const content = input.trim();
     setInput("");
+    setEmojiOpen(false);
     stopTyping();
     setSending(true);
     try {
@@ -185,7 +199,14 @@ export function ChatThread({
   const src = who?.profile_picture ?? null;
   const ended = chat.status === STATUS_CONSTANTS.disabled;
   const pending = chat.status === STATUS_CONSTANTS.pending;
-  const iReceived = pending && chat.reciver === meId;
+  // A conversation with an official NoHarm account is one-way: the backend
+  // refuses a reply (OFFICIAL_CHAT_READONLY), so there is no composer to offer
+  // and no invitation to accept. `chat.official` arrives with the chat itself;
+  // the peer's role covers a chat object that predates the field.
+  const officialPeer = chat.official
+    ? meRole !== "official"
+    : otherUser?.role === "official";
+  const iReceived = pending && chat.reciver === meId && !officialPeer;
 
   return (
     <div
@@ -266,7 +287,9 @@ export function ChatThread({
                   color: typing ? "var(--primary)" : "var(--ink-3)",
                 }}
               >
-                {blocked?.byMe
+                {officialPeer
+                  ? "Official NoHarm account"
+                  : blocked?.byMe
                   ? "blocked"
                   : typing
                   ? "typing…"
@@ -299,6 +322,36 @@ export function ChatThread({
           margin: "0 auto",
         }}
       >
+        {officialPeer && (
+          <div
+            style={{
+              display: "flex",
+              gap: 10,
+              alignItems: "flex-start",
+              padding: "12px 14px",
+              borderRadius: 14,
+              background: "var(--surface-2)",
+              border: "1px solid var(--border)",
+              fontSize: 13,
+              color: "var(--ink-2)",
+              lineHeight: 1.5,
+            }}
+          >
+            <Icon
+              name="official"
+              size={18}
+              color="var(--primary)"
+              style={{ marginTop: 1, flexShrink: 0 }}
+            />
+            <div>
+              <strong style={{ display: "block", color: "var(--ink)" }}>
+                This is NoHarm's official account
+              </strong>
+              Messages here come from the NoHarm team. Replies are turned off,
+              so this conversation is read-only.
+            </div>
+          </div>
+        )}
         {loading && (
           <div
             style={{
@@ -311,7 +364,7 @@ export function ChatThread({
             Loading…
           </div>
         )}
-        {!loading && msgList.length === 0 && !ended && (
+        {!loading && msgList.length === 0 && !ended && !officialPeer && (
           <div
             style={{
               textAlign: "center",
@@ -360,7 +413,19 @@ export function ChatThread({
             margin: "0 auto",
           }}
         >
-          {blocked ? (
+          {officialPeer ? (
+            <div
+              style={{
+                textAlign: "center",
+                color: "var(--ink-3)",
+                fontSize: 13.5,
+                lineHeight: 1.5,
+                padding: "4px 8px",
+              }}
+            >
+              You can't reply to the official account.
+            </div>
+          ) : blocked ? (
             <div
               style={{
                 textAlign: "center",
@@ -428,6 +493,15 @@ export function ChatThread({
               </div>
             </div>
           ) : (
+            <>
+            {emojiOpen && (
+              <EmojiPicker
+                style={{ marginBottom: 10 }}
+                onPick={(emoji) =>
+                  insertAtCursor(inputRef.current, input, emoji, onInputChange)
+                }
+              />
+            )}
             <div style={{ display: "flex", alignItems: "flex-end", gap: 9 }}>
               <div
                 style={{
@@ -437,9 +511,15 @@ export function ChatThread({
                   border: "1px solid var(--border)",
                   display: "flex",
                   alignItems: "center",
+                  paddingLeft: 6,
                 }}
               >
+                <EmojiButton
+                  open={emojiOpen}
+                  onToggle={() => setEmojiOpen((o) => !o)}
+                />
                 <input
+                  ref={inputRef}
                   value={input}
                   onChange={(e) => onInputChange(e.target.value)}
                   onBlur={stopTyping}
@@ -447,10 +527,11 @@ export function ChatThread({
                   placeholder="Message…"
                   style={{
                     flex: 1,
+                    minWidth: 0,
                     border: "none",
                     background: "none",
                     outline: "none",
-                    padding: "12px 16px",
+                    padding: "12px 16px 12px 4px",
                     fontSize: 15,
                     color: "var(--ink)",
                     fontFamily: "var(--font-body)",
@@ -484,6 +565,7 @@ export function ChatThread({
                 />
               </button>
             </div>
+            </>
           )}
         </div>
       </div>

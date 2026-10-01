@@ -1,4 +1,11 @@
-import { BottomSheet } from "@components";
+import {
+  BottomSheet,
+  clampText,
+  EmojiButton,
+  EmojiPicker,
+  insertAtCursor,
+  textLength,
+} from "@components";
 import { Btn, Icon } from "@ui";
 import { useEffect, useRef, useState } from "react";
 import { errorMessage } from "../../connectors/api.js";
@@ -21,11 +28,13 @@ export function ComposeSheet({ open, onClose, onSubmit, onOpenCrisis }) {
   const [visibility, setVisibility] = useState("friends");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState(null);
+  const [emojiOpen, setEmojiOpen] = useState(false);
   const field = useRef(null);
 
   useEffect(() => {
     if (!open) return;
     setVisibility("friends");
+    setEmojiOpen(false);
     setError(null);
     setSending(false);
     // After the sheet's entrance, so the keyboard does not fight the slide.
@@ -34,7 +43,7 @@ export function ComposeSheet({ open, onClose, onSubmit, onOpenCrisis }) {
   }, [open]);
 
   const trimmed = text.trim();
-  const left = POST_MAX - text.length;
+  const left = POST_MAX - textLength(text);
 
   const send = async () => {
     if (!trimmed || sending) return;
@@ -109,7 +118,7 @@ export function ComposeSheet({ open, onClose, onSubmit, onOpenCrisis }) {
         <textarea
           ref={field}
           value={text}
-          onChange={(e) => setText(e.target.value.slice(0, POST_MAX))}
+          onChange={(e) => setText(clampText(e.target.value, POST_MAX))}
           placeholder="What's on your mind today?"
           aria-label="Post text"
           rows={6}
@@ -140,7 +149,15 @@ export function ComposeSheet({ open, onClose, onSubmit, onOpenCrisis }) {
             lineHeight: 1.5,
           }}
         >
-          <span>{VISIBILITY[visibility].hint}</span>
+          <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <EmojiButton
+              open={emojiOpen}
+              onToggle={() => setEmojiOpen((o) => !o)}
+              size={20}
+              style={{ padding: 2, marginLeft: -2 }}
+            />
+            {VISIBILITY[visibility].hint}
+          </span>
           <span
             style={{
               flexShrink: 0,
@@ -151,6 +168,14 @@ export function ComposeSheet({ open, onClose, onSubmit, onOpenCrisis }) {
             {left}
           </span>
         </div>
+
+        {emojiOpen && (
+          <EmojiPicker
+            onPick={(emoji) =>
+              insertAtCursor(field.current, text, emoji, setText, POST_MAX)
+            }
+          />
+        )}
 
         {error && (
           <div

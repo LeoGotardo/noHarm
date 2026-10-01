@@ -34,6 +34,13 @@ export async function sendMessage({ chatId, recipientId, content }) {
   return api.post("/messages", body);
 }
 
+// Official accounts only (OFFICIAL_USER_IDS) — 404 for anyone else. Sends one
+// message to every active user, each in a read-only conversation with the
+// account. Resolves to `{ sent }`, how many accounts it reached.
+export async function broadcastMessage(content) {
+  return api.post("/messages/broadcast", { content });
+}
+
 export async function readMessage(messageId) {
   return api.put(`/messages/${messageId}/read`);
 }

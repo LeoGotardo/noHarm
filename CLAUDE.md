@@ -105,7 +105,7 @@ services/ import from connectors/
 | `src/landing.js` | When the landing page applies (web, not native, not an installed PWA), the `?start=` query it links back with, and `goToLanding` |
 | `src/theme.css` | CSS custom properties for all four theme variants, the layout tokens the breakpoint drives, and the hover/focus rules. Theme token blocks are attribute-only selectors so `<html>` resolves them too — see Theming and Responsive layout |
 | `src/ui/index.js` | Low-level primitives: `Icon`, `Avatar`/`OnlineDot`, `Btn`, `Card`, `Checkbox`, `Field`, `Skeleton`, `GeoBackground`, `Divider`, `SectionLabel`, plus `cx` helper, the tap guards from `guards.js` (`useGuardedCallback`, `useDebouncedValue`) and `useWide` from `useBreakpoint.js` (see Responsive layout) |
-| `src/components/index.js` | Composite widgets: `Screen`, `Header`, `Banner`, `Toast`, `BottomSheet`, `TabBar`/`SideNav`, `SplitView`/`NoSelection`, `StreakRing`/`BadgeMedallion`, `EmptyState`, `Mark`/`Wordmark`/`Logo`, `GoogleButton`, `PersonRow`, `RoleBadge` (the Official/Admin mark beside a name, from the API's `role` — see Domain rules), `SegTabs`, `ConfirmSheet` + `CONFIRM_COPY` (see Confirmations), plus format helpers from `utils.js` (`hashHue`, `fmtTime`, `fmtLongDate`, `fmtRelDate`, `fmtShortDay`) |
+| `src/components/index.js` | Composite widgets: `Screen`, `Header`, `Banner`, `Toast`, `BottomSheet`, `TabBar`/`SideNav`, `SplitView`/`NoSelection`, `StreakRing`/`BadgeMedallion`, `EmptyState`, `Mark`/`Wordmark`/`Logo`, `GoogleButton`, `PersonRow`, `RoleBadge` (the Official/Admin mark beside a name, from the API's `role` — see Domain rules), `SegTabs`, `ConfirmSheet` + `CONFIRM_COPY` (see Confirmations), `EmojiPicker`/`EmojiButton`/`insertAtCursor` (see Emoji), plus format helpers from `utils.js` (`hashHue`, `fmtTime`, `fmtLongDate`, `fmtRelDate`, `fmtShortDay`, `textLength`, `clampText`, `bigEmojiCount`) |
 | `src/connectors/` | Transport layer (see diagram above) |
 | `src/services/api/` | `auth`, `badge`, `chat`, `consent`, `friendship`, `message`, `moderation`, `notice`, `post`, `report`, `streak`, `user`, `device` |
 | `src/services/ws/` | `chat`, `connection`, `friendship`, `presence` |
@@ -128,7 +128,7 @@ services/ import from connectors/
 | `src/store/useCheckinReminder.js` | Schedules/cancels `checkinReminder` based on combined master+pref flag |
 | `src/screens/auth/` | `SplashScreen`, `RegisterScreen`, `LoginScreen` |
 | `src/screens/home/` | `Dashboard`, `StreakHistory`, `CheckInModal` |
-| `src/screens/friends/` | `FriendsScreen`, `FriendRequests`, `FriendSearch`, `PublicProfile`, `ReportSheet` |
+| `src/screens/friends/` | `FriendsScreen`, `FriendRequests`, `FriendSearch`, `PublicProfile`, `ReportSheet`, `BlockedPeople` |
 | `src/screens/chat/` | `ChatList`, `ChatThread` |
 | `src/screens/notifications/` | `NotificationsScreen` — what is *pending* (received friend requests, conversations with unread messages, blocked ones excluded), built from state the app already holds; the backend keeps no notification history. The bell's count is the length of that same list |
 | `src/screens/community/` | `CommunityScreen` (tab root), `PostDetail`, `PostCard`/`CommentRow`/`AuthorLine`, `ComposeSheet` (+ `CrisisLink`), `ItemMenu` (delete / report / block on a post or comment) |
@@ -191,7 +191,7 @@ guarded by the confirm button (`Btn`), and a guard on the opener swallowed a
 second tap made within 400 ms of answering "Keep it".
 
 Unblocking needs somewhere to happen, because a blocked person drops out of
-the feed and search: Settings → **Blocked people** (`BlockedPeople.jsx`), fed
+the feed and search: the **Blocked people** row at the foot of the Friends tab (`screens/friends/BlockedPeople.jsx`, the row only while someone is blocked), fed
 by the blocked rows `GET /friendships` already returns with `blocked_by`, and
 the Unblock button on their profile. `DELETE /users/{id}/block` lifts it; only
 the person who blocked may.
@@ -577,6 +577,14 @@ See `noHarmBack/docs/FRONTEND_DESIGN_BRIEF.md` for full API shapes. Key invarian
   header and both profiles. Display only: moderation access is still the
   `useModerator` probe. `user_<id>` cache entries never expire, so
   `cachedUser()` treats one without a `role` key as a miss.
+- **A conversation with the official account is read-only.** `ChatThread`
+  checks `chat.official` (backend-derived) against `meRole`: the other side
+  gets a notice at the top of the thread and a "can't reply" line in place of
+  the composer, never an accept/ignore prompt, and `PublicProfile` hides
+  Message on an official profile. The backend refuses the reply anyway
+  (`OFFICIAL_CHAT_READONLY`). The official account itself gets a "Message
+  everyone" row in Settings (`BroadcastSheet` → `POST /messages/broadcast`),
+  shown on `me.role === "official"`.
 - **Friendship status codes**: 2=deleted, 3=blocked, 4=pending, 5=accepted, 6=rejected.
 - **Reporting is private and inert.** `POST /reports/{userId}` takes one of six
   reasons (`services/api/report.js` holds the list and its copy) plus up to 1000
@@ -597,6 +605,18 @@ See `noHarmBack/docs/FRONTEND_DESIGN_BRIEF.md` for full API shapes. Key invarian
   the reporter included.
 - **Chat**: friends-only, 1-on-1. Lifecycle: pending → enabled → disabled.
 - **Messages**: text only, max 2000 chars. Status 7=unread, 8=read.
+- **Emoji.** Plain Unicode in the text — the backend stores and sanitises it
+  like any other character. `EmojiPicker` is a small hand-picked set, no
+  dependency, drawn **inline** (it takes room above the field rather than
+  floating, so it never lands under a sheet edge or the keyboard), with a
+  per-device Recent row in `nh_emoji_recent`. It sits in the chat composer, the
+  comment field and the post composer. **Limits count code points, never
+  `.length`**: the backend's `max_length` is Python's `len()`, an emoji is two
+  UTF-16 units, and `.slice(0, MAX)` could cut one in half — a lone surrogate
+  the API cannot encode. Every capped field goes through `clampText`, every
+  counter through `textLength`. A message of one to three emoji only is drawn
+  large without a bubble (`bigEmojiCount`). Font stacks end in the colour-emoji
+  fonts so Linux renders them in colour.
 - **Auth**: Firebase identity + app JWT. Access token 15 min, refresh 7 days. `connectors/api.js` handles the silent refresh automatically on 401.
 - **Moderation is a screen in the app, not a separate tool.** Settings shows a
   "Reports" row only for an account on the backend's `ADMIN_USER_IDS`

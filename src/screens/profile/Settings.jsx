@@ -2,6 +2,7 @@ import { BottomSheet, Header, Screen } from "@components";
 import { Btn, Card, Divider, Field, Icon, SectionLabel } from "@ui";
 import { useState } from "react";
 import { deleteMe } from "../../services/api/user.js";
+import { BroadcastSheet } from "./BroadcastSheet.jsx";
 import { LinkRow } from "./LinkRow.jsx";
 import { SuggestionBox } from "./SuggestionBox.jsx";
 import { ToggleRow } from "./ToggleRow.jsx";
@@ -25,15 +26,19 @@ export function Settings({
   // to them anyway — this hides a door that is already locked.
   isModerator,
   onOpenModeration,
+  // True for an account on OFFICIAL_USER_IDS — `role` on the user's own
+  // profile. Like isModerator it only hides a door: the broadcast endpoint
+  // answers 404 to everyone else.
+  isOfficial,
   onOpenPrivacy,
   onOpenCrisis,
   onOpenAdmin,
-  onOpenBlocked,
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [permDenied, setPermDenied] = useState(false);
+  const [broadcastOpen, setBroadcastOpen] = useState(false);
 
   const masterOn = notifPrefs.master && notifGranted;
 
@@ -170,11 +175,6 @@ export function Settings({
               label="Privacy & data"
               onClick={onOpenPrivacy}
             />
-            <LinkRow
-              icon="block"
-              label="Blocked people"
-              onClick={onOpenBlocked}
-            />
             {/* The other half of the Terms' "NoHarm is not medical care"
                 clause. A disclaimer with nowhere to send anyone is only half
                 of the sentence. */}
@@ -182,6 +182,20 @@ export function Settings({
             <LinkRow icon="logout" label="Log out" onClick={onLogout} last />
           </Card>
         </div>
+
+        {isOfficial && (
+          <div>
+            <SectionLabel>Official account</SectionLabel>
+            <Card pad={8}>
+              <LinkRow
+                icon="send"
+                label="Message everyone"
+                onClick={() => setBroadcastOpen(true)}
+                last
+              />
+            </Card>
+          </div>
+        )}
 
         {isModerator && (
           <div>
@@ -323,6 +337,11 @@ export function Settings({
           </Btn>
         </div>
       </BottomSheet>
+
+      <BroadcastSheet
+        open={broadcastOpen}
+        onClose={() => setBroadcastOpen(false)}
+      />
     </Screen>
   );
 }

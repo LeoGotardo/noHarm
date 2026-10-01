@@ -1,4 +1,4 @@
-import { BottomSheet } from "@components";
+import { BottomSheet, clampText } from "@components";
 import { Btn, Icon } from "@ui";
 import { useEffect, useState } from "react";
 import { errorMessage } from "../../connectors/api.js";
@@ -126,7 +126,7 @@ export function ReportSheet({ open, onClose, username, onSubmit, title, portal }
 
         <textarea
           value={details}
-          onChange={(e) => setDetails(e.target.value.slice(0, REPORT_DETAILS_MAX))}
+          onChange={(e) => setDetails(clampText(e.target.value, REPORT_DETAILS_MAX))}
           placeholder="Anything else we should know? (optional)"
           rows={3}
           style={{

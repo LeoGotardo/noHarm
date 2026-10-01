@@ -332,8 +332,7 @@ test.describe("Friends", () => {
     await api.post(`/users/${userB.id}/block`, as(userA));
     await openApp(page, userA, { checkedInToday: true });
 
-    await tab(page, "Profile").click();
-    await page.locator("#nh-stage button").first().click(); // gear → Settings
+    await tab(page, "Friends").click();
     await page.getByText("Blocked people").click();
 
     // The row opens their profile — named, although that profile answers 403
@@ -364,7 +363,7 @@ test.describe("Friends", () => {
     await expect(page.getByPlaceholder("Message…")).toHaveCount(0);
   });
 
-  test("Unblock — asked first, from the profile and from Settings → Blocked people", async ({
+  test("Unblock — asked first, from the profile and from Friends → Blocked people", async ({
     page,
     userA,
     userB,
@@ -373,8 +372,7 @@ test.describe("Friends", () => {
     await api.post(`/users/${userB.id}/block`, as(userA));
     await openApp(page, userA, { checkedInToday: true });
 
-    await tab(page, "Profile").click();
-    await page.locator("#nh-stage button").first().click(); // gear → Settings
+    await tab(page, "Friends").click();
     await page.getByText("Blocked people").click();
     await expect(page.getByText(userB.username)).toBeVisible();
 
@@ -386,6 +384,31 @@ test.describe("Friends", () => {
     await expect(page.getByText("Nobody blocked")).toBeVisible();
     const rows = (await api.get("/friendships", as(userA))).friendships;
     expect(rows.filter((f) => f.status === 3)).toHaveLength(0);
+  });
+
+  test("Unblock — a friend request can be sent again afterwards, and arrives", async ({
+    page,
+    userA,
+    userB,
+  }) => {
+    // Unblocking leaves the old row `disabled`. The backend used to read that
+    // as a live request and answer 409, while the app showed Add friend — so
+    // after an unblock nobody could ever ask again.
+    await makeFriends(userA, userB);
+    await api.post(`/users/${userB.id}/block`, as(userA));
+    await api.delete(`/users/${userB.id}/block`, as(userA));
+    await openApp(page, userA, { checkedInToday: true });
+
+    await openFriends(page);
+    await page.getByRole("button", { name: /Find friends/ }).click();
+    await page.getByPlaceholder("Search by username…").fill(userB.username);
+    await openSearchResult(page, userB.username);
+
+    await page.getByRole("button", { name: /Add friend/ }).click();
+    await expect(page.getByRole("button", { name: "Request sent" })).toBeDisabled();
+
+    const pending = (await api.get("/friendships/pending", as(userB))).friendships;
+    expect(pending.filter((f) => f.sender === userA.id)).toHaveLength(1);
   });
 
   test("Public profile — a received request shows Accept/Decline", async ({

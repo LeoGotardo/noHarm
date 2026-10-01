@@ -1,4 +1,10 @@
-import { Header } from "@components";
+import {
+  clampText,
+  EmojiButton,
+  EmojiPicker,
+  Header,
+  insertAtCursor,
+} from "@components";
 import { Btn, GeoBackground, Icon, Skeleton, useGuardedCallback } from "@ui";
 import { useEffect, useRef, useState } from "react";
 import { errorMessage } from "../../connectors/api.js";
@@ -45,6 +51,7 @@ export function PostDetail({
   const { remove: removePost } = usePosts("friends", me?.id);
   const thread = useComments(postId);
   const [input, setInput] = useState("");
+  const [emojiOpen, setEmojiOpen] = useState(false);
   const [menu, setMenu] = useState(null);
   const seen = useRef(false);
   const field = useRef(null);
@@ -100,6 +107,7 @@ export function PostDetail({
     const content = input.trim();
     if (!content) return;
     setInput("");
+    setEmojiOpen(false);
     try {
       await thread.add(content);
       // New comments land at the bottom; follow them there.
@@ -268,6 +276,17 @@ export function PostDetail({
           padding: "10px 14px 26px",
         }}
       >
+        {emojiOpen && (
+          <EmojiPicker
+            style={{
+              margin: "0 auto 10px",
+              maxWidth: "var(--content-max)",
+            }}
+            onPick={(emoji) =>
+              insertAtCursor(field.current, input, emoji, setInput, COMMENT_MAX)
+            }
+          />
+        )}
         <div
           style={{
             display: "flex",
@@ -286,22 +305,28 @@ export function PostDetail({
               border: "1px solid var(--border)",
               display: "flex",
               alignItems: "center",
+              paddingLeft: 6,
             }}
           >
+            <EmojiButton
+              open={emojiOpen}
+              onToggle={() => setEmojiOpen((o) => !o)}
+            />
             <input
               ref={field}
               value={input}
-              onChange={(e) => setInput(e.target.value.slice(0, COMMENT_MAX))}
+              onChange={(e) => setInput(clampText(e.target.value, COMMENT_MAX))}
               onKeyDown={(e) => e.key === "Enter" && send()}
               placeholder="Write a comment…"
               aria-label="Comment"
               disabled={!post}
               style={{
                 flex: 1,
+                minWidth: 0,
                 border: "none",
                 background: "none",
                 outline: "none",
-                padding: "12px 16px",
+                padding: "12px 16px 12px 4px",
                 fontSize: 15,
                 color: "var(--ink)",
                 fontFamily: "var(--font-body)",

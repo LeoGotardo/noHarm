@@ -223,7 +223,9 @@ export function PublicProfile({
         </Card>
 
         <div style={{ width: "100%", marginTop: 22 }}>
-          {rel === "friend" && (
+          {/* The official account speaks and is not spoken to: the backend
+              refuses a conversation opened with it. */}
+          {rel === "friend" && user?.role !== "official" && (
             <Btn kind="primary" size="lg" full icon="chat" onClick={onMessage}>
               Message
             </Btn>

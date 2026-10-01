@@ -26,6 +26,7 @@ import {
   Settings,
   Share2,
   ShieldCheck,
+  Smile,
   Trash2,
   User,
   Users,
@@ -64,6 +65,7 @@ const ICONS = {
   share: Share2,
   official: BadgeCheck,
   shield: ShieldCheck,
+  emoji: Smile,
 };
 
 export function Icon({

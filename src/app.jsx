@@ -49,6 +49,7 @@ import { CommunityScreen } from "./screens/community/CommunityScreen.jsx";
 import { PostDetail } from "./screens/community/PostDetail.jsx";
 import { FriendRequests } from "./screens/friends/FriendRequests.jsx";
 import { FriendSearch } from "./screens/friends/FriendSearch.jsx";
+import { BlockedPeople } from "./screens/friends/BlockedPeople.jsx";
 import { FriendsScreen } from "./screens/friends/FriendsScreen.jsx";
 import { PublicProfile } from "./screens/friends/PublicProfile.jsx";
 import { CheckInModal } from "./screens/home/CheckInModal.jsx";
@@ -62,7 +63,6 @@ import { EditProfile } from "./screens/profile/EditProfile.jsx";
 import { ConsentGate } from "./screens/legal/ConsentGate.jsx";
 import { CrisisResources } from "./screens/legal/CrisisResources.jsx";
 import { LegalDocument } from "./screens/legal/LegalDocument.jsx";
-import { BlockedPeople } from "./screens/profile/BlockedPeople.jsx";
 import { DataAndPrivacy } from "./screens/profile/DataAndPrivacy.jsx";
 import { ForcedRename } from "./screens/profile/ForcedRename.jsx";
 import { MyProfile } from "./screens/profile/MyProfile.jsx";
@@ -455,7 +455,7 @@ export default function App() {
   const blockedByMe = blockedRows.filter(placedByMe);
   const otherOf = (f) => (f.sender === me?.id ? f.reciver : f.sender);
   // Who I blocked, and who blocked me. The first stay visible to me, in
-  // Settings → Blocked people and on their profile, but with nothing to do
+  // Friends → Blocked people and on their profile, but with nothing to do
   // except unblock; the second simply stop appearing where I could reach them.
   const blockedIds = new Set(blockedByMe.map(otherOf));
   const blockedMeIds = new Set(
@@ -1156,6 +1156,7 @@ export default function App() {
               onBack={pop}
               chat={top.props.chat}
               meId={me?.id}
+              meRole={me?.role}
               // A block either way closes the conversation. The backend still
               // accepts a message into a chat that existed before the block,
               // so the composer is the only thing that stops it here.
@@ -1257,7 +1258,6 @@ export default function App() {
           body = (
             <Settings
               onBack={pop}
-              onOpenBlocked={() => push("blocked")}
               mode={mode}
               onToggleMode={() =>
                 setTweak("mode", mode === "dark" ? "light" : "dark")
@@ -1293,6 +1293,7 @@ export default function App() {
               notifPrefs={notifPrefs}
               onNotifPrefChange={setNotifPref}
               isModerator={isModerator}
+              isOfficial={me?.role === "official"}
               onOpenModeration={() => push("moderation")}
               onOpenAdmin={() => push("admin")}
               onOpenCrisis={() => push("crisis")}
@@ -1405,6 +1406,8 @@ export default function App() {
               onOpenSearch={() => push("search")}
               onOpenProfile={openProfile}
               onMessage={messagePerson}
+              blockedCount={blockedByMe.length}
+              onOpenBlocked={() => push("blocked")}
             />
           );
           break;

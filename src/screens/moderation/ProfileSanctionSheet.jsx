@@ -1,4 +1,4 @@
-import { BottomSheet } from "@components";
+import { BottomSheet, clampText } from "@components";
 import { Btn, Icon } from "@ui";
 import { useEffect, useState } from "react";
 import { errorMessage } from "../../connectors/api.js";
@@ -135,7 +135,7 @@ export function ProfileSanctionSheet({ kind, open, onClose, username, onSubmit }
 
         <textarea
           value={message}
-          onChange={(e) => setMessage(e.target.value.slice(0, MESSAGE_MAX))}
+          onChange={(e) => setMessage(clampText(e.target.value, MESSAGE_MAX))}
           placeholder="Why, in your words? (optional)"
           rows={3}
           style={{

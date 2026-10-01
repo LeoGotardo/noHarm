@@ -1,6 +1,7 @@
 export { Banner } from "./Banner.jsx";
 export { BottomSheet } from "./BottomSheet.jsx";
 export { CONFIRM_COPY, ConfirmSheet } from "./ConfirmSheet.jsx";
+export { EmojiButton, EmojiPicker, insertAtCursor } from "./EmojiPicker.jsx";
 export { EmptyState } from "./EmptyState.jsx";
 export {
     GoogleButton,
@@ -23,6 +24,9 @@ export {
     fmtAgo,
     fmtLongDate,
     fmtRelDate,
-    fmtShortDay, fmtTime, hashHue
+    bigEmojiCount,
+    clampText,
+    fmtShortDay, fmtTime, hashHue,
+    textLength
 } from "./utils.js";
 
