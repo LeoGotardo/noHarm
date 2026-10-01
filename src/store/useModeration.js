@@ -5,7 +5,8 @@ import { getQueue } from "../services/api/moderation.js";
  * Whether this account can moderate, and the queue when it can.
  *
  * There is no "am I an admin" endpoint, on purpose: authorisation is the
- * backend's `ADMIN_USER_IDS` allowlist, and every moderation route answers
+ * backend's admin gate (`ADMIN_USER_IDS`, official accounts and the accounts
+ * they promoted), and every moderation route answers
  * **404** to everyone else rather than 403 — whether an admin surface exists
  * is not something an ordinary caller gets confirmed. So the probe *is* the
  * answer: ask for the queue, and a 404 means "not you".

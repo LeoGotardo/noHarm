@@ -153,6 +153,19 @@ export const CONFIRM_COPY = {
     cancelLabel: "Keep it",
     danger: true,
   }),
+  makeAdmin: (name) => ({
+    title: `Make ${name} an admin?`,
+    body: `${name} will be able to review reports, sanction accounts, remove posts and open the admin board. You can remove it at any time.`,
+    confirmLabel: "Make admin",
+    confirmIcon: "shield",
+    danger: false,
+  }),
+  removeAdmin: (name) => ({
+    title: `Remove ${name} as an admin?`,
+    body: `${name} loses access to moderation and the admin board on their next action. Nothing they already decided is undone.`,
+    confirmLabel: "Remove admin",
+    danger: true,
+  }),
   ignoreChat: (name) => ({
     title: `Ignore ${name}'s message?`,
     body: `The conversation request goes away without opening. ${name} isn't told. To stop them contacting you at all, block them instead.`,

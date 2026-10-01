@@ -13,15 +13,31 @@ const KEY_STREAK = "streak_current";
 const KEY_RECORD = "streak_record";
 const KEY_CHECKIN = "streak_last_checkin"; // stored as 'YYYY-MM-DD'
 
-function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+/**
+ * 'YYYY-MM-DD' of a Date in the device's timezone. Days roll over at local
+ * midnight — `toISOString()` rolls over at UTC midnight, which in Brazil
+ * (UTC-3) moved "today" to tomorrow at 21:00 and offered the next check-in
+ * three hours early.
+ */
+export function localISODate(d = new Date()) {
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-/** 'YYYY-MM-DD' of a server timestamp, or null. */
+/** UTC instant for a local 'YYYY-MM-DD' (+ optional 'HH:MM'), for the API. */
+function localToISO(date, time = "00:00") {
+  return new Date(`${date}T${time}:00`).toISOString();
+}
+
+function todayISO() {
+  return localISODate();
+}
+
+/** Local 'YYYY-MM-DD' of a server timestamp, or null. */
 function isoDate(value) {
   if (!value) return null;
   const d = new Date(value);
-  return Number.isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+  return Number.isNaN(d.getTime()) ? null : localISODate(d);
 }
 
 export function daysBetween(isoA, isoB) {
@@ -59,7 +75,7 @@ async function runCheckinSequence(relapses, lastCheckin, today) {
     if (hasCleanDaysBefore) await checkinStreak();
 
     // Relapse: ends current streak with the backdated timestamp
-    await endStreak(`${relapse.date}T${relapse.time}:00`);
+    await endStreak(localToISO(relapse.date, relapse.time));
 
     windowStart = relapse.date;
   }
@@ -194,7 +210,7 @@ export function useStreak() {
       setLoading(true);
       setError(null);
       try {
-        await startStreak(`${startDate}T00:00:00`);
+        await startStreak(localToISO(startDate));
 
         // One check-in, never one per elapsed day.
         //

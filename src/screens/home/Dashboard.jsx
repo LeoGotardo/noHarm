@@ -3,6 +3,57 @@ import { Screen, StreakRing, hashHue } from "@components";
 import { Avatar, Btn, Card, Icon, useGuardedCallback } from "@ui";
 import { StatTile } from "./StatTile.jsx";
 
+const ZERO = { years: 0, months: 0, days: 0, hours: 0, minutes: 0, seconds: 0 };
+
+/** `date` plus `n` calendar months, clamped to the target month's last day. */
+function addMonths(date, n) {
+  const d = new Date(date);
+  const day = d.getDate();
+  d.setDate(1);
+  d.setMonth(d.getMonth() + n);
+  const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(day, lastDay));
+  return d;
+}
+
+/**
+ * Calendar years/months between two instants, then the exact remainder as
+ * d/h/m/s.
+ *
+ * Subtracting field by field and borrowing the previous month's length broke
+ * whenever the start day did not exist in that month: Aug 31 → Oct 1 borrowed
+ * September's 30 days and came out as "1mo -1d". Anchoring on whole months
+ * (clamped, so Aug 31 + 1mo = Sep 30) and measuring the rest in milliseconds
+ * can never go negative.
+ */
+export function elapsedParts(start, now) {
+  const from = new Date(start);
+  const to = new Date(now);
+  if (Number.isNaN(from.getTime()) || to <= from) return ZERO;
+
+  let months =
+    (to.getFullYear() - from.getFullYear()) * 12 +
+    (to.getMonth() - from.getMonth());
+  if (addMonths(from, months) > to) months--;
+
+  let rest = Math.floor((to - addMonths(from, months)) / 1000);
+  const seconds = rest % 60;
+  rest = Math.floor(rest / 60);
+  const minutes = rest % 60;
+  rest = Math.floor(rest / 60);
+  const hours = rest % 24;
+  const days = Math.floor(rest / 24);
+
+  return {
+    years: Math.floor(months / 12),
+    months: months % 12,
+    days,
+    hours,
+    minutes,
+    seconds,
+  };
+}
+
 function useElapsed(start) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -10,41 +61,11 @@ function useElapsed(start) {
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, [start]);
-  if (!start) return null;
-  const from = new Date(start);
-  const to = new Date(now);
-  if (to <= from)
-    return { years: 0, months: 0, days: 0, hours: 0, minutes: 0, seconds: 0 };
-
-  let seconds = to.getSeconds() - from.getSeconds();
-  let minutes = to.getMinutes() - from.getMinutes();
-  let hours = to.getHours() - from.getHours();
-  let days = to.getDate() - from.getDate();
-  let months = to.getMonth() - from.getMonth();
-  let years = to.getFullYear() - from.getFullYear();
-
-  if (seconds < 0) (seconds += 60), minutes--;
-  if (minutes < 0) (minutes += 60), hours--;
-  if (hours < 0) (hours += 24), days--;
-  if (days < 0) {
-    // borrow days from the previous month
-    days += new Date(to.getFullYear(), to.getMonth(), 0).getDate();
-    months--;
-  }
-  if (months < 0) (months += 12), years--;
-
-  return { years, months, days, hours, minutes, seconds };
+  return start ? elapsedParts(start, now) : null;
 }
 
 function StreakTimer({ start }) {
-  const t = useElapsed(start) ?? {
-    years: 0,
-    months: 0,
-    days: 0,
-    hours: 0,
-    minutes: 0,
-    seconds: 0,
-  };
+  const t = useElapsed(start) ?? ZERO;
   // Always show d/h/m/s; prepend y/mo once a larger unit becomes non-zero.
   const parts = [];
   if (t.years > 0) parts.push([t.years, "y"]);

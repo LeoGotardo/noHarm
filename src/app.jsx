@@ -30,6 +30,7 @@ import {
 } from "./services/api/friendship.js";
 import { reportUser } from "./services/api/report.js";
 import { blockUser, getUsers, unblockUser } from "./services/api/user.js";
+import { demoteAdmin, promoteAdmin } from "./services/api/admin.js";
 import { milestoneDays, withEarnedState } from "./services/badges.js";
 import {
   TweakRadio,
@@ -54,6 +55,7 @@ import { FriendsScreen } from "./screens/friends/FriendsScreen.jsx";
 import { PublicProfile } from "./screens/friends/PublicProfile.jsx";
 import { CheckInModal } from "./screens/home/CheckInModal.jsx";
 import { AdminDashboard } from "./screens/admin/AdminDashboard.jsx";
+import { AdminsScreen } from "./screens/admin/AdminsScreen.jsx";
 import { ModerationQueue } from "./screens/moderation/ModerationQueue.jsx";
 import { NotificationsScreen } from "./screens/notifications/NotificationsScreen.jsx";
 import { ReportReview } from "./screens/moderation/ReportReview.jsx";
@@ -78,7 +80,7 @@ import { useModerator } from "./store/useModeration.js";
 import { useNotices } from "./store/useNotices.js";
 import { useNotifPrefs } from "./store/useNotifPrefs.js";
 import { dropAuthor } from "./store/usePosts.js";
-import { useStreak } from "./store/useStreak.js";
+import { localISODate, useStreak } from "./store/useStreak.js";
 import { useUser } from "./store/useUser.js";
 
 // ── Domain constants (see CLAUDE.md for full status code reference) ───────────
@@ -124,7 +126,7 @@ const USER_PAGE_SIZE = 100;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return localISODate();
 }
 
 function burstConfetti() {
@@ -1128,6 +1130,21 @@ export default function App() {
               }}
               onBlock={() => blockPerson(top.props.userId)}
               onUnblock={() => unblockPerson(top.props.userId)}
+              onSetAdmin={
+                me?.role === "official" && top.props.userId !== me?.id
+                  ? async (makeAdmin) => {
+                      try {
+                        if (makeAdmin) await promoteAdmin(top.props.userId);
+                        else await demoteAdmin(top.props.userId);
+                        showToast(makeAdmin ? "Now an admin" : "Admin removed", "shield");
+                        return true;
+                      } catch (e) {
+                        showToast(errorMessage(e, "Couldn't change admin access"), "bell");
+                        return false;
+                      }
+                    }
+                  : undefined
+              }
               // Rethrows on failure: the report sheet keeps itself open and
               // shows the reason, so the reporter does not lose what they wrote.
               //
@@ -1296,6 +1313,7 @@ export default function App() {
               isOfficial={me?.role === "official"}
               onOpenModeration={() => push("moderation")}
               onOpenAdmin={() => push("admin")}
+              onOpenAdmins={() => push("admins")}
               onOpenCrisis={() => push("crisis")}
               onOpenPrivacy={() => push("privacy")}
             />
@@ -1332,6 +1350,17 @@ export default function App() {
           break;
         case "admin":
           body = <AdminDashboard onBack={pop} />;
+          break;
+        case "admins":
+          body = (
+            <AdminsScreen
+              onBack={pop}
+              onOpenProfile={openProfile}
+              onError={(e) =>
+                showToast(errorMessage(e, "Couldn't load administrators"), "bell")
+              }
+            />
+          );
           break;
         case "moderation":
           body = (

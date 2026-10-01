@@ -1,14 +1,14 @@
 import { BottomSheet, fmtShortDay } from "@components";
 import { Btn, Icon } from "@ui";
 import { useMemo, useState } from "react";
-import { daysBetween } from "../../store/useStreak.js";
+import { daysBetween, localISODate } from "../../store/useStreak.js";
 import { DayRow } from "./DayRow.jsx";
 import { SummaryLine } from "./SummaryLine.jsx";
 
 function addDays(isoDate, n) {
   const d = new Date(isoDate + "T00:00:00");
   d.setDate(d.getDate() + n);
-  return d.toISOString().slice(0, 10);
+  return localISODate(d);
 }
 
 export function CheckInModal({
@@ -23,7 +23,7 @@ export function CheckInModal({
   const [submitting, setSubmitting] = useState(false);
 
   // Build the list of days that need action (day after lastCheckin → today)
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localISODate();
   const dayList = useMemo(() => {
     if (!lastCheckinDate) return [today];
     const list = [];

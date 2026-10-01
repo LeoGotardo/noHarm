@@ -2,7 +2,7 @@
 
 List of app features to test manually. Organized by domain, in usage-flow order.
 
-> **Most of this checklist is already automated** in `tests/` (Playwright, 113 tests).
+> **Most of this checklist is already automated** in `tests/` (Playwright).
 > Run it with `npm run test:e2e`. Items the automation covers are marked 🤖 —
 > the rest remain manual verification (Google popup, native push, etc.).
 > The bugs the suite found — frontend and backend — have all been fixed;
@@ -51,7 +51,7 @@ List of app features to test manually. Organized by domain, in usage-flow order.
 - [x] 🤖 **A report stays private** — the reported user sees no banner, no
       toast and no counter while it is filed, and `GET /reports/mine` never
       returns a report about them; the moderation queue (`GET /reports`,
-      resolve, evidence) answers 404 to anyone outside `ADMIN_USER_IDS`
+      resolve, evidence) answers 404 to anyone who is not an admin
 - [x] 🤖 **A report carries the conversation** — reporting someone you have a
       chat with captures that chat's last messages, both sides, in order, plus
       the reported profile as it was; with no chat, the profile alone. What the
@@ -87,9 +87,9 @@ List of app features to test manually. Organized by domain, in usage-flow order.
 
 ## Community (posts)
 
-Front end built against `noHarmBack/docs/POSTS_PLAN.md`; the backend routes do
-not exist yet, so none of this is 🤖 until `tests/posts.spec.js` can run
-against them.
+Front end built against `noHarmBack/docs/POSTS_PLAN.md`, and the backend routes
+are live (`noHarmBack/tests/integration/test_posts.py` covers them). None of this
+is 🤖 yet: `tests/posts.spec.js` has not been written.
 
 - [ ] **Feed** — Everyone / Friends tabs; the scope you left is the one you
       come back to; refreshes on every visit behind what is already shown
@@ -133,7 +133,7 @@ against them.
 ## Notifications
 
 - [ ] **Permission** — "Enable notifications" (Settings) _(browser prompt — manual)_
-- [ ] **Prefs** — master 🤖 and sub-toggles disabled without permission 🤖; turn `messages`, `friendRequests`, `friendAccepted`, `checkinReminder` on/off individually _(no coverage)_
+- [ ] **Prefs** — master 🤖 and sub-toggles disabled without permission 🤖; turn `messages`, `friendRequests`, `community` (comments on my posts), `checkinReminder` on/off individually _(no coverage)_; on native, each change re-registers the device with its categories
 - [ ] **Check-in reminder** — schedules 9 PM daily when master + pref are on _(Capacitor LocalNotifications — manual, native only)_
 - [ ] **In-app banner** — WS notification shows as a banner; tapping navigates (chat/etc) _(the backend already emits `new_message`; the test is still to be written)_
 - [x] 🤖 **Toast** — action feedback (auto-dismiss after 2.2 s)
@@ -234,10 +234,25 @@ plus the flow specs re-run at that size.
 - [x] 🤖 **Sheets become centred dialogs**, and Escape closes them
 - [x] 🤖 **Chat is two panes** — the list stays while a conversation is open
 
+## Administrators (official account)
+
+- [ ] **Official account is an admin** — Settings shows Reports and Admin board
+      with no entry in `ADMIN_USER_IDS` _(backend: `test_adminGrants.py`)_
+- [ ] **Make admin** — on someone's profile, ⋯ → *Make admin* asks first; the
+      mark changes to Admin; after their next sign-in that account sees the
+      moderation rows
+- [ ] **Remove as admin** — from the profile or Settings → *Administrators*;
+      the account loses the admin routes on its next request
+- [ ] **Administrators list** — official, server-config and app-promoted
+      admins with their source; only app-promoted ones have *Remove*
+- [ ] **Nobody else can promote** — the ⋯ entry is absent for an admin who is
+      not official, and the API answers 404 _(backend: `test_adminGrants.py`)_
+
 ## Admin board
 
-Behind the same `ADMIN_USER_IDS` allowlist as the moderation queue — one
-allowlist decides both, so `useModerator`'s single probe answers for both rows.
+Behind the same gate as the moderation queue — `ADMIN_USER_IDS`, the official
+accounts and the accounts they promoted — so `useModerator`'s single probe
+answers for both rows.
 
 - [x] 🤖 **The row is absent for an ordinary account** — and the API answers
       404, not 403, so the screen being hidden is cosmetic rather than the gate

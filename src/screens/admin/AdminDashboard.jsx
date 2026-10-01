@@ -25,7 +25,7 @@ const TABS = [
  * The admin board.
  *
  * Reached from Settings, behind the same allowlist as the moderation queue —
- * one `ADMIN_USER_IDS` decides both, and `useModerator` probing the report
+ * one admin gate decides both, and `useModerator` probing the report
  * queue is the answer for this screen too.
  *
  * ## What it deliberately does not show

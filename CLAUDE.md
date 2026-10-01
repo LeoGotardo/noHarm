@@ -19,7 +19,7 @@ and `docs/FRONTEND_DESIGN_BRIEF.md` the API shapes this app consumes.
 npm run dev        # Vite dev server (hot reload)
 npm run build      # production build → dist/
 npm run preview    # serve dist/ locally
-npm run test:e2e   # Playwright suite (113 tests) — needs the backend on :8080
+npm run test:e2e   # Playwright suite — needs the backend on :8080
 
 npm run build:mobile          # vite build --mode mobile (absolute API URLs from .env.mobile)
 npx cap sync android          # copy dist/ into the native project
@@ -54,7 +54,7 @@ Playwright reuses a dev server already listening on the configured port
 silently tests that app instead. Point it elsewhere when that happens:
 `E2E_WEB_URL=http://localhost:5180 npm run test:e2e`, with `npm run dev -- --port 5180`.
 
-Env vars: `VITE_API_URL` (REST base URL) and `VITE_SOCKET_URL` (Socket.IO URL, falls back to `VITE_API_URL`). Both are **relative and empty** for the web build — see Deployment below. Every `VITE_*` is inlined by Vite at build time, so changing one needs a rebuild, not a restart.
+Env vars: `VITE_API_URL` (REST base URL) and `VITE_SOCKET_URL` (Socket.IO URL; unset falls back to `VITE_API_URL`, empty means the page's own origin). For the web build they are the relative `/api` and empty — see Deployment below. Every `VITE_*` is inlined by Vite at build time, so changing one needs a rebuild, not a restart.
 
 Three more are **copy, not behaviour**, and the backend is the authority on all
 three: `VITE_MINIMUM_AGE` and `VITE_DELETION_GRACE_DAYS` mirror
@@ -75,7 +75,7 @@ list; anything added there has to be added to `docker/Dockerfile`,
 
 **Import aliases** (`vite.config.js`): `@components` → `src/components`, `@ui` → `src/ui`. Note `tsconfig.json` also declares `@/*` → `src/*`, but vite does **not** resolve it — `@/…` imports build-break. Use only `@components`/`@ui` or relative paths.
 
-**Expo leftovers**: the project was bootstrapped from an Expo template but is **not** Expo — it's Vite + React + Capacitor. `AGENTS.md` and `scripts/reset-project.js` have been removed; `README.md` was rewritten. What still lingers: `assets/` (Expo icon/splash art, unreferenced), `.vscode/extensions.json` (recommends `expo.vscode-expo-tools`) and `.claude/settings.json` (enables the Expo plugin).
+**Expo leftovers**: the project was bootstrapped from an Expo template but is **not** Expo — it's Vite + React + Capacitor. `AGENTS.md` and `scripts/reset-project.js` have been removed; `README.md` was rewritten. What still lingers: `.vscode/extensions.json` (recommends `expo.vscode-expo-tools`) and `.claude/settings.json` (enables the Expo plugin).
 
 ### Layer diagram
 
@@ -107,8 +107,8 @@ services/ import from connectors/
 | `src/ui/index.js` | Low-level primitives: `Icon`, `Avatar`/`OnlineDot`, `Btn`, `Card`, `Checkbox`, `Field`, `Skeleton`, `GeoBackground`, `Divider`, `SectionLabel`, plus `cx` helper, the tap guards from `guards.js` (`useGuardedCallback`, `useDebouncedValue`) and `useWide` from `useBreakpoint.js` (see Responsive layout) |
 | `src/components/index.js` | Composite widgets: `Screen`, `Header`, `Banner`, `Toast`, `BottomSheet`, `TabBar`/`SideNav`, `SplitView`/`NoSelection`, `StreakRing`/`BadgeMedallion`, `EmptyState`, `Mark`/`Wordmark`/`Logo`, `GoogleButton`, `PersonRow`, `RoleBadge` (the Official/Admin mark beside a name, from the API's `role` — see Domain rules), `SegTabs`, `ConfirmSheet` + `CONFIRM_COPY` (see Confirmations), `EmojiPicker`/`EmojiButton`/`insertAtCursor` (see Emoji), plus format helpers from `utils.js` (`hashHue`, `fmtTime`, `fmtLongDate`, `fmtRelDate`, `fmtShortDay`, `textLength`, `clampText`, `bigEmojiCount`) |
 | `src/connectors/` | Transport layer (see diagram above) |
-| `src/services/api/` | `auth`, `badge`, `chat`, `consent`, `friendship`, `message`, `moderation`, `notice`, `post`, `report`, `streak`, `user`, `device` |
-| `src/services/ws/` | `chat`, `connection`, `friendship`, `presence` |
+| `src/services/api/` | `admin`, `auth`, `badge`, `chat`, `consent`, `device`, `friendship`, `message`, `moderation`, `notice`, `post`, `report`, `streak`, `user` |
+| `src/services/ws/` | `admin` (alerts), `chat`, `connection`, `friendship`, `presence` |
 | `src/services/notifications.js` | Browser Notification API wrapper (`notif.send/requestPermission/granted`) |
 | `src/services/push.js` | Capacitor FCM wrapper (`push.register/onForeground/onTap`) |
 | `src/services/download.js` | `downloadJson` / `copyText` / `isNativeApp`. The web build saves a file; the native shell has no download manager and no Filesystem plugin, so it reports `{ok:false}` and `DataAndPrivacy` shows the JSON to copy instead of failing silently |
@@ -123,7 +123,7 @@ services/ import from connectors/
 | `src/store/useComments.js` | Comments of the open post; writes the count back to the feed store |
 | `src/store/useModeration.js` | `useModerator(enabled)` — probes `GET /reports` once per session to find out whether this account can moderate |
 | `src/store/useNotices.js` | Moderation notices waiting for this user; `acknowledge` marks one read |
-| `src/store/useNotifPrefs.js` | Persists notification prefs to `nh_notif_prefs` in localStorage; keys: `master`, `messages`, `friendRequests`, `friendAccepted`, `checkinReminder` |
+| `src/store/useNotifPrefs.js` | Persists notification prefs to `nh_notif_prefs` in localStorage; keys: `master`, `messages`, `friendRequests`, `friendAccepted`, `community`, `checkinReminder` |
 | `src/store/useNotifications.js` | Wires WS events → browser/local notifs; registers FCM token on native |
 | `src/store/useCheckinReminder.js` | Schedules/cancels `checkinReminder` based on combined master+pref flag |
 | `src/screens/auth/` | `SplashScreen`, `RegisterScreen`, `LoginScreen` |
@@ -136,6 +136,7 @@ services/ import from connectors/
 | `src/screens/profile/` | `MyProfile`, `EditProfile`, `Settings`, `DataAndPrivacy`, `ForcedRename` (shown instead of the app while a username reset is outstanding) |
 | `src/screens/legal/` | `legalContent.js` (the documents' text, in force since 2026-09-28, and the only place to edit them), `LegalDocument` (renders one, reached from Settings, the register screen and the gate — all three show the same page), `ConsentGate` (shown instead of the app while a consent is outstanding), `CrisisResources` + `crisisResources.js` (the numbers the "not medical care" clause points at — the one list in this folder that must be verified, not drafted) |
 | `src/screens/moderation/` | `ModerationQueue`, `ReportReview`, `SuspendSheet`, `WarnSheet`, `ProfileSanctionSheet` — admin only; the Settings row that opens them is absent for everyone else |
+| `src/screens/admin/` | `AdminDashboard` (the board, with `DayChart` / `StateBars` — see Charts) for every admin; `AdminsScreen` (who is an admin, removing the ones promoted in the app) for official accounts only |
 | `src/dev/TweaksPanel.jsx` | Dev overlay: `useTweaks`, `TweaksPanel`, `TweakSection`, `TweakRadio`, `TweakToggle` |
 
 ## Tap guards
@@ -268,7 +269,7 @@ Only three navigation primitives: `push(screen, props)` / `pop()` / `resetTo(tab
 Overlay screens today: `streakHistory`, `friendRequests`, `friendSearch`,
 `publicProfile`, `chatThread`, `postDetail`, `badges`, `badgeDetail`,
 `editProfile`, `settings`, `blocked`, `notifications`, `privacy`, `legalDoc`,
-`crisis`, `moderation`, `reportReview`.
+`crisis`, `moderation`, `reportReview`, `admin`, `admins`.
 
 **A sheet opened from a tab root needs `<BottomSheet portal>`.** `#nh-stage`
 animates with a transform, so it is a stacking context and nothing inside it
@@ -496,7 +497,7 @@ Two notification paths coexist:
 - **Web** (`services/notifications.js`): Browser Notification API. Skips when tab is visible (in-app toast handles it).
 - **Native** (`services/push.js` + `services/checkinReminder.js`): Capacitor. `push` → FCM for real-time events (backend sends via FCM). `checkinReminder` → LocalNotifications for the scheduled 9 PM daily prompt.
 
-`useNotifications(meId, prefs)` in `src/store/` unifies both: listens to the same WS events, dispatches to the right platform. FCM token is registered via `services/api/device.js` → `POST /notifications`, **with the push categories** (`messages`, `friends`) taken from the Settings switches, and re-registered whenever one changes; master off unregisters it. The server filters on them, which is the only way a switch can affect a push sent while the app is closed. The listeners read prefs through a ref — the effect subscribes once per account, and a closure would keep the values from the first render.
+`useNotifications(meId, prefs)` in `src/store/` unifies both: listens to the same WS events, dispatches to the right platform. FCM token is registered via `services/api/device.js` → `POST /notifications`, **with the push categories** (`messages`, `friends`, `community`) taken from the Settings switches — `community` has to be sent explicitly, because the server defaults it to on — and re-registered whenever one changes; master off unregisters it. The server filters on them, which is the only way a switch can affect a push sent while the app is closed. The listeners read prefs through a ref — the effect subscribes once per account, and a closure would keep the values from the first render.
 
 Notification IDs must not collide: checkinReminder uses 1001; message notifs use 2000–2999; friend events use 3001–3002.
 
@@ -504,7 +505,7 @@ Notification IDs must not collide: checkinReminder uses 1001; message notifs use
 
 See `noHarmBack/docs/FRONTEND_DESIGN_BRIEF.md` for full API shapes. Key invariants:
 
-- **Streak**: one active at a time; expires without 24 h check-in; relapse resets to 0 and immediately starts a new streak.
+- **Streak**: one active at a time; **it never expires** — a missed check-in changes nothing on the server, and only a relapse (`POST /streaks/end`) ends a streak, immediately starting a new one. The check-in modal is the app asking about the days since the last check-in, by **local** calendar day.
 - **Check-ins are not counted.** Duration comes from `start_at`/`end_at`, and
   `updateLastCheckin` is a plain assignment of "now" — so N check-ins do exactly
   what one does. Never loop one request per elapsed day to backfill a
@@ -573,7 +574,7 @@ See `noHarmBack/docs/FRONTEND_DESIGN_BRIEF.md` for full API shapes. Key invarian
   survives `npm run legal`.
 - **Official and Admin marks are the backend's call.** Every user object
   carries `role` — `"official"` (`OFFICIAL_USER_IDS`), `"admin"`
-  (`ADMIN_USER_IDS`) or null — and `RoleBadge` draws it in rows, the chat
+  (`ADMIN_USER_IDS`, or promoted by an official account) or null — and `RoleBadge` draws it in rows, the chat
   header and both profiles. Display only: moderation access is still the
   `useModerator` probe. `user_<id>` cache entries never expire, so
   `cachedUser()` treats one without a `role` key as a miss.
@@ -584,8 +585,16 @@ See `noHarmBack/docs/FRONTEND_DESIGN_BRIEF.md` for full API shapes. Key invarian
   Message on an official profile. The backend refuses the reply anyway
   (`OFFICIAL_CHAT_READONLY`). The official account itself gets a "Message
   everyone" row in Settings (`BroadcastSheet` → `POST /messages/broadcast`),
-  shown on `me.role === "official"`.
-- **Friendship status codes**: 2=deleted, 3=blocked, 4=pending, 5=accepted, 6=rejected.
+  shown on `me.role === "official"`, beside **Administrators** (`AdminsScreen`).
+- **Official accounts are admins, and the only ones who make admins.** An
+  official account passes every admin route. On someone else's profile its ⋯
+  menu offers *Make admin* / *Remove as admin* (`onSetAdmin` in `app.jsx` →
+  `POST`/`DELETE /admin/admins/{id}`), and `AdminsScreen` lists every admin with
+  where the access comes from. Only the ones promoted in the app can be removed
+  there — the others are set in the server config. A newly promoted account sees
+  the moderation rows after its next sign-in or reload: `useModerator`'s probe
+  is remembered for the session.
+- **Friendship status codes**: 2=deleted, 3=blocked, 4=pending, 5=accepted, 6=ignored (a rejected request).
 - **Reporting is private and inert.** `POST /reports/{userId}` takes one of six
   reasons (`services/api/report.js` holds the list and its copy) plus up to 1000
   optional characters. The reported user is never notified and can never read a
@@ -603,8 +612,8 @@ See `noHarmBack/docs/FRONTEND_DESIGN_BRIEF.md` for full API shapes. Key invarian
   lines to someone. Nothing in the app reads that copy back: it is a
   moderator's, and `GET /reports/{id}/evidence` answers 404 to everyone else,
   the reporter included.
-- **Chat**: friends-only, 1-on-1. Lifecycle: pending → enabled → disabled.
-- **Messages**: text only, max 2000 chars. Status 7=unread, 8=read.
+- **Chat**: friends-only, 1-on-1 — except an official account, which can open a chat with anyone. Lifecycle: pending → enabled → disabled.
+- **Messages**: text only, max 2000 chars — enforced by the backend on both REST and the socket (`MESSAGE_TOO_LONG`). Status 7=unread, 8=read.
 - **Emoji.** Plain Unicode in the text — the backend stores and sanitises it
   like any other character. `EmojiPicker` is a small hand-picked set, no
   dependency, drawn **inline** (it takes room above the field rather than
@@ -619,8 +628,8 @@ See `noHarmBack/docs/FRONTEND_DESIGN_BRIEF.md` for full API shapes. Key invarian
   fonts so Linux renders them in colour.
 - **Auth**: Firebase identity + app JWT. Access token 15 min, refresh 7 days. `connectors/api.js` handles the silent refresh automatically on 401.
 - **Moderation is a screen in the app, not a separate tool.** Settings shows a
-  "Reports" row only for an account on the backend's `ADMIN_USER_IDS`
-  allowlist, and `src/screens/moderation/` is what it opens: the queue (open /
+  "Reports" row only for an administrator (`ADMIN_USER_IDS`, an official
+  account, or one an official account promoted), and `src/screens/moderation/` is what it opens: the queue (open /
   actioned / dismissed), then one report with the evidence captured when it was
   filed — the profile snapshot and the conversation, both sides, as a
   transcript. **There is no "am I an admin" endpoint on purpose**: every

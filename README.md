@@ -11,6 +11,7 @@ NoHarm is an addiction recovery tracker. The core loop: register → start a str
 - [Backend](#backend)
 - [Mobile](#mobile)
   - [Building the Android APK](#building-the-android-apk)
+  - [Building for iOS](#building-for-ios)
 - [Other files](#other-files)
 - [License](#license)
 
@@ -34,19 +35,31 @@ There is no lint script configured. `npm run test:e2e` runs the Playwright suite
 
 ### Environment variables
 
-| Variable          | Purpose                                               |
-| ----------------- | ----------------------------------------------------- |
-| `VITE_API_URL`    | REST API base URL                                     |
-| `VITE_SOCKET_URL` | Socket.IO URL (falls back to `VITE_API_URL` if unset) |
+`.env.example` lists every one. All are inlined at build time, so a change needs a rebuild.
+
+| Variable | Purpose |
+| -------- | ------- |
+| `VITE_API_URL` | REST API base URL — `/api` for the web build (same origin as the page) |
+| `VITE_SOCKET_URL` | Socket.IO URL — empty for the web build (the page's origin); unset falls back to `VITE_API_URL` |
+| `VITE_DEV_BACKEND_ORIGIN` | Where `npm run dev` proxies `/api` and `/ws` (default `http://localhost:8080`) |
+| `VITE_FIREBASE_*` | The six Firebase web-config values (API key, auth domain, project, storage bucket, sender id, app id) |
+| `VITE_STATUS_CONSTANTS` | The backend's `STATUS_CODES`, as JSON |
+| `VITE_SUPPORT_EMAIL` | Where appeals go — shown on notices and refused sign-ins |
+| `VITE_DELETION_GRACE_DAYS` | Copy only; must match the backend's `ACCOUNT_DELETION_GRACE_DAYS` |
+| `VITE_MINIMUM_AGE` | Copy only; must match the backend's `MINIMUM_AGE_YEARS` |
+
+The mobile build reads `.env.mobile` instead (absolute URLs — see Mobile).
 
 ## Project structure
 
 ```
 src/
   app.jsx          # Root component: nav state machine, theme wiring, routing
-  main.jsx         # Mounts <App>, imports theme.css
+  main.jsx         # Mounts <App>, imports theme.css (or sends a web visitor to the landing page)
+  landing.js       # When the landing page applies, and the ?start= links back from it
   theme.css        # CSS custom properties for the four theme variants
-  screens/         # React UI, one folder per domain (auth, home, friends, chat, badges, profile)
+  screens/         # React UI, one folder per domain (auth, home, friends, chat, community,
+                   # notifications, badges, profile, legal, moderation, admin)
   ui/               # Low-level primitives (Icon, Avatar, Btn, Card, Field, ...)
   components/      # Composite widgets (Screen, Header, TabBar, StreakRing, ...)
   store/            # React hooks: data fetch + cache + WS subscriptions
@@ -185,6 +198,177 @@ For Play Store uploads use `./gradlew bundleRelease` instead — an `.aab`, not 
 - **A change that does not show up in the app** — `npm run build:mobile` without `npx cap sync android`.
 - **REST calls fail while the socket works** — `ALLOWED_ORIGINS` on the backend is missing `capacitor://localhost` / `http://localhost`. Only the mobile build sends a preflight; the web build is same-origin.
 - `@capacitor/cli` is pinned at 7.6.7 while the platforms and core are 8.4.1. `cap sync` works across that skew, but the CLI is a major version behind — align them before relying on newer `cap` flags.
+
+### Building for iOS
+
+There is no APK equivalent you can just hand someone. An iOS build is an `.ipa`,
+and an iPhone installs one only when Apple's signing chain accepts it. Two
+things cannot be worked around:
+
+- **macOS with Xcode.** The native build only runs there. From Linux the options
+  are a borrowed Mac or a cloud macOS runner (see the end of this section).
+- **An Apple account.** A free Apple ID can run the app on *your own* device,
+  and the install expires after 7 days. Anything else — TestFlight, the App
+  Store, someone else's phone — needs the Apple Developer Program (US$ 99/year).
+
+| Route | Needs | Gets you |
+|-------|-------|----------|
+| Xcode → Run on a cabled iPhone | Mac, free Apple ID | Your device only, re-install every 7 days |
+| TestFlight | Mac, paid account | Testers install from the TestFlight app (up to 10 000); each build lasts 90 days |
+| App Store | Mac, paid account, App Review | Public release |
+| Cloud macOS (GitHub Actions `macos-latest`, Codemagic, Appflow) | Paid account, no Mac | Signed `.ipa` uploaded to TestFlight from CI |
+
+**Prerequisites (on the Mac)**
+
+| Requirement | Notes |
+| ----------- | ----- |
+| Xcode       | Current release from the App Store, then `xcode-select --install` |
+| CocoaPods   | `brew install cocoapods` — `cap sync ios` runs `pod install` |
+| Node        | 20+ |
+
+**0. Regenerate the native project**
+
+`ios/` is gitignored like `android/`, and the copy that exists on some machines
+predates the current setup. Two problems with it:
+
+- its deployment target is **iOS 14**, while `@capacitor/ios` 8 requires **15**,
+  so `pod install` fails;
+- its bundle id is `com.noharm.app`, not the `appId` (`com.no.harm`) the
+  Firebase apps are registered under.
+
+Start clean:
+
+```bash
+rm -rf ios
+npx cap add ios           # bundle id = appId from capacitor.config.json
+```
+
+**1. Point the bundle at a real backend and sync**
+
+The same `.env.mobile` / `.env.mobile.local` as Android (step 1 above), then:
+
+```bash
+npm ci
+npm run build:mobile
+npx cap sync ios          # dist/ → ios/App/App/public, plus pod install
+npx cap open ios          # opens ios/App/App.xcworkspace in Xcode
+```
+
+Always open the **`.xcworkspace`**, never the `.xcodeproj` — the latter does not
+see the pods and fails to link Capacitor.
+
+**2. Signing**
+
+In Xcode: target **App** → *Signing & Capabilities* → tick *Automatically manage
+signing* and pick your **Team** (sign in under Xcode → Settings → Accounts).
+Bump *Version* (`MARKETING_VERSION`) for each release and *Build*
+(`CURRENT_PROJECT_VERSION`) for each upload — TestFlight rejects a build number
+it has already seen.
+
+**3a. Run on your own iPhone**
+
+Plug it in, trust the Mac, enable *Developer Mode* on the phone (Settings →
+Privacy & Security), select it as the run destination and press ▶. With a free
+Apple ID, also trust the developer certificate on the phone under Settings →
+General → VPN & Device Management.
+
+**3b. TestFlight**
+
+1. Create the app in [App Store Connect](https://appstoreconnect.apple.com) with
+   bundle id `com.no.harm`.
+2. In Xcode, set the destination to *Any iOS Device (arm64)*, then
+   **Product → Archive**.
+3. In the Organizer that opens: **Distribute App → TestFlight & App Store →
+   Upload**.
+4. Once processing finishes (minutes to an hour), add testers in App Store
+   Connect → TestFlight. Internal testers (your team) get it right away;
+   external ones go through a short Beta App Review first.
+
+**4. Push notifications (FCM)**
+
+The app still runs without this — the daily check-in reminder is a *local*
+notification — but no server push reaches it. Three pieces:
+
+- **Capabilities** in Xcode: *+ Capability* → **Push Notifications**, and
+  **Background Modes** → tick *Remote notifications*.
+- **APNs key**: Apple Developer → Certificates, IDs & Profiles → Keys → new key
+  with *Apple Push Notifications service*. Download the `.p8` (only once), and
+  upload it in the Firebase console → Project settings → Cloud Messaging →
+  Apple app configuration, with its Key ID and your Team ID.
+- **Firebase in the native app**: register an iOS app with bundle id
+  `com.no.harm` in the Firebase console and drag `GoogleService-Info.plist`
+  into `ios/App/App/` in Xcode (tick *Copy items if needed* and the *App*
+  target).
+
+Then the token. On iOS, `@capacitor/push-notifications` reports the raw **APNs**
+token, and the backend sends through **FCM**, which does not accept one. The
+app has to ask Firebase Messaging for an FCM token and hand *that* to the
+plugin. In `ios/App/Podfile`, inside `target 'App'`:
+
+```ruby
+pod 'FirebaseMessaging'
+```
+
+and in `ios/App/App/AppDelegate.swift`:
+
+```swift
+import UIKit
+import Capacitor
+import FirebaseCore
+import FirebaseMessaging
+
+// in application(_:didFinishLaunchingWithOptions:), before `return true`:
+FirebaseApp.configure()
+
+// new methods in AppDelegate:
+func application(_ application: UIApplication,
+                 didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+    Messaging.messaging().apnsToken = deviceToken
+    Messaging.messaging().token { token, error in
+        if let error = error {
+            NotificationCenter.default.post(name: .capacitorDidFailToRegisterForRemoteNotifications, object: error)
+        } else if let token = token {
+            NotificationCenter.default.post(name: .capacitorDidRegisterForRemoteNotifications, object: token)
+        }
+    }
+}
+
+func application(_ application: UIApplication,
+                 didFailToRegisterForRemoteNotificationsWithError error: Error) {
+    NotificationCenter.default.post(name: .capacitorDidFailToRegisterForRemoteNotifications, object: error)
+}
+```
+
+`npx cap sync ios` again afterwards (it runs `pod install`). Like everything
+under `ios/`, these edits are lost when the project is regenerated — keep this
+section as the script.
+
+Push does not arrive on the Simulator from FCM; test on a device.
+
+**Building from Linux (cloud macOS)**
+
+A CI job on a macOS runner does steps 1–3b without a Mac: `npm ci` →
+`npm run build:mobile` → `npx cap add ios` (the folder is not in git) → apply
+the push edits → `xcodebuild archive` + `-exportArchive` → upload with
+`xcrun altool` or fastlane `pilot`. Signing in CI needs an App Store Connect
+API key (`.p8`, Key ID, Issuer ID) stored as repository secrets, with
+`-allowProvisioningUpdates` letting Xcode fetch the certificate and profile.
+Codemagic and Ionic Appflow package the same steps behind a UI.
+
+**What commonly breaks**
+
+- **`pod install` fails with a deployment target error** — the old `ios/`
+  folder (iOS 14). Regenerate it (step 0).
+- **`No such module 'Capacitor'`** — the `.xcodeproj` was opened instead of the
+  `.xcworkspace`, or `cap sync ios` never ran `pod install`.
+- **`Signing for "App" requires a development team`** — step 2.
+- **The app shows an old bundle** — `npm run build:mobile` without
+  `npx cap sync ios`.
+- **Push registers but nothing arrives** — the backend received an APNs token
+  (step 4's AppDelegate change missing), or the APNs key is not uploaded to
+  Firebase.
+- **REST calls fail while the socket works** — `ALLOWED_ORIGINS` is missing
+  `capacitor://localhost`, the iOS origin.
 
 ## Other files
 

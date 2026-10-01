@@ -7,6 +7,7 @@ const DEFAULTS = {
   messages: true, // new chat messages
   friendRequests: true, // incoming friend requests
   friendAccepted: true, // friend request accepted
+  community: true, // a comment on one of my posts (push only)
   checkinReminder: true, // daily check-in reminder
 };
 

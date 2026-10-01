@@ -1,6 +1,6 @@
 # E2E tests — NoHarm
 
-Playwright suite (113 tests) automating the checklist in
+Playwright suite automating the checklist in
 [`TESTING.md`](../TESTING.md). Runs against the real app (Vite on `:5173`) and
 the real backend (`:8080`).
 
@@ -88,14 +88,14 @@ not match, register returns `401`; if the backend container is missing
 returns `401` — or `503` `AUTH_UNAVAILABLE`, if it also has no service account
 credential.
 
-Consequence: none of your own accounts are used. The database still accumulates
-the throwaway accounts, because the backend only soft-deletes — see "State the
-suite leaves in the database".
+Consequence: none of your own accounts are used, and none of the throwaway ones
+survive the run — see "State the suite leaves in the database".
 
 ## Rate limit: why there is a counter `FLUSH`
 
-The backend limits **all** routes to 60 requests/minute per IP, with a 60 s
-window kept in Redis under `rl:*`. One screen load costs ~10 requests, so the
+The backend limits **all** routes to 240 requests/minute per IP
+(`RATE_LIMIT_MAX_REQUESTS`), with a 60 s window kept in Redis under `rl:*`, on
+top of tighter per-route limits. One screen load costs ~10 requests, so the
 whole suite does not fit in a single bucket.
 
 The old suite forged an `X-Forwarded-For` per test to get its own bucket. That
@@ -141,7 +141,7 @@ became positive assertions:
 | `POST /streaks/end` always 500 (relapse broken) | ends the streak and opens a new one, including with a backdated `end_at` |
 | `PUT /users/me` does not persist | persists |
 | WS never emits `new_message` | emits, for both REST and socket sends |
-| `DELETE /badges` 500, leaving a ghost badge | deletes, and it disappears from `GET /badges` |
+| `DELETE /badges/{id}` 500, leaving a ghost badge | deletes, and it disappears from `GET /badges` |
 | deleted account remained authenticable | `GET /users/me` returns 403 `Account not found.` |
 | badges never granted | granted on `POST /streaks/start` and `/streaks/checkin` |
 

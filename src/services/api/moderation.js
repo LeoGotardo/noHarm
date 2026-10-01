@@ -3,7 +3,7 @@ import { REPORT_REASONS } from "./report.js";
 
 /**
  * The moderation surface. Every call here answers **404 to anyone outside
- * `ADMIN_USER_IDS`** — not 403 — so a non-moderator cannot even confirm these
+ * administrators** — not 403 — so a non-moderator cannot even confirm these
  * endpoints exist. That is also how the app decides whether to show the
  * entry point: there is no "am I an admin" endpoint, and adding one would
  * hand out the same fact this deliberately withholds.

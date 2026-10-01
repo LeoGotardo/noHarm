@@ -4,7 +4,8 @@ import { api } from "../../connectors/api.js";
  * The admin board.
  *
  * Same gate as the moderation queue and for the same reason: authorisation is
- * the backend's `ADMIN_USER_IDS` allowlist, and every route here answers
+ * the backend's `getAdminUser` (`ADMIN_USER_IDS`, official accounts and the
+ * accounts they promoted), and every route here answers
  * **404** to anyone else rather than 403. There is no "am I an admin"
  * endpoint — `useModerator` probing the report queue is the answer for both
  * surfaces, because one allowlist decides both.
@@ -108,3 +109,24 @@ export const HEALTH_FIELDS = [
     context: true,
   },
 ];
+
+/**
+ * Who can use the admin routes, and why (`source`: official · env · granted).
+ *
+ * Official accounts only — everyone else gets the usual 404. Only `granted`
+ * rows can be revoked from the app; the other two are set in the server
+ * configuration.
+ */
+export async function listAdmins() {
+  return api.get("/admin/admins");
+}
+
+/** Give an account everything the admin routes allow. Official accounts only. */
+export async function promoteAdmin(userId) {
+  return api.post(`/admin/admins/${encodeURIComponent(userId)}`);
+}
+
+/** Revoke a promotion made from the app. Takes effect on their next request. */
+export async function demoteAdmin(userId) {
+  return api.delete(`/admin/admins/${encodeURIComponent(userId)}`);
+}

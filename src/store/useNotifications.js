@@ -60,8 +60,8 @@ export function useNotifications(meId, prefs = {}) {
   // A push sent while the app is closed never reaches this code, so the
   // switches only mean something if the server knows them. Master off
   // unregisters the token — which also stops badge pushes — and anything else
-  // re-registers it with the two categories; the endpoint is an upsert.
-  const { master, messages, friendRequests } = prefs;
+  // re-registers it with the three categories; the endpoint is an upsert.
+  const { master, messages, friendRequests, community } = prefs;
   useEffect(() => {
     if (!meId || !isNative) return;
 
@@ -83,6 +83,7 @@ export function useNotifications(meId, prefs = {}) {
         await registerDeviceToken(token, {
           messages: !!messages,
           friends: !!friendRequests,
+          community: !!community,
         });
         // Persist so logout can unregister this device from FCM
         localStorage.setItem("nh_fcm", token);
@@ -93,7 +94,7 @@ export function useNotifications(meId, prefs = {}) {
       cancelled = true;
       registration.then((unregister) => unregister()).catch(() => {});
     };
-  }, [meId, master, messages, friendRequests]);
+  }, [meId, master, messages, friendRequests, community]);
 
   useEffect(() => {
     if (!meId) return;
@@ -139,7 +140,7 @@ export function useNotifications(meId, prefs = {}) {
             );
           }),
 
-          // System alerts, for accounts on the backend's admin allowlist. No
+          // System alerts, for the backend's administrators. No
           // check here: the backend emits only to those uids' rooms, so an
           // ordinary account simply never receives one.
           //

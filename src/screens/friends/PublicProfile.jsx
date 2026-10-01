@@ -30,6 +30,9 @@ export function PublicProfile({
   onBlock,
   onUnblock,
   onReport,
+  // Official accounts only: promote or demote this person. Resolves false when
+  // it failed (and said so), so the mark only changes once the server agreed.
+  onSetAdmin,
 }) {
   const [user, setUser] = useState(
     () => cachedUser(userId) ?? initialUser ?? null,
@@ -309,6 +312,16 @@ export function PublicProfile({
               }}
             />
           )}
+          {onSetAdmin && user && user.role !== "official" && (
+            <SheetAction
+              icon="shield"
+              label={user.role === "admin" ? "Remove as admin" : "Make admin"}
+              onClick={() => {
+                setMenu(false);
+                setConfirm(user.role === "admin" ? "removeAdmin" : "makeAdmin");
+              }}
+            />
+          )}
           <SheetAction
             icon="flag"
             label="Report this user"
@@ -356,6 +369,16 @@ export function PublicProfile({
         onClose={() => setConfirm(null)}
         {...(confirm ? CONFIRM_COPY[confirm](username) : {})}
         onConfirm={async () => {
+          if (confirm === "makeAdmin" || confirm === "removeAdmin") {
+            const makeAdmin = confirm === "makeAdmin";
+            const ok = await onSetAdmin?.(makeAdmin);
+            if (ok !== false) {
+              const updated = { ...user, role: makeAdmin ? "admin" : null };
+              setUser(updated);
+              cacheWrite(`user_${userId}`, updated);
+            }
+            return;
+          }
           const run = {
             block: [onBlock, "blocked"],
             unblock: [onUnblock, "none"],

@@ -21,7 +21,8 @@ export function Settings({
   onEnableNotifications,
   notifPrefs,
   onNotifPrefChange,
-  // True only for an account on the backend's ADMIN_USER_IDS allowlist. The
+  // True only for an administrator (ADMIN_USER_IDS, an official account, or one
+  // an official account promoted). The
   // row is absent for everyone else, and the endpoints behind it answer 404
   // to them anyway — this hides a door that is already locked.
   isModerator,
@@ -33,6 +34,7 @@ export function Settings({
   onOpenPrivacy,
   onOpenCrisis,
   onOpenAdmin,
+  onOpenAdmins,
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmText, setConfirmText] = useState("");
@@ -150,6 +152,17 @@ export function Settings({
             <Divider />
 
             <ToggleRow
+              icon="community"
+              label="Comments on my posts"
+              sub="Who commented — never what they wrote"
+              value={notifPrefs.community}
+              disabled={!masterOn}
+              onChange={(v) => onNotifPrefChange("community", v)}
+            />
+
+            <Divider />
+
+            <ToggleRow
               icon="check"
               label="Daily check-in reminder"
               sub="A gentle nudge if you haven't checked in"
@@ -191,6 +204,11 @@ export function Settings({
                 icon="send"
                 label="Message everyone"
                 onClick={() => setBroadcastOpen(true)}
+              />
+              <LinkRow
+                icon="shield"
+                label="Administrators"
+                onClick={onOpenAdmins}
                 last
               />
             </Card>
@@ -206,7 +224,7 @@ export function Settings({
                 label="Reports"
                 onClick={onOpenModeration}
               />
-              {/* Same allowlist as the row above — one ADMIN_USER_IDS decides
+              {/* Same allowlist as the row above — one admin gate decides
                   both, so one probe answers for both. */}
               <LinkRow
                 icon="gear"

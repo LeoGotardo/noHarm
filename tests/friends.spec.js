@@ -23,8 +23,6 @@ async function stubDirectory(page, me, hidden) {
   const filler = Array.from({ length: 100 }, (_, i) => ({
     id: `filler-${i}`,
     username: `filler_user_${i}`,
-    email: `filler${i}@example.com`,
-    status: 1,
     profile_picture: null,
   }));
   const pages = {
@@ -33,8 +31,6 @@ async function stubDirectory(page, me, hidden) {
       {
         id: hidden.id,
         username: hidden.username,
-        email: hidden.email,
-        status: 1,
         profile_picture: null,
       },
     ],
@@ -63,8 +59,6 @@ async function stubUserDirectory(page, users) {
   const items = users.map((u) => ({
     id: u.id,
     username: u.username,
-    email: u.email,
-    status: 1,
     profile_picture: null,
   }));
   await page.route("**/users?*", (route) =>
@@ -240,6 +234,14 @@ test.describe("Friends", () => {
 
     const flat = await api.get("/users", as(userA));
     expect(Array.isArray(flat.users)).toBe(true);
+
+    // Any signed-in account can page this, so it carries nobody's e-mail,
+    // status or birth date — only what a profile shows.
+    for (const row of [...res.items, ...flat.users]) {
+      expect(Object.keys(row).sort()).toEqual(
+        ["created_at", "id", "profile_picture", "role", "updated_at", "username"],
+      );
+    }
 
     // A live account is reachable through the directory the search pool walks.
     const ids = new Set(res.items.map((u) => u.id));

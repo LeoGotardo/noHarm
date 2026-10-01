@@ -173,6 +173,7 @@ test.describe("Profile", () => {
     await expect(page.getByText("Turn on to receive alerts")).toBeVisible();
     await expect(page.getByText("Messages", { exact: true })).toBeVisible();
     await expect(page.getByText("Friend requests")).toBeVisible();
+    await expect(page.getByText("Comments on my posts")).toBeVisible();
     await expect(page.getByText("Daily check-in reminder")).toBeVisible();
 
     // Without permission the master stays off, and every sub-toggle switch is
@@ -185,6 +186,7 @@ test.describe("Profile", () => {
     for (const label of [
       "Messages",
       "Friend requests",
+      "Comments on my posts",
       "Daily check-in reminder",
     ]) {
       await expect(toggleRow(page, label)).toBeDisabled();
