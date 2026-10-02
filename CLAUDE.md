@@ -119,6 +119,7 @@ services/ import from connectors/
 | `src/services/ws/` | `admin` (alerts), `chat`, `connection`, `friendship`, `presence` |
 | `src/services/notifications.js` | Browser Notification API wrapper (`notif.send/requestPermission/granted`) |
 | `src/services/push.js` | Capacitor FCM wrapper (`push.register/onForeground/onTap`) |
+| `src/services/suggestions.js` | The suggestion box: builds a `mailto:` to `suggestions@noharm.site` (an ImprovMX alias) with the text, capped at `SUGGESTION_MAX` (600). Nothing goes through the API or is stored. `public/suggest.js` does the same on the landing page — a static page cannot import the module, so address and limit are written twice; keep them in step |
 | `src/services/download.js` | `downloadJson` / `copyText` / `isNativeApp`. The web build saves a file; the native shell has no download manager and no Filesystem plugin, so it reports `{ok:false}` and `DataAndPrivacy` shows the JSON to copy instead of failing silently |
 | `src/services/checkinReminder.js` | Capacitor LocalNotifications — schedules daily 9 PM reminder (id 1001) |
 | `src/store/cache.js` | localStorage cache helpers (`cacheRead/cacheWrite/cacheClear/cacheValid`), prefix `nh_cache_` |
@@ -135,15 +136,15 @@ services/ import from connectors/
 | `src/store/useNotifications.js` | Wires WS events → browser/local notifs; registers FCM token on native |
 | `src/store/useCheckinReminder.js` | Schedules/cancels `checkinReminder` based on combined master+pref flag |
 | `src/screens/auth/` | `SplashScreen`, `RegisterScreen`, `LoginScreen` |
-| `src/screens/home/` | `Dashboard`, `StreakHistory`, `CheckInModal` |
+| `src/screens/home/` | `Dashboard` (+ `StatTile`, the current/best figures), `StreakHistory`, `CheckInModal` (+ `DayRow`, one missed day with its relapse toggle and time; `SummaryLine`, the confirm step's summary) |
 | `src/screens/friends/` | `FriendsScreen`, `FriendRequests`, `FriendSearch`, `PublicProfile`, `ReportSheet`, `BlockedPeople` |
-| `src/screens/chat/` | `ChatList`, `ChatThread` |
+| `src/screens/chat/` | `ChatList` (+ `ChatRow`), `ChatThread` (+ `Bubble`, one message; `TypingBubble`, the typing indicator) |
 | `src/screens/notifications/` | `NotificationsScreen` — what is *pending* (received friend requests, conversations with unread messages, blocked ones excluded), built from state the app already holds; the backend keeps no notification history. The bell's count is the length of that same list |
 | `src/screens/community/` | `CommunityScreen` (tab root), `PostDetail`, `PostCard`/`CommentRow`/`AuthorLine`, `ComposeSheet` (+ `CrisisLink`), `ItemMenu` (delete / report / block on a post or comment) |
 | `src/screens/badges/` | `BadgesScreen` (pushed from Profile — not a tab since Community took its place), `BadgeDetail` |
-| `src/screens/profile/` | `MyProfile`, `EditProfile`, `Settings` (+ `ThemePicker`), `DataAndPrivacy`, `ForcedRename` (shown instead of the app while a username reset is outstanding) |
+| `src/screens/profile/` | `MyProfile`, `EditProfile`, `Settings` (+ `ThemePicker`, `SuggestionBox`, `LinkRow`, `ToggleRow`, `BroadcastSheet`), `DataAndPrivacy`, `ForcedRename` (shown instead of the app while a username reset is outstanding) |
 | `src/screens/legal/` | `legalContent.js` (the documents' text, in force since 2026-09-28, and the only place to edit them), `LegalDocument` (renders one, reached from Settings, the register screen and the gate — all three show the same page), `ConsentGate` (shown instead of the app while a consent is outstanding), `CrisisResources` + `crisisResources.js` (the numbers the "not medical care" clause points at — the one list in this folder that must be verified, not drafted) |
-| `src/screens/moderation/` | `ModerationQueue`, `ReportReview`, `SuspendSheet`, `WarnSheet`, `ProfileSanctionSheet` — admin only; the Settings row that opens them is absent for everyone else |
+| `src/screens/moderation/` | `ModerationQueue`, `ReportReview`, `SuspendSheet`, `WarnSheet`, `ProfileSanctionSheet` — admin only; the Settings row that opens them is absent for everyone else. **Known gap:** there is no screen to remove or restore a post or comment — the backend routes exist (`PUT /posts/{id}/remove` and friends) but `POSTS_PLAN.md`'s `RemoveContentSheet` was never built |
 | `src/screens/admin/` | `AdminDashboard` (the board, with `DayChart` / `StateBars` — see Charts) for every admin; `AdminsScreen` (who is an admin, removing the ones promoted in the app) for official accounts only |
 
 ## Tap guards
