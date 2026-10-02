@@ -1,4 +1,4 @@
-/** TESTING.md → "Navigation / Tabs" and "Theming (TweaksPanel)" */
+/** TESTING.md → "Navigation / Tabs" and "Theming" */
 import { test, expect, openApp, tab, tabBadge } from "./helpers/fixtures.js";
 import {
   createUser,
@@ -24,12 +24,13 @@ async function expectNavAfterPush(page) {
     : expect(home).toBeHidden());
 }
 
-/** Open the dev TweaksPanel — it only mounts on the `__activate_edit_mode` message. */
-async function openTweaks(page) {
-  await page.evaluate(() =>
-    window.postMessage({ type: "__activate_edit_mode" }, "*"),
-  );
-  await expect(page.locator(".twk-panel")).toBeVisible();
+/**
+ * Store a theme preference the way the app does and reload, so it is read
+ * both by the pre-paint script in index.html and by `loadTweaks()`.
+ */
+async function withStoredTheme(page, prefs) {
+  await page.evaluate((p) => localStorage.setItem("nh_tweaks", JSON.stringify(p)), prefs);
+  await page.reload();
 }
 
 test.describe("Brand", () => {
@@ -239,28 +240,26 @@ test.describe("Navigation / Tabs", () => {
   });
 });
 
-test.describe("Theming (TweaksPanel)", () => {
-  test("Direction — sage ↔ dawn", async ({ appA, page }) => {
+test.describe("Theming", () => {
+  // Dark mode is switched from Settings (profile.spec.js). Direction and motion
+  // have no switch in the app — these hold that a stored choice is honoured
+  // and that a value the app does not know never reaches the DOM.
+  test("A stored direction is applied", async ({ appA, page }) => {
     await expect(page.locator(".nh-root")).toHaveAttribute("data-dir", "sage");
-
-    await openTweaks(page);
-    await page.locator('.twk-seg button[role="radio"]', { hasText: "dawn" }).click();
+    await withStoredTheme(page, { direction: "dawn" });
     await expect(page.locator(".nh-root")).toHaveAttribute("data-dir", "dawn");
+    await expect(page.locator("html")).toHaveAttribute("data-dir", "dawn");
   });
 
-  test("Modo — light ↔ dark", async ({ appA, page }) => {
-    await openTweaks(page);
-    await page.locator('.twk-seg button[role="radio"]', { hasText: "dark" }).click();
-    await expect(page.locator(".nh-root")).toHaveAttribute("data-mode", "dark");
+  test("An unknown stored value falls back to the default", async ({ appA, page }) => {
+    await withStoredTheme(page, { direction: "<script>", mode: "neon" });
+    await expect(page.locator(".nh-root")).toHaveAttribute("data-dir", "sage");
+    await expect(page.locator(".nh-root")).toHaveAttribute("data-mode", "light");
   });
 
-  test("Motion off — desliga o confete", async ({ appA, page }) => {
-    await openTweaks(page);
-    await page.locator(".twk-toggle").click();
+  test("Motion off — no confetti", async ({ appA, page }) => {
+    await withStoredTheme(page, { motion: false });
     await expect(page.locator(".nh-root")).toHaveAttribute("data-reduce-motion", "yes");
-
-    // Dismiss the panel so it doesn't cover the dashboard button
-    await page.locator(".twk-x").click();
 
     await page.getByRole("button", { name: /Start my streak/ }).click();
     await page.getByRole("button", { name: "Begin my streak" }).click();
@@ -284,7 +283,10 @@ test.describe("Public home page", () => {
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     await expect(page.locator('a[href="/privacy"]').first()).toBeVisible();
     await expect(page.locator('a[href="/terms"]').first()).toBeVisible();
-    await expect(page.locator('a[href="/"]').first()).toBeVisible();
+    // Into the app through ?start= — a bare "/" would bounce a visitor with
+    // no session straight back here (src/main.jsx).
+    await expect(page.locator('a[href="/?start=register"]').first()).toBeVisible();
+    await expect(page.locator('a[href="/?start=login"]').first()).toBeVisible();
 
     // Self-contained like the legal pages: nothing from another origin, so it
     // renders under the CSP and on a reviewer's machine with nothing cached.

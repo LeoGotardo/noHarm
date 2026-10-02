@@ -122,6 +122,21 @@ export async function signOut() {
 }
 
 /**
+ * Sign out of every device this account is signed in on, this one included.
+ *
+ * The backend refuses every token issued before now — including the refresh
+ * token on a lost phone, which a normal logout never sees. Throws, and keeps
+ * this session, if the call fails: clearing it anyway would tell the user the
+ * other devices were signed out when they were not.
+ * @returns {Promise<void>}
+ */
+export async function signOutEverywhere() {
+  await api.post("/auth/logout-all");
+  tokens.clear();
+  await fbLogout().catch(() => {});
+}
+
+/**
  * Exchange the stored refresh token for a new access token.
  * Called automatically by the API connector on 401.
  * @returns {Promise<{ accessToken: string, refreshToken: string, tokenType: string }>}

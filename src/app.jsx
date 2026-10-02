@@ -19,7 +19,7 @@ import {
   reauth as reauthSocket,
 } from "./connectors/socket.js";
 import { tokens } from "./connectors/tokens.js";
-import { refreshToken, signOut } from "./services/api/auth.js";
+import { refreshToken, signOut, signOutEverywhere } from "./services/api/auth.js";
 import { unregisterDeviceToken } from "./services/api/device.js";
 import {
   acceptFriendship,
@@ -32,13 +32,6 @@ import { reportUser } from "./services/api/report.js";
 import { blockUser, getUsers, unblockUser } from "./services/api/user.js";
 import { demoteAdmin, promoteAdmin } from "./services/api/admin.js";
 import { milestoneDays, withEarnedState } from "./services/badges.js";
-import {
-  TweakRadio,
-  TweakSection,
-  TweaksPanel,
-  TweakToggle,
-  useTweaks,
-} from "./dev/TweaksPanel.jsx";
 import { LoginScreen } from "./screens/auth/LoginScreen.jsx";
 import { RegisterScreen } from "./screens/auth/RegisterScreen.jsx";
 import { SplashScreen } from "./screens/auth/SplashScreen.jsx";
@@ -92,7 +85,6 @@ const TWEAK_DEFAULTS = {
   direction: "sage",
   mode: "light",
   motion: true,
-  accentName: "warm",
 };
 
 // Theme choices survive a reload. The pre-paint script in index.html reads this
@@ -120,6 +112,19 @@ function loadTweaks() {
 }
 
 const INITIAL_TWEAKS = loadTweaks();
+
+/** Theme state: `setTweak("mode", "dark")` or `setTweak({ mode, motion })`. */
+function useTweaks(initial) {
+  const [values, setValues] = useState(initial);
+  const setTweak = useCallback((keyOrEdits, val) => {
+    const edits =
+      typeof keyOrEdits === "object" && keyOrEdits !== null
+        ? keyOrEdits
+        : { [keyOrEdits]: val };
+    setValues((prev) => ({ ...prev, ...edits }));
+  }, []);
+  return [values, setTweak];
+}
 
 // How many directory entries to pull per page while building the search pool.
 const USER_PAGE_SIZE = 100;
@@ -1279,6 +1284,10 @@ export default function App() {
               onToggleMode={() =>
                 setTweak("mode", mode === "dark" ? "light" : "dark")
               }
+              direction={dir}
+              onDirection={(v) => setTweak("direction", v)}
+              motion={motion}
+              onMotion={(v) => setTweak("motion", v)}
               onLogout={async () => {
                 // Unregister this device from FCM before dropping the session
                 const fcm = localStorage.getItem("nh_fcm");
@@ -1295,6 +1304,19 @@ export default function App() {
                 }
                 // Drop this account's cached data, then reboot so every store
                 // hook re-initialises empty (no stale data on next login).
+                cacheClearAll();
+                window.location.reload();
+              }}
+              onLogoutEverywhere={async () => {
+                try {
+                  await signOutEverywhere();
+                } catch (e) {
+                  // The session is kept on failure, so the other devices are
+                  // known to still be signed in — say so rather than reload.
+                  showToast(errorMessage(e, "Couldn't sign out other devices"), "bell");
+                  return;
+                }
+                localStorage.removeItem("nh_fcm");
                 cacheClearAll();
                 window.location.reload();
               }}
@@ -1650,39 +1672,6 @@ export default function App() {
           onClose={() => setRelapseOpen(false)}
         />
       </div>
-
-      <TweaksPanel>
-        <TweakSection label="Visual direction" />
-        <TweakRadio
-          label="Theme"
-          value={dir}
-          options={["sage", "dawn"]}
-          onChange={(v) => setTweak("direction", v)}
-        />
-        <TweakRadio
-          label="Appearance"
-          value={mode}
-          options={["light", "dark"]}
-          onChange={(v) => setTweak("mode", v)}
-        />
-        <TweakSection label="Motion" />
-        <TweakToggle
-          label="Background & celebration motion"
-          value={motion}
-          onChange={(v) => setTweak("motion", v)}
-        />
-        <div
-          style={{
-            fontSize: 11.5,
-            color: "rgba(0,0,0,0.45)",
-            padding: "2px 2px 8px",
-            lineHeight: 1.5,
-          }}
-        >
-          Sage = humanist sans, muted green. Dawn = soft serif numerals, warm
-          clay.
-        </div>
-      </TweaksPanel>
     </div>
   );
 }

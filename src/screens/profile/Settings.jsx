@@ -1,9 +1,10 @@
-import { BottomSheet, Header, Screen } from "@components";
+import { BottomSheet, ConfirmSheet, Header, Screen } from "@components";
 import { Btn, Card, Divider, Field, Icon, SectionLabel } from "@ui";
 import { useState } from "react";
 import { deleteMe } from "../../services/api/user.js";
 import { BroadcastSheet } from "./BroadcastSheet.jsx";
 import { LinkRow } from "./LinkRow.jsx";
+import { ThemePicker } from "./ThemePicker.jsx";
 import { SuggestionBox } from "./SuggestionBox.jsx";
 import { ToggleRow } from "./ToggleRow.jsx";
 
@@ -11,12 +12,20 @@ import { ToggleRow } from "./ToggleRow.jsx";
 // user — the backend enforces the window and owns the real value.
 const GRACE_DAYS = Number(import.meta.env.VITE_DELETION_GRACE_DAYS) || 30;
 
+// The release tag the bundle was built for (deploy-host.sh / release.yml).
+const APP_VERSION = import.meta.env.VITE_APP_VERSION || "dev";
+
 export function Settings({
   onBack,
   onLogout,
+  onLogoutEverywhere,
   onDeleted,
   mode,
   onToggleMode,
+  direction,
+  onDirection,
+  motion,
+  onMotion,
   notifGranted,
   onEnableNotifications,
   notifPrefs,
@@ -37,6 +46,7 @@ export function Settings({
   onOpenAdmins,
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmEverywhere, setConfirmEverywhere] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [permDenied, setPermDenied] = useState(false);
@@ -73,12 +83,22 @@ export function Settings({
         <div>
           <SectionLabel>Appearance</SectionLabel>
           <Card pad={8}>
+            <ThemePicker value={direction} mode={mode} onChange={onDirection} />
+            <Divider />
             <ToggleRow
               icon="badges"
               label="Dark mode"
               sub="Easier on the eyes at night"
               value={mode === "dark"}
               onChange={() => onToggleMode()}
+            />
+            <Divider />
+            <ToggleRow
+              icon="flame"
+              label="Animations"
+              sub="Moving background and celebrations"
+              value={motion}
+              onChange={(v) => onMotion(v)}
             />
           </Card>
         </div>
@@ -192,7 +212,15 @@ export function Settings({
                 clause. A disclaimer with nowhere to send anyone is only half
                 of the sentence. */}
             <LinkRow icon="heart" label="Crisis resources" onClick={onOpenCrisis} />
-            <LinkRow icon="logout" label="Log out" onClick={onLogout} last />
+            <LinkRow icon="logout" label="Log out" onClick={onLogout} />
+            {/* For a lost phone or a session someone else has. A normal log
+                out only ends this device's tokens. */}
+            <LinkRow
+              icon="lock"
+              label="Log out of all devices"
+              onClick={() => setConfirmEverywhere(true)}
+              last
+            />
           </Card>
         </div>
 
@@ -257,7 +285,7 @@ export function Settings({
             padding: "8px 0 4px",
           }}
         >
-          NoHarm v1.0 · made with ❤️ by{" "}
+          NoHarm {APP_VERSION} · made with ❤️ by{" "}
           <a
             href="https://leogotardo.vercel.app/"
             target="_blank"
@@ -268,6 +296,17 @@ export function Settings({
           </a>
         </div>
       </div>
+
+      <ConfirmSheet
+        open={confirmEverywhere}
+        onClose={() => setConfirmEverywhere(false)}
+        title="Log out of all devices?"
+        body="Every phone, tablet and browser signed in to this account is signed out, this one included. Use it if you lost a device or think someone else has access. Nothing in your account changes."
+        confirmLabel="Log out everywhere"
+        confirmIcon="logout"
+        danger
+        onConfirm={onLogoutEverywhere}
+      />
 
       <BottomSheet
         open={confirmDelete}

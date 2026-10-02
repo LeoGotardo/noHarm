@@ -18,7 +18,8 @@ const openProfile = async (page) => {
 const openSettings = async (page) => {
   await openProfile(page);
   await page.locator("#nh-stage button").first().click();
-  await expect(page.getByText("Settings")).toBeVisible();
+  // Scoped to the screen: on desktop the side rail also says "Settings".
+  await expect(page.locator("#nh-stage").getByText("Settings", { exact: true })).toBeVisible();
 };
 
 test.describe("Profile", () => {
@@ -97,6 +98,91 @@ test.describe("Profile", () => {
 
     await toggleRow(page, "Dark mode").click();
     await expect(page.locator(".nh-root")).toHaveAttribute("data-mode", "light");
+  });
+
+  test("Settings — the theme dropdown switches Sage ↔ Dawn and remembers it", async ({
+    appA,
+    page,
+  }) => {
+    await openSettings(page);
+    const trigger = page.getByRole("button", { name: /^Theme/ });
+    await expect(trigger).toContainText("Sage");
+    await expect(page.getByRole("listbox")).toHaveCount(0);
+
+    await trigger.click();
+    await expect(trigger).toHaveAttribute("aria-expanded", "true");
+    await expect(page.getByRole("option", { name: /Sage/ })).toHaveAttribute("aria-selected", "true");
+    await page.getByRole("option", { name: /Dawn/ }).click();
+
+    await expect(page.getByRole("listbox")).toHaveCount(0);
+    await expect(trigger).toContainText("Dawn");
+    await expect(page.locator(".nh-root")).toHaveAttribute("data-dir", "dawn");
+    await expect(page.locator("html")).toHaveAttribute("data-dir", "dawn");
+
+    await page.reload();
+    await expect(page.locator(".nh-root")).toHaveAttribute("data-dir", "dawn");
+  });
+
+  test("Settings — every option previews its own theme in the current mode", async ({
+    appA,
+    page,
+  }) => {
+    await openSettings(page);
+    await toggleRow(page, "Dark mode").click();
+    await page.getByRole("button", { name: /^Theme/ }).click();
+    // The previews carry their own data-dir/data-mode, so the tokens resolve
+    // on them: Dawn's is drawn in Dawn while Sage is still the active theme.
+    for (const theme of ["sage", "dawn"]) {
+      const preview = page.getByRole("listbox").locator(`[data-preview="${theme}"]`);
+      await expect(preview).toHaveAttribute("data-dir", theme);
+      await expect(preview).toHaveAttribute("data-mode", "dark");
+    }
+    const bg = (theme) =>
+      page.getByRole("listbox").locator(`[data-preview="${theme}"]`)
+        .evaluate((el) => getComputedStyle(el).backgroundColor);
+    expect(await bg("sage")).not.toBe(await bg("dawn"));
+  });
+
+  test("Settings — the theme dropdown works from the keyboard", async ({
+    appA,
+    page,
+  }) => {
+    await openSettings(page);
+    const trigger = page.getByRole("button", { name: /^Theme/ });
+    await trigger.focus();
+
+    await page.keyboard.press("ArrowDown"); // opens on the current theme
+    await expect(page.getByRole("listbox")).toBeVisible();
+    await page.keyboard.press("ArrowDown"); // → Dawn
+    await page.keyboard.press("Enter");
+    await expect(page.locator(".nh-root")).toHaveAttribute("data-dir", "dawn");
+    await expect(trigger).toBeFocused();
+
+    // Escape closes the menu only — it must not also pop Settings.
+    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("listbox")).toHaveCount(0);
+    await expect(page.locator("#nh-stage").getByText("Settings", { exact: true })).toBeVisible();
+    await expect(page.locator(".nh-root")).toHaveAttribute("data-dir", "dawn");
+  });
+
+  test("Settings — a click outside closes the dropdown without changing the theme", async ({
+    appA,
+    page,
+  }) => {
+    await openSettings(page);
+    await page.getByRole("button", { name: /^Theme/ }).click();
+    await expect(page.getByRole("listbox")).toBeVisible();
+    await page.locator("#nh-stage").getByText("Notifications", { exact: true }).click();
+    await expect(page.getByRole("listbox")).toHaveCount(0);
+    await expect(page.locator(".nh-root")).toHaveAttribute("data-dir", "sage");
+  });
+
+  test("Settings — Animations off reduces motion", async ({ appA, page }) => {
+    await openSettings(page);
+    await expect(page.locator(".nh-root")).toHaveAttribute("data-reduce-motion", "no");
+    await toggleRow(page, "Animations").click();
+    await expect(page.locator(".nh-root")).toHaveAttribute("data-reduce-motion", "yes");
   });
 
   test("Settings — dark mode paints the document, not just the column", async ({
