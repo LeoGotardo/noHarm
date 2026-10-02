@@ -1,0 +1,26 @@
+# Weekly update PRs, alongside the Monday npm audit in security.yml.
+# Enable "Dependabot security updates" in the repository settings so a new
+# advisory opens a PR immediately rather than waiting for Monday.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      capacitor:
+        patterns: ["@capacitor/*"]
+      dev-tooling:
+        dependency-type: development
+    ignore:
+      # The CLI's v8 needs Node 22; the documented APK build runs on Node 20.
+      # Move both together, deliberately.
+      - dependency-name: "@capacitor/cli"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
