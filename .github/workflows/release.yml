@@ -1,0 +1,118 @@
+# Release: one signed Android APK per version, published as a GitHub Release.
+#
+# Started by the tag `deploy-host.sh` pushes after a healthy deploy — an
+# annotated `vX.Y.Z` whose message is the release notes. Re-run it for an
+# existing tag from the Actions tab (workflow_dispatch) if a build failed.
+#
+# The build itself is scripts/build-android-release.sh, the same script that
+# runs by hand; this file only supplies what it needs from the repository
+# secrets:
+#
+#   ANDROID_KEYSTORE_BASE64    base64 of the release keystore (.jks)
+#   ANDROID_KEYSTORE_PASSWORD
+#   ANDROID_KEY_ALIAS
+#   ANDROID_KEY_PASSWORD
+#   GOOGLE_SERVICES_JSON       the Firebase Android config, file contents
+#   ENV_MOBILE_LOCAL           .env.mobile.local, file contents (real API and
+#                              Firebase values for the mobile bundle)
+#
+# The same keystore must sign every release: Android refuses an update signed
+# by another key, so losing it means users have to uninstall to upgrade.
+
+name: release
+
+on:
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to (re)build, e.g. v1.2.3"
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.event.inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  android:
+    name: build the APK and publish the release
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ github.event.inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      # Capacitor 8's Android platform compiles for Java 21.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: install
+        run: npm ci
+
+      - name: secrets to files
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+          ENV_MOBILE_LOCAL: ${{ secrets.ENV_MOBILE_LOCAL }}
+        run: |
+          for s in ANDROID_KEYSTORE_BASE64 GOOGLE_SERVICES_JSON ENV_MOBILE_LOCAL; do
+            [ -n "${!s}" ] || { echo "::error::repository secret $s is not set"; exit 1; }
+          done
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          printf '%s' "$GOOGLE_SERVICES_JSON" > "$RUNNER_TEMP/google-services.json"
+          printf '%s\n' "$ENV_MOBILE_LOCAL" > .env.mobile.local
+
+      - name: build the signed APK
+        id: build
+        env:
+          ANDROID_KEYSTORE: ${{ runner.temp }}/release.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          GOOGLE_SERVICES_JSON: ${{ runner.temp }}/google-services.json
+        run: |
+          apk="$(./scripts/build-android-release.sh | tail -1)"
+          echo "apk=$apk" >> "$GITHUB_OUTPUT"
+
+      # The notes are the tag's message — what was typed into deploy-host.sh.
+      # actions/checkout fetches the commit, not the annotated tag object.
+      - name: release notes
+        run: |
+          git fetch --force origin "refs/tags/$VERSION:refs/tags/$VERSION"
+          {
+            git tag -l --format='%(contents)' "$VERSION" | sed '/^-----BEGIN PGP SIGNATURE-----/,$d'
+            echo
+            echo "---"
+            echo "Deployed together with [noHarmBack $VERSION](https://github.com/LeoGotardo/noHarmBack/tree/$VERSION)."
+            echo "Android: download \`${{ steps.build.outputs.apk }}\` and open it on the phone (allow installs from this source once)."
+          } > "$RUNNER_TEMP/notes.md"
+          cat "$RUNNER_TEMP/notes.md"
+
+      - name: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APK: ${{ steps.build.outputs.apk }}
+        run: |
+          if gh release view "$VERSION" >/dev/null 2>&1; then
+            gh release upload "$VERSION" "$APK" --clobber
+            gh release edit "$VERSION" --notes-file "$RUNNER_TEMP/notes.md"
+          else
+            gh release create "$VERSION" "$APK" --title "NoHarm $VERSION" --notes-file "$RUNNER_TEMP/notes.md" --verify-tag
+          fi
+
+      - name: clean up the keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/release.jks" .env.mobile.local

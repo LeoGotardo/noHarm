@@ -53,3 +53,8 @@ yarn-error.*
 # defence, not the first.
 *firebase-adminsdk*.json
 *service-account*.json
+
+# Release builds (scripts/build-android-release.sh)
+*.apk
+*.apk.aligned
+*.idsig
