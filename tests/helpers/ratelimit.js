@@ -17,7 +17,7 @@
  * between tests instead.
  *
  * Only those two prefixes are deleted, never the whole database. The same Redis
- * holds `jti:*` (issued JWT ids) and `ws:conn:*` (per-user socket counters
+ * holds `jti:*` (issued JWT ids) and `ws:conns:*` (per-user socket sets
  * enforcing `too_many_connections`) — a `FLUSHDB` would invalidate live sessions
  * and corrupt socket accounting for every other worker mid-run.
  */

@@ -151,7 +151,7 @@ export async function purgeE2EData(phase = "after") {
       REDIS_CONTAINER,
       "sh",
       "-c",
-      "redis-cli --scan --pattern 'ws:conn:*' | xargs -r redis-cli DEL",
+      "for p in 'ws:conn:*' 'ws:conns:*'; do redis-cli --scan --pattern \"$p\" | xargs -r redis-cli DEL; done",
     ]).catch(() => {});
   } catch (e) {
     warnOnce(e.message.split("\n")[0]);

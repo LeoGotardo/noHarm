@@ -32,6 +32,8 @@ const _connectSubs = new Set();
 // the caller's frame is gone — including on a socket.io-driven reconnect.
 let _handlers = {};
 let _crowdedTimer = null;
+// Set while this socket waits to come back after being replaced (see connect).
+let _replacedListener = null;
 // One silent refresh per connected session; cleared on the next `connect`.
 let _refreshing = false;
 
@@ -67,6 +69,20 @@ export function connect(accessToken, handlers = {}) {
     }
   });
   _socket.on("connect_error", onConnectError);
+  // The server keeps the newest 3 sockets per account and drops the oldest.
+  // A dropped socket is not reconnected by socket.io (a server-side
+  // disconnect is final), so this one waits until it is looked at again —
+  // reconnecting at once would only evict the device the person is using.
+  _socket.on("session_replaced", () => {
+    if (_replacedListener || typeof document === "undefined") return;
+    _replacedListener = () => {
+      if (document.visibilityState !== "visible") return;
+      document.removeEventListener("visibilitychange", _replacedListener);
+      _replacedListener = null;
+      _socket?.connect();
+    };
+    document.addEventListener("visibilitychange", _replacedListener);
+  });
   // Handler-level errors: { code, message }
   _socket.on("error", (e) => console.warn("[socket] error:", e));
 
@@ -103,7 +119,8 @@ function onConnectError(e) {
       return;
 
     case "too_many_connections":
-      // More than 3 sockets for this user.
+      // More than 3 sockets for this user. Current servers evict the oldest
+      // socket instead (`session_replaced`); kept for an older backend.
       _socket.disconnect();
       if (!_crowdedTimer) {
         _crowdedTimer = setTimeout(() => {
@@ -159,6 +176,10 @@ export function disconnect() {
   if (_crowdedTimer) {
     clearTimeout(_crowdedTimer);
     _crowdedTimer = null;
+  }
+  if (_replacedListener) {
+    document.removeEventListener("visibilitychange", _replacedListener);
+    _replacedListener = null;
   }
   _refreshing = false;
   _handlers = {};
