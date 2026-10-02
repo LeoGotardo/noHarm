@@ -1,3 +1,4 @@
+import { signInFailureText } from "../../connectors/firebase.js";
 import {
   GoogleButton,
   GoogleLogoMono,
@@ -73,7 +74,7 @@ export function RegisterScreen({ onBack, onDone }) {
           result.errorCode === "auth/cancelled-popup-request"
         )
           return;
-        setError("Google sign-in failed. Please try again.");
+        setError(signInFailureText(result));
         return;
       }
       onDone();

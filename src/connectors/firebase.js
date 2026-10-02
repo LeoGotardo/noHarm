@@ -126,3 +126,21 @@ export async function fbLogout() {
     .then(() => true)
     .catch((error) => error);
 }
+
+// A release is built from a vX.Y.Z tag; anything else (dev, test builds,
+// --no-release deploys) is a build someone is debugging.
+const IS_RELEASE = /^v\d+\.\d+\.\d+$/.test(import.meta.env.VITE_APP_VERSION || "");
+
+/**
+ * What to tell the user when Google sign-in fails.
+ *
+ * Releases get the plain sentence. Every other build appends the provider's
+ * own code and message: on a phone with no USB debugging that line is the only
+ * way to tell a missing SHA-1 from a cancelled picker from a network error.
+ */
+export function signInFailureText(result) {
+  const base = "Google sign-in failed. Please try again.";
+  if (IS_RELEASE || !result) return base;
+  const detail = [result.errorCode, result.errorMessage].filter(Boolean).join(": ");
+  return detail ? `${base} (${detail.slice(0, 300)})` : base;
+}

@@ -1,4 +1,5 @@
 import { BottomSheet, GoogleButton, Header, Mark, Screen } from "@components";
+import { signInFailureText } from "../../connectors/firebase.js";
 import { Btn, Icon } from "@ui";
 import { useState } from "react";
 import { errorMessage } from "../../connectors/api.js";
@@ -36,7 +37,7 @@ export function LoginScreen({ onBack, onDone }) {
           result.errorCode === "auth/cancelled-popup-request"
         )
           return;
-        setError("Google sign-in failed. Please try again.");
+        setError(signInFailureText(result));
         return;
       }
       onDone();
