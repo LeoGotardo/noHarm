@@ -83,7 +83,7 @@ the APK needs it, to the `ENV_MOBILE_LOCAL` secret of the release workflow.
 
 **Import aliases** (`vite.config.js`): `@components` → `src/components`, `@ui` → `src/ui`. Note `tsconfig.json` also declares `@/*` → `src/*`, but vite does **not** resolve it — `@/…` imports build-break. Use only `@components`/`@ui` or relative paths.
 
-**Expo leftovers**: the project was bootstrapped from an Expo template but is **not** Expo — it's Vite + React + Capacitor. `AGENTS.md` and `scripts/reset-project.js` have been removed; `README.md` was rewritten. What still lingers: `.vscode/extensions.json` (recommends `expo.vscode-expo-tools`) and `.claude/settings.json` (enables the Expo plugin).
+**Expo leftovers**: the project was bootstrapped from an Expo template but is **not** Expo — it's Vite + React + Capacitor. `AGENTS.md` and `scripts/reset-project.js` have been removed; `README.md` was rewritten. (`assets/` is no longer theirs: it now holds the icon and splash sources, below.) What still lingers: `.vscode/extensions.json` (recommends `expo.vscode-expo-tools`) and `.claude/settings.json` (enables the Expo plugin).
 
 ### Layer diagram
 
@@ -260,6 +260,12 @@ with `scripts/build-android-release.sh` (`versionCode` derived from the tag)
 and publishes the GitHub Release. `--no-release` deploys without a version.
 One-time setup: `scripts/setup-release-secrets.sh`. Full walkthrough in
 `README.md`, "Releases".
+
+**App icon and splash** come from `assets/` (committed PNGs, rasterised by
+`node scripts/build-app-icons.mjs` through Chromium — never ImageMagick, which
+closes the ring). The release script runs `capacitor-assets generate` on them
+after creating `android/`; without that step the APK ships Capacitor's default
+icon. The app's launcher name is `appName` in `capacitor.config.json`.
 
 **A change here only ships on a backend deploy.** There is no separate
 front-end pipeline: pushing to this repo builds nothing, and nothing deploys on
@@ -650,6 +656,18 @@ See `noHarmBack/docs/FRONTEND_DESIGN_BRIEF.md` for full API shapes. Key invarian
   large without a bubble (`bigEmojiCount`). Font stacks end in the colour-emoji
   fonts so Linux renders them in colour.
 - **Auth**: Firebase identity + app JWT. Access token 15 min, refresh 7 days. `connectors/api.js` handles the silent refresh automatically on 401.
+- **Google sign-in differs by platform, the token does not.** The web uses
+  `signInWithPopup`. The installed app cannot — in a WebView the popup opens in
+  the system browser, which has no way back, and the login waited for ever — so
+  `fbLogin()` uses the native account picker (`@capacitor-firebase/authentication`,
+  Credential Manager on Android) and hands its Google ID token to the JS SDK's
+  `signInWithCredential`. Either way the backend receives the same Firebase
+  `idToken`. `skipNativeAuth` (`capacitor.config.json`) keeps the native SDK
+  signed out; `fbLogout()` clears the native account too, or the next sign-in
+  would silently reuse it. Requires the signing key's SHA-1 on the Android app
+  in the Firebase console, and `rgcfaIncludeGoogle = true` in
+  `android/variables.gradle` (the release script writes it). Closing the picker
+  maps to `auth/popup-closed-by-user`, which the screens treat as a silent cancel.
 - **Moderation is a screen in the app, not a separate tool.** Settings shows a
   "Reports" row only for an administrator (`ADMIN_USER_IDS`, an official
   account, or one an official account promoted), and `src/screens/moderation/` is what it opens: the queue (open /

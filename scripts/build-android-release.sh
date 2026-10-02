@@ -54,6 +54,21 @@ else
     npx cap add android >&2
 fi
 
+# Native Google sign-in (@capacitor-firebase/authentication) only compiles its
+# Google SDKs in when this flag is set; without it signInWithGoogle fails at
+# run time. android/ is generated, so the flag is written here on every build.
+if ! grep -q "rgcfaIncludeGoogle" android/variables.gradle; then
+    sed -i 's/^ext {/ext {\n    rgcfaIncludeGoogle = true/' android/variables.gradle
+fi
+grep -q "rgcfaIncludeGoogle = true" android/variables.gradle || fail "could not enable Google sign-in in android/variables.gradle"
+
+# Launcher icons (adaptive + legacy) and splash screens from assets/
+# (scripts/build-app-icons.mjs). Without this the APK ships Capacitor's own.
+echo "==> app icons and splash" >&2
+npx capacitor-assets generate --android --assetPath assets \
+    --iconBackgroundColor '#558969' --iconBackgroundColorDark '#558969' \
+    --splashBackgroundColor '#f3f7f2' --splashBackgroundColorDark '#18241d' >&2
+
 if [[ -n "${GOOGLE_SERVICES_JSON:-}" ]]; then
     cp "$GOOGLE_SERVICES_JSON" android/app/google-services.json
 fi

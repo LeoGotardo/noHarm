@@ -1,8 +1,10 @@
 // Firebase app init. Import auth from here rather than initialising elsewhere.
+import { Capacitor } from "@capacitor/core";
 import { initializeApp } from "firebase/app";
 import {
   getAuth,
   GoogleAuthProvider,
+  signInWithCredential,
   signInWithPopup,
   signOut,
 } from "firebase/auth";
@@ -23,7 +25,7 @@ export const auth = getAuth(app);
 export { provider };
 
 /**
- * Open Google sign-in popup.
+ * Google sign-in: the popup on the web, the native account picker in the app.
  *
  * `idToken` is the only field the API accepts as proof of identity: a JWT
  * signed by Google and scoped to this Firebase project. The UID travels inside
@@ -33,6 +35,8 @@ export { provider };
  * @returns {Promise<{ success: true, credential: import('firebase/auth').OAuthCredential, token: string, idToken: string, user: import('firebase/auth').User } | { success: false, errorCode: string, errorMessage: string, email: string, credential: import('firebase/auth').OAuthCredential }>}
  */
 export async function fbLogin() {
+  if (Capacitor.isNativePlatform()) return nativeGoogleLogin();
+
   return signInWithPopup(auth, provider)
     .then(async (result) => {
       const credential = GoogleAuthProvider.credentialFromResult(result);
@@ -53,10 +57,71 @@ export async function fbLogin() {
 }
 
 /**
+ * Google sign-in inside the installed app.
+ *
+ * `signInWithPopup` cannot work here: in the WebView the popup opens in the
+ * system browser, which has no way back into the app, so the page never closed
+ * and the login waited for ever. Instead the native Google account picker
+ * (@capacitor-firebase/authentication, Credential Manager on Android) returns
+ * a Google ID token, and the JS SDK turns it into the same Firebase session the
+ * web gets — so `idToken` below is the Firebase token the backend verifies,
+ * exactly as on the web.
+ *
+ * `skipNativeAuth` (capacitor.config.json) keeps the native Firebase SDK signed
+ * out: the JS SDK is the only session, as on the web.
+ *
+ * Needs the signing key's SHA-1 registered for the Android app in the Firebase
+ * console; without it the picker fails with a developer/configuration error.
+ */
+async function nativeGoogleLogin() {
+  const { FirebaseAuthentication } = await import("@capacitor-firebase/authentication");
+  try {
+    const result = await FirebaseAuthentication.signInWithGoogle({ skipNativeAuth: true });
+    const googleIdToken = result.credential?.idToken;
+    if (!googleIdToken) throw new Error("Google sign-in returned no ID token");
+
+    const credential = GoogleAuthProvider.credential(googleIdToken);
+    const signedIn = await signInWithCredential(auth, credential);
+    const idToken = await signedIn.user.getIdToken();
+    return {
+      success: true,
+      credential,
+      token: result.credential?.accessToken ?? null,
+      idToken,
+      user: signedIn.user,
+    };
+  } catch (error) {
+    const message = error?.message ?? String(error);
+    // Closing the account picker is the native "closed the popup": the screens
+    // treat that code as a silent cancel rather than an error to show.
+    const cancelled = /cancel/i.test(message) || error?.code === "SIGN_IN_CANCELED";
+    return {
+      success: false,
+      errorCode: cancelled ? "auth/popup-closed-by-user" : (error?.code ?? "auth/native-sign-in-failed"),
+      errorMessage: message,
+      email: null,
+      credential: null,
+    };
+  }
+}
+
+/**
  * Sign out the current Firebase user.
+ *
+ * In the installed app the Google account chosen in the native picker is
+ * cleared too, or the next sign-in would silently reuse it with no way to pick
+ * another account.
  * @returns {Promise<true | Error>}
  */
 export async function fbLogout() {
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const { FirebaseAuthentication } = await import("@capacitor-firebase/authentication");
+      await FirebaseAuthentication.signOut();
+    } catch {
+      // Not signed in natively — nothing to clear.
+    }
+  }
   return signOut(auth)
     .then(() => true)
     .catch((error) => error);

@@ -70,6 +70,7 @@ src/
 scripts/
   build-legal.mjs              # regenerates public/terms.html and privacy.html (npm run legal)
   build-android-release.sh     # signed release APK for one version (used by the release workflow)
+  build-app-icons.mjs          # rasterises the logo into assets/ (icon + splash sources)
   setup-release-secrets.sh     # one-time: release keystore + repository secrets
 ```
 
@@ -400,6 +401,25 @@ Release named after the tag, with the notes and `noharm-vX.Y.Z.apk`.
   reads `dev`, or the commit when deployed with `--no-release`.
 - A failed build: Actions → release → *Run workflow* with the tag rebuilds it
   and replaces the APK on the existing Release.
+
+**Icon and splash:** the APK's launcher icon (adaptive and legacy) and splash
+screens are generated from `assets/` during the build. Regenerate those PNGs
+with `node scripts/build-app-icons.mjs` only when the logo or the brand colours
+change, and commit them.
+
+**Google sign-in in the app** uses the native account picker, which only works
+once the release key is registered with Firebase — do this once, after
+`setup-release-secrets.sh` has created the keystore:
+
+```bash
+keytool -list -v -keystore ~/noharm-release.jks -alias noharm | grep -E "SHA1|SHA256"
+```
+
+Add both fingerprints in the Firebase console → Project settings → *Your apps* →
+the Android app `com.no.harm` → *Add fingerprint*. Then download the new
+`google-services.json` over `android/app/google-services.json` and refresh the
+secret: `gh secret set GOOGLE_SERVICES_JSON < android/app/google-services.json`.
+Without the fingerprint the picker fails with a configuration error.
 
 **One-time setup:** `./scripts/setup-release-secrets.sh`. It creates the
 release keystore (`~/noharm-release.jks`) if there is none and stores six
