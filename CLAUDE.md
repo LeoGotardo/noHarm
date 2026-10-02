@@ -237,7 +237,8 @@ Two consequences worth knowing before debugging:
 
 - **CORS does not apply to the web build.** Same origin, no preflight. The
   Capacitor app is the only cross-origin client (`capacitor://localhost` on iOS,
-  `http://localhost` on Android) and the one that needs `ALLOWED_ORIGINS` on the
+  `https://localhost` on Android — the default scheme since Capacitor 6; older
+  builds used `http://localhost`) and the one that needs `ALLOWED_ORIGINS` on the
   backend to include it. A restrictive value breaks mobile REST and leaves the
   socket working — an asymmetric failure that is confusing without this note.
 - **CSP lives in nginx**, not in the app: `noHarmBack/docker/security_headers.conf`.
