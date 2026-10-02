@@ -119,7 +119,13 @@ test.describe("Chat", () => {
     await tab(page, "Friends").click();
     // Wait for the row to be enriched with the friend's username, then hit the
     // chat bubble button inside that row.
-    const row = page.locator(`div:has(> div > div:text-is("${userB.username}"))`).last();
+    // The innermost div holding both the name and a button is the row; it does
+    // not depend on how deep the name sits (the role mark changed that once).
+    const row = page
+      .locator("div")
+      .filter({ has: page.getByText(userB.username, { exact: true }) })
+      .filter({ has: page.locator("button") })
+      .last();
     await expect(row).toBeVisible();
     await row.locator("button").click();
 

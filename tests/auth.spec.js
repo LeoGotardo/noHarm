@@ -110,9 +110,9 @@ test.describe("Auth / Onboarding", () => {
   test("Logout — clears tokens, returns to the landing page", async ({ appA, page }) => {
     await tab(page, "Profile").click();
     await page.locator("#nh-stage button").first().click(); // gear → Settings
-    await expect(page.getByText("Settings")).toBeVisible();
+    await expect(page.locator("#nh-stage").getByText("Settings", { exact: true })).toBeVisible();
 
-    await page.getByRole("button", { name: /Log out/ }).click();
+    await page.getByRole("button", { name: "Log out", exact: true }).click();
 
     await expect(page).toHaveURL(/\/about$/, { timeout: 15_000 });
     const stored = await page.evaluate(() => ({
