@@ -19,6 +19,12 @@ List of app features to test manually. Organized by domain, in usage-flow order.
       project returns `401`
 - [x] 🤖 **Session persistence** — reload with a saved token goes straight into the app
 - [x] 🤖 **Logout** (Settings) — returns to splash, clears the stack
+- [ ] **Log out of all devices** (Settings) — asks first; signs out here; a
+      second browser signed in to the same account gets a 401 on its next
+      request and lands on login; its pushes stop _(backend: `TestLogoutEverywhere`)_
+- [ ] **Fourth device** — with three sessions open, a fourth signs in fine
+      and the oldest tab's socket drops (`session_replaced`); it reconnects
+      when that tab is looked at again
 - [x] 🤖 **Delete account** (Settings) — "Your account is gone" screen → "Start over" returns to splash
 
 ## Home / Streak
@@ -344,12 +350,13 @@ edited alongside it.
 - [x] 🤖 **Stack** — push / pop / resetTo; tabs hide when there is an overlay on the stack
 - [x] 🤖 **Transition animation** — `nhScreenIn` on screen change
 
-## Theming (TweaksPanel — bottom-right corner)
+## Theming (Settings → Appearance)
 
-- [x] 🤖 **Direction** — sage ↔ dawn
+- [x] 🤖 **Theme** — a dropdown, each entry previewing its theme in the current mode; Sage ↔ Dawn; survives a reload
+- [x] 🤖 **Theme dropdown from the keyboard** — arrows and Enter pick; Escape closes the menu without leaving Settings; a click outside closes it unchanged
 - [x] 🤖 **Mode** — light ↔ dark
-- [x] 🤖 **Motion** — toggles the animated background + confetti
-- [ ] **Accent** — warm (default) _(no alternative in the panel)_
+- [x] 🤖 **Animations** — off stills the background and the confetti
+- [x] 🤖 **A bad stored value** falls back to the default instead of reaching the DOM
 
 ---
 
@@ -399,14 +406,7 @@ container.
 Side effect: CORS ceased to exist for web traffic (same origin, no preflight),
 and `ALLOWED_ORIGINS` on the backend stops mattering for the SPA.
 
-## Pending on the frontend because of the new backend
-
-- **`src/connectors/socket.js`** — handle the real `connect_error` codes
-  (`missing_token`, `invalid_token`, `account_unavailable`, `too_many_connections`).
-  Today it is `console.warn` + 5 reconnections for every case.
-
 ## Still not integrated (missing endpoint/infra)
 
-- Profile picture upload (EditProfile camera) — no upload endpoint; `putMe` only accepts a URL
-- Settings "Privacy & safety" / "Crisis resources" — the screens do not exist; the rows now show as "Soon" and disabled instead of being dead taps
-- `totalStreaks` on the Dashboard — hardcoded `0` (no field in the API)
+- Profile picture upload (the camera badge on EditProfile) — there is no upload
+  endpoint; the picture is the Google account's, refreshed at each sign-in

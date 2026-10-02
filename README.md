@@ -12,6 +12,7 @@ NoHarm is an addiction recovery tracker. The core loop: register → start a str
 - [Mobile](#mobile)
   - [Building the Android APK](#building-the-android-apk)
   - [Building for iOS](#building-for-ios)
+  - [Releases (versions, notes and the APK)](#releases-versions-notes-and-the-apk)
 - [Other files](#other-files)
 - [License](#license)
 
@@ -45,6 +46,7 @@ There is no lint script configured. `npm run test:e2e` runs the Playwright suite
 | `VITE_FIREBASE_*` | The six Firebase web-config values (API key, auth domain, project, storage bucket, sender id, app id) |
 | `VITE_STATUS_CONSTANTS` | The backend's `STATUS_CODES`, as JSON |
 | `VITE_SUPPORT_EMAIL` | Where appeals go — shown on notices and refused sign-ins |
+| `VITE_APP_VERSION` | The release tag shown in Settings — set by `deploy-host.sh` and the release workflow; unset reads `dev` |
 | `VITE_DELETION_GRACE_DAYS` | Copy only; must match the backend's `ACCOUNT_DELETION_GRACE_DAYS` |
 | `VITE_MINIMUM_AGE` | Copy only; must match the backend's `MINIMUM_AGE_YEARS` |
 
@@ -65,7 +67,10 @@ src/
   store/            # React hooks: data fetch + cache + WS subscriptions
   services/         # Domain logic (api/, ws/, notifications, push)
   connectors/       # Transport layer: REST client, Socket.IO singleton, Firebase, token storage
-  dev/              # TweaksPanel dev overlay (theme direction/mode/motion)
+scripts/
+  build-legal.mjs              # regenerates public/terms.html and privacy.html (npm run legal)
+  build-android-release.sh     # signed release APK for one version (used by the release workflow)
+  setup-release-secrets.sh     # one-time: release keystore + repository secrets
 ```
 
 See `CLAUDE.md` for the full architecture breakdown and domain rules (streaks, friendship states, chat lifecycle, notification IDs), and `../noHarmBack/docs/FRONTEND_DESIGN_BRIEF.md` for API shapes.
@@ -369,6 +374,50 @@ Codemagic and Ionic Appflow package the same steps behind a UI.
   Firebase.
 - **REST calls fail while the socket works** — `ALLOWED_ORIGINS` is missing
   `capacitor://localhost`, the iOS origin.
+
+### Releases (versions, notes and the APK)
+
+A release is a deploy with a version. `noHarmBack/docker/deploy-host.sh` asks
+for both before building:
+
+```
+release tag [v1.2.4] (last: v1.2.3):        ← Enter accepts the suggestion
+(your git editor opens for the release notes — # lines are ignored)
+```
+
+Then it deploys as always, and **only if the server comes up healthy** it
+tags both repos with an annotated `vX.Y.Z` carrying the notes and pushes the
+tags. The tag on this repo starts `.github/workflows/release.yml`, which builds
+the signed APK (`scripts/build-android-release.sh`) and publishes a GitHub
+Release named after the tag, with the notes and `noharm-vX.Y.Z.apk`.
+
+- Both repos must be committed and pushed, or the script stops before
+  building — the tag has to name the code that was deployed. A hotfix that
+  should not be a release: `deploy-host.sh --no-release`.
+- `versionName` is the tag; `versionCode` is derived from it
+  (`v1.2.3` → `10203`), so Android accepts each release as an upgrade.
+- Settings shows the version (`VITE_APP_VERSION`); a build outside a release
+  reads `dev`, or the commit when deployed with `--no-release`.
+- A failed build: Actions → release → *Run workflow* with the tag rebuilds it
+  and replaces the APK on the existing Release.
+
+**One-time setup:** `./scripts/setup-release-secrets.sh`. It creates the
+release keystore (`~/noharm-release.jks`) if there is none and stores six
+repository secrets from it, `.env.mobile.local` and
+`android/app/google-services.json`. **Back the keystore up** — every future
+release has to be signed with it, and Android refuses an update signed by any
+other key.
+
+To build the same APK by hand, without a release:
+
+```bash
+VERSION=v1.2.3 ANDROID_KEYSTORE=~/noharm-release.jks \
+ANDROID_KEYSTORE_PASSWORD=... ANDROID_KEY_ALIAS=noharm ANDROID_KEY_PASSWORD=... \
+  ./scripts/build-android-release.sh
+```
+
+iOS is not part of this: an `.ipa` attached to a GitHub Release cannot be
+installed on an iPhone. See *Building for iOS* for TestFlight.
 
 ## Other files
 

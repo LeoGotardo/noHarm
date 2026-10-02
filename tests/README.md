@@ -112,8 +112,8 @@ docker exec redis_cache redis-cli --scan --pattern 'rl:*' | xargs -r redis-cli D
 ```
 
 It deletes **only** `rl:*`, never `FLUSHDB`: the same Redis holds the presence
-registry and the per-user socket counters (`ws:conn:*`, which enforce
-`too_many_connections`), and a flush from one worker would corrupt that data for
+registry and the per-user socket sets (`ws:conns:*`, which cap each account
+at three sockets), and a flush from one worker would corrupt that data for
 the others mid-run. Deleting another worker's counter is harmless — it only
 grants more quota, it never invalidates an assertion.
 
@@ -156,7 +156,9 @@ None.
 ### Frontend — fixed since
 
 - **Socket refusal codes** (`src/connectors/socket.js`) — `missing_token`,
-  `invalid_token`, `account_unavailable` and `too_many_connections` each have
+  `invalid_token`, `account_unavailable` and `too_many_connections` (only from
+  an older backend: the current one evicts the oldest socket with
+  `session_replaced` instead of refusing) each have
   their own answer now: refresh once, end the session, back off 30 s, or stop.
   Socket.IO's five blind retries only survive for the cases where retrying can
   actually work.
@@ -272,8 +274,9 @@ docker exec postgres_db psql -U root -d noharm-db -c "
 ```
 
 Override the container and database with `E2E_DB_CONTAINER`, `E2E_DB_NAME`,
-`E2E_DB_USER`. Redis: `ws:conn:*` counters are deleted by the same sweep; they
-had a 24 h TTL and expired on their own, but a run that ends should end.
+`E2E_DB_USER`. Redis: the per-user socket sets (`ws:conns:*`, and the older
+`ws:conn:*` counters) are deleted by the same sweep; they have a 24 h TTL and
+expire on their own, but a run that ends should end.
 
 `auth.spec.js` has the test that keeps this honest — it soft-deletes an account,
 asserts the row is still there, and then asserts the sweep removes it.

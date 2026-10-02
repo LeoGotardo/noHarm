@@ -28,6 +28,12 @@ cd android && ./gradlew assembleDebug   # → android/app/build/outputs/apk/debu
 
 No lint script. Open `http://localhost:5173` after `npm run dev`.
 
+`.github/workflows/security.yml` runs `npm audit` (production dependencies fail
+the build) and gitleaks over the whole history on every push, pull request and
+Monday; `.github/dependabot.yml` opens weekly update PRs (the Capacitor CLI is
+held below v8, which needs Node 22). `pre-commit install` enables the same
+gitleaks check before each commit (`.pre-commit-config.yaml`).
+
 The full APK walkthrough — prerequisites, signing a release build, and the
 failure modes — is in [`README.md`](README.md), "Building the Android APK".
 Two things to know before touching it: `android/` and `ios/` are **gitignored
@@ -61,9 +67,11 @@ three: `VITE_MINIMUM_AGE` and `VITE_DELETION_GRACE_DAYS` mirror
 `MINIMUM_AGE_YEARS` and `ACCOUNT_DELETION_GRACE_DAYS`, and `VITE_SUPPORT_EMAIL`
 is the appeal address on a notice and on a refused sign-in. Each has a fallback
 in the code, so a missing one does not break the build — it ships a screen
-stating a number the server does not enforce. See `.env.example` for the full
-list; anything added there has to be added to `docker/Dockerfile`,
-`docker/deploy-host.sh` and `.github/workflows/deploy.yml` as well.
+stating a number the server does not enforce. `VITE_APP_VERSION` is the
+release tag shown in Settings (`dev` when unset). See `.env.example` for the
+full list; anything added there has to be added to `docker/Dockerfile`,
+`docker/deploy-host.sh` and `.github/workflows/deploy.yml` as well — and, if
+the APK needs it, to the `ENV_MOBILE_LOCAL` secret of the release workflow.
 
 `npm run dev`'s proxy in `vite.config.js` mirrors the nginx routes (`/api` stripped, `/ws` passed through), which is what lets the app use the same relative URLs in dev and in production.
 
@@ -133,11 +141,10 @@ services/ import from connectors/
 | `src/screens/notifications/` | `NotificationsScreen` — what is *pending* (received friend requests, conversations with unread messages, blocked ones excluded), built from state the app already holds; the backend keeps no notification history. The bell's count is the length of that same list |
 | `src/screens/community/` | `CommunityScreen` (tab root), `PostDetail`, `PostCard`/`CommentRow`/`AuthorLine`, `ComposeSheet` (+ `CrisisLink`), `ItemMenu` (delete / report / block on a post or comment) |
 | `src/screens/badges/` | `BadgesScreen` (pushed from Profile — not a tab since Community took its place), `BadgeDetail` |
-| `src/screens/profile/` | `MyProfile`, `EditProfile`, `Settings`, `DataAndPrivacy`, `ForcedRename` (shown instead of the app while a username reset is outstanding) |
+| `src/screens/profile/` | `MyProfile`, `EditProfile`, `Settings` (+ `ThemePicker`), `DataAndPrivacy`, `ForcedRename` (shown instead of the app while a username reset is outstanding) |
 | `src/screens/legal/` | `legalContent.js` (the documents' text, in force since 2026-09-28, and the only place to edit them), `LegalDocument` (renders one, reached from Settings, the register screen and the gate — all three show the same page), `ConsentGate` (shown instead of the app while a consent is outstanding), `CrisisResources` + `crisisResources.js` (the numbers the "not medical care" clause points at — the one list in this folder that must be verified, not drafted) |
 | `src/screens/moderation/` | `ModerationQueue`, `ReportReview`, `SuspendSheet`, `WarnSheet`, `ProfileSanctionSheet` — admin only; the Settings row that opens them is absent for everyone else |
 | `src/screens/admin/` | `AdminDashboard` (the board, with `DayChart` / `StateBars` — see Charts) for every admin; `AdminsScreen` (who is an admin, removing the ones promoted in the app) for official accounts only |
-| `src/dev/TweaksPanel.jsx` | Dev overlay: `useTweaks`, `TweaksPanel`, `TweakSection`, `TweakRadio`, `TweakToggle` |
 
 ## Tap guards
 
@@ -244,6 +251,15 @@ workflow (`noHarmBack/.github/workflows/deploy.yml`) therefore checks out this
 repo alongside the backend and passes every `VITE_*` as a build arg; a value
 added here has to be added there too, or it compiles to `undefined` and shows up
 as a feature that quietly does nothing.
+
+**Releases.** `deploy-host.sh` asks for a tag (`vX.Y.Z`) and release notes
+before building, refuses to run with uncommitted or unpushed work in either
+repo, and after a healthy deploy tags **both** repos and pushes the tags. The
+tag here starts `.github/workflows/release.yml`, which builds the signed APK
+with `scripts/build-android-release.sh` (`versionCode` derived from the tag)
+and publishes the GitHub Release. `--no-release` deploys without a version.
+One-time setup: `scripts/setup-release-secrets.sh`. Full walkthrough in
+`README.md`, "Releases".
 
 **A change here only ships on a backend deploy.** There is no separate
 front-end pipeline: pushing to this repo builds nothing, and nothing deploys on
@@ -459,8 +475,16 @@ Two visual directions × two modes = four combinations:
 - **dawn** light/dark — Spectral (soft serif), warm clay
 
 Switched at runtime via `data-dir` and `data-mode` attributes, set on **both
-`<html>` and `.nh-root`**. The `TweaksPanel` bottom-right overlay and the Dark
-mode row in Settings both toggle direction/mode/motion live.
+`<html>` and `.nh-root`**. All three are user settings, under Settings →
+Appearance: the theme dropdown (`screens/profile/ThemePicker.jsx`), the Dark
+mode switch and the Animations switch (`data-reduce-motion`, which stills the
+background and the confetti). The dropdown is a WAI-ARIA listbox — arrows,
+Enter, Escape (stopped there, so it does not also pop Settings), click outside
+— and every entry, the button included, draws a miniature of its theme with
+its own `data-dir`/`data-mode`. That previews the real theme only because the
+tokens are attribute-only selectors (below). Adding a theme is a token block
+in `theme.css`, an entry in `THEMES` there, and the value in `TWEAK_OPTIONS`
+(`app.jsx`) and in the pre-paint script in `index.html`.
 
 CSS tokens live in `src/theme.css` under attribute-only selectors —
 `[data-dir="sage"][data-mode="light"]`, not `.nh-root[…]`. That is deliberate
@@ -483,8 +507,7 @@ under `nh_tweaks`. `loadTweaks()` in `src/app.jsx` validates every stored value
 against an allowlist before it reaches the DOM, and an inline script at the top
 of `<body>` in `index.html` applies `data-dir`/`data-mode` **before first
 paint** so a reload does not flash light. That script and `loadTweaks()` read
-the same key and must stay in sync. `accentName` is in `TWEAK_DEFAULTS` but
-nothing consumes it, so it is not persisted.
+the same key and must stay in sync.
 
 Only in `npm run dev` does the very first frame still flash: `theme.css` is
 injected by the module script there, while the production build emits a
@@ -691,6 +714,15 @@ See `noHarmBack/docs/FRONTEND_DESIGN_BRIEF.md` for full API shapes. Key invarian
   feeds that copy and must match the backend. Never present deletion as
   immediate: the copy said "Delete forever" while the backend kept everything,
   and that mismatch is the thing being fixed, not a detail to restore.
+- **Three sockets per account; the newest wins.** A fourth device connects
+  normally and the backend drops the oldest, telling it `session_replaced`.
+  socket.io does not reconnect after a server-side disconnect, so
+  `connectors/socket.js` waits for that tab to become visible again before
+  reconnecting — reconnecting at once would evict the device being used.
+- **Log out of all devices** (Settings → Account) calls `POST /auth/logout-all`,
+  which refuses every token of the account and disables its push devices. On
+  failure the session is kept and a toast says so: clearing it anyway would
+  claim the other devices were signed out.
 - **Socket.IO replays nothing it missed.** A `new_message` or `friend_*` event
   emitted while the socket was down — or before the first handshake finished,
   which is every cold start — is simply gone, and the screen keeps the state
