@@ -78,7 +78,7 @@ See `CLAUDE.md` for the full architecture breakdown and domain rules (streaks, f
 
 ## Backend
 
-This app talks to [`noHarmBack`](../noHarmBack/), a separate sibling repository — a FastAPI + PostgreSQL service exposing the REST API (`VITE_API_URL`) and Socket.IO server (`VITE_SOCKET_URL`) this frontend consumes. See its `docs/README.md` for architecture, auth flow, and API details.
+This app talks to [`noHarmBack`](https://github.com/LeoGotardo/noHarmBack/), a separate sibling repository — a FastAPI + PostgreSQL service exposing the REST API (`VITE_API_URL`) and Socket.IO server (`VITE_SOCKET_URL`) this frontend consumes. See its `docs/README.md` for architecture, auth flow, and API details.
 
 ## Mobile
 
