@@ -9,6 +9,7 @@ import {
   SplitView,
   TabBar,
   Toast,
+  UpdateSheet,
 } from "@components";
 import { Btn, Icon, useWide } from "@ui";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -1671,6 +1672,11 @@ export default function App() {
           onConfirm={onRelapseConfirm}
           onClose={() => setRelapseOpen(false)}
         />
+
+        {/* Last, so it sits over anything open at launch; dismissing it leaves
+            the notice or the check-in exactly where they were. Renders nothing
+            outside an Android release build. */}
+        <UpdateSheet />
       </div>
     </div>
   );

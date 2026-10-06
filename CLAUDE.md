@@ -113,7 +113,7 @@ services/ import from connectors/
 | `src/landing.js` | When the landing page applies (web, not native, not an installed PWA), the `?start=` query it links back with, and `goToLanding` |
 | `src/theme.css` | CSS custom properties for all four theme variants, the layout tokens the breakpoint drives, and the hover/focus rules. Theme token blocks are attribute-only selectors so `<html>` resolves them too — see Theming and Responsive layout |
 | `src/ui/index.js` | Low-level primitives: `Icon`, `Avatar`/`OnlineDot`, `Btn`, `Card`, `Checkbox`, `Field`, `Skeleton`, `GeoBackground`, `Divider`, `SectionLabel`, plus `cx` helper, the tap guards from `guards.js` (`useGuardedCallback`, `useDebouncedValue`) and `useWide` from `useBreakpoint.js` (see Responsive layout) |
-| `src/components/index.js` | Composite widgets: `Screen`, `Header`, `Banner`, `Toast`, `BottomSheet`, `TabBar`/`SideNav`, `SplitView`/`NoSelection`, `StreakRing`/`BadgeMedallion`, `EmptyState`, `Mark`/`Wordmark`/`Logo`, `GoogleButton`, `PersonRow`, `RoleBadge` (the Official/Admin mark beside a name, from the API's `role` — see Domain rules), `SegTabs`, `ConfirmSheet` + `CONFIRM_COPY` (see Confirmations), `EmojiPicker`/`EmojiButton`/`insertAtCursor` (see Emoji), plus format helpers from `utils.js` (`hashHue`, `fmtTime`, `fmtLongDate`, `fmtRelDate`, `fmtShortDay`, `textLength`, `clampText`, `bigEmojiCount`) |
+| `src/components/index.js` | Composite widgets: `Screen`, `Header`, `Banner`, `Toast`, `BottomSheet`, `TabBar`/`SideNav`, `SplitView`/`NoSelection`, `StreakRing`/`BadgeMedallion`, `EmptyState`, `Mark`/`Wordmark`/`Logo`, `GoogleButton`, `PersonRow`, `RoleBadge` (the Official/Admin mark beside a name, from the API's `role` — see Domain rules), `SegTabs`, `UpdateSheet` (the self-update offer, see Deployment), `ConfirmSheet` + `CONFIRM_COPY` (see Confirmations), `EmojiPicker`/`EmojiButton`/`insertAtCursor` (see Emoji), plus format helpers from `utils.js` (`hashHue`, `fmtTime`, `fmtLongDate`, `fmtRelDate`, `fmtShortDay`, `textLength`, `clampText`, `bigEmojiCount`) |
 | `src/connectors/` | Transport layer (see diagram above) |
 | `src/services/api/` | `admin`, `auth`, `badge`, `chat`, `consent`, `device`, `friendship`, `message`, `moderation`, `notice`, `post`, `report`, `streak`, `user` |
 | `src/services/ws/` | `admin` (alerts), `chat`, `connection`, `friendship`, `presence` |
@@ -121,6 +121,7 @@ services/ import from connectors/
 | `src/services/push.js` | Capacitor FCM wrapper (`push.register/onForeground/onTap`) |
 | `src/services/suggestions.js` | The suggestion box: builds a `mailto:` to `suggestions@noharm.site` (an ImprovMX alias) with the text, capped at `SUGGESTION_MAX` (600). Nothing goes through the API or is stored. `public/suggest.js` does the same on the landing page — a static page cannot import the module, so address and limit are written twice; keep them in step |
 | `src/services/download.js` | `downloadJson` / `copyText` / `isNativeApp`. The web build saves a file; the native shell has no download manager and no Filesystem plugin, so it reports `{ok:false}` and `DataAndPrivacy` shows the JSON to copy instead of failing silently |
+| `src/services/appUpdate.js` | Self-update from GitHub Releases: `checkForUpdate`, `pickUpdate`, `versionCodeFromTag`, and the `AppUpdater` native plugin (`plugins/app-updater/`). Shown by `UpdateSheet` — see Deployment, Releases |
 | `src/services/checkinReminder.js` | Capacitor LocalNotifications — schedules daily 9 PM reminder (id 1001) |
 | `src/store/cache.js` | localStorage cache helpers (`cacheRead/cacheWrite/cacheClear/cacheValid`), prefix `nh_cache_` |
 | `src/store/useBadges.js` | Fetches badges; 1 h cache; normalises `items` → `badges` |
@@ -262,6 +263,21 @@ with `scripts/build-android-release.sh` (`versionCode` derived from the tag)
 and publishes the GitHub Release. `--no-release` deploys without a version.
 One-time setup: `scripts/setup-release-secrets.sh`. Full walkthrough in
 `README.md`, "Releases".
+
+**The installed app updates itself from those releases.** `UpdateSheet`
+(rendered last in `app.jsx`) calls `checkForUpdate` (`src/services/appUpdate.js`),
+which on Android release builds fetches `releases/latest` of this (public) repo
+and compares `versionCodeFromTag(tag)` — the same formula as
+`build-android-release.sh`, keep them in step — with the installed
+`versionCode`. Offline, rate-limited or anything else failing is silence, never
+an error. Download and install are native, in the **local Capacitor plugin
+`plugins/app-updater/`** (a `file:` dependency, so `npx cap sync` registers it
+like any npm plugin — it cannot live in `android/`, which is generated): it
+downloads into `cacheDir/updates/`, sends the user to "install unknown apps"
+when `canRequestPackageInstalls()` is false, and hands the file to the system
+installer through its own `FileProvider` (`${applicationId}.appupdater.fileprovider`).
+Its manifest adds `REQUEST_INSTALL_PACKAGES`. Debug builds skip the check — a
+different signing key, so the installer would refuse the release.
 
 **App icon and splash** come from `assets/` (committed PNGs, rasterised by
 `node scripts/build-app-icons.mjs` through Chromium — never ImageMagick, which

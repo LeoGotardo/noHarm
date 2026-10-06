@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Merged into the app's manifest by the Android build: android/ is generated
+     and gitignored, so everything the updater needs natively lives here. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Hand the downloaded APK to the system installer. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
+    <application>
+        <!-- Its own provider and authority, so it does not depend on (or clash
+             with) the FileProvider Capacitor's template declares. -->
+        <provider
+            android:name="com.noharm.appupdater.AppUpdaterFileProvider"
+            android:authorities="${applicationId}.appupdater.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/app_updater_paths" />
+        </provider>
+    </application>
+</manifest>

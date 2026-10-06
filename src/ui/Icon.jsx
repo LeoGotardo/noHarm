@@ -8,6 +8,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Download,
   Flag,
   Flame,
   Globe,
@@ -68,6 +69,7 @@ const ICONS = {
   official: BadgeCheck,
   shield: ShieldCheck,
   emoji: Smile,
+  download: Download,
 };
 
 export function Icon({

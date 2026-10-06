@@ -1,0 +1,38 @@
+-- Merging decision tree log ---
+manifest
+ADDED from /home/leog/Documentos/noharm/noHarm/plugins/app-updater/android/src/main/AndroidManifest.xml:4:1-22:12
+INJECTED from /home/leog/Documentos/noharm/noHarm/plugins/app-updater/android/src/main/AndroidManifest.xml:4:1-22:12
+	package
+		INJECTED from /home/leog/Documentos/noharm/noHarm/plugins/app-updater/android/src/main/AndroidManifest.xml
+	xmlns:android
+		ADDED from /home/leog/Documentos/noharm/noHarm/plugins/app-updater/android/src/main/AndroidManifest.xml:4:11-69
+uses-permission#android.permission.REQUEST_INSTALL_PACKAGES
+ADDED from /home/leog/Documentos/noharm/noHarm/plugins/app-updater/android/src/main/AndroidManifest.xml:7:5-83
+	android:name
+		ADDED from /home/leog/Documentos/noharm/noHarm/plugins/app-updater/android/src/main/AndroidManifest.xml:7:22-80
+application
+ADDED from /home/leog/Documentos/noharm/noHarm/plugins/app-updater/android/src/main/AndroidManifest.xml:9:5-21:19
+provider#com.noharm.appupdater.AppUpdaterFileProvider
+ADDED from /home/leog/Documentos/noharm/noHarm/plugins/app-updater/android/src/main/AndroidManifest.xml:12:9-20:20
+	android:grantUriPermissions
+		ADDED from /home/leog/Documentos/noharm/noHarm/plugins/app-updater/android/src/main/AndroidManifest.xml:16:13-47
+	android:authorities
+		ADDED from /home/leog/Documentos/noharm/noHarm/plugins/app-updater/android/src/main/AndroidManifest.xml:14:13-75
+	android:exported
+		ADDED from /home/leog/Documentos/noharm/noHarm/plugins/app-updater/android/src/main/AndroidManifest.xml:15:13-37
+	android:name
+		ADDED from /home/leog/Documentos/noharm/noHarm/plugins/app-updater/android/src/main/AndroidManifest.xml:13:13-72
+meta-data#android.support.FILE_PROVIDER_PATHS
+ADDED from /home/leog/Documentos/noharm/noHarm/plugins/app-updater/android/src/main/AndroidManifest.xml:17:13-19:61
+	android:resource
+		ADDED from /home/leog/Documentos/noharm/noHarm/plugins/app-updater/android/src/main/AndroidManifest.xml:19:17-58
+	android:name
+		ADDED from /home/leog/Documentos/noharm/noHarm/plugins/app-updater/android/src/main/AndroidManifest.xml:18:17-67
+uses-sdk
+INJECTED from /home/leog/Documentos/noharm/noHarm/plugins/app-updater/android/src/main/AndroidManifest.xml reason: use-sdk injection requested
+INJECTED from /home/leog/Documentos/noharm/noHarm/plugins/app-updater/android/src/main/AndroidManifest.xml
+INJECTED from /home/leog/Documentos/noharm/noHarm/plugins/app-updater/android/src/main/AndroidManifest.xml
+	android:targetSdkVersion
+		INJECTED from /home/leog/Documentos/noharm/noHarm/plugins/app-updater/android/src/main/AndroidManifest.xml
+	android:minSdkVersion
+		INJECTED from /home/leog/Documentos/noharm/noHarm/plugins/app-updater/android/src/main/AndroidManifest.xml

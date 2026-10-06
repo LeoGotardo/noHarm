@@ -20,6 +20,7 @@ export { NoSelection, SplitView } from "./SplitView.jsx";
 export { BadgeMedallion, StreakRing } from "./StreakRing.jsx";
 export { TabBar, TABS } from "./TabBar.jsx";
 export { Toast } from "./Toast.jsx";
+export { UpdateSheet } from "./UpdateSheet.jsx";
 export {
     fmtAgo,
     fmtLongDate,

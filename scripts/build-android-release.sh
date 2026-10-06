@@ -29,6 +29,8 @@ major="${BASH_REMATCH[1]}"; minor="${BASH_REMATCH[2]}"; patch="${BASH_REMATCH[3]
 (( minor < 100 && patch < 100 )) || fail "minor and patch must stay below 100 (they are packed into versionCode)"
 # Android refuses an update whose versionCode is not higher, so it is derived
 # from the version itself: v1.2.3 → 10203. Monotonic as long as versions are.
+# The app's self-update uses the same formula (versionCodeFromTag in
+# src/services/appUpdate.js) — change one, change both.
 versionCode=$(( major * 10000 + minor * 100 + patch ))
 
 for v in ANDROID_KEYSTORE ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do

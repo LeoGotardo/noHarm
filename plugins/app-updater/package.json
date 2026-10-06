@@ -1,0 +1,15 @@
+{
+  "name": "noharm-app-updater",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local Capacitor plugin: download the release APK from GitHub and hand it to the Android installer",
+  "files": [
+    "android/src/main/",
+    "android/build.gradle"
+  ],
+  "capacitor": {
+    "android": {
+      "src": "android"
+    }
+  }
+}
