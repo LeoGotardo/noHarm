@@ -1,2 +1,0 @@
-com.noharm.appupdater
-xml app_updater_paths
