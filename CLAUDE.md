@@ -112,7 +112,7 @@ services/ import from connectors/
 | `src/main.jsx` | Mounts `<App>`, imports `theme.css` — or, for a web visitor with no session, sends them to the landing page instead |
 | `src/landing.js` | When the landing page applies (web, not native, not an installed PWA), the `?start=` query it links back with, and `goToLanding` |
 | `src/theme.css` | CSS custom properties for all four theme variants, the layout tokens the breakpoint drives, and the hover/focus rules. Theme token blocks are attribute-only selectors so `<html>` resolves them too — see Theming and Responsive layout |
-| `src/ui/index.js` | Low-level primitives: `Icon`, `Avatar`/`OnlineDot`, `Btn`, `Card`, `Checkbox`, `Field`, `Skeleton`, `GeoBackground`, `Divider`, `SectionLabel`, plus `cx` helper, the tap guards from `guards.js` (`useGuardedCallback`, `useDebouncedValue`) and `useWide` from `useBreakpoint.js` (see Responsive layout) |
+| `src/ui/index.js` | Low-level primitives: `Icon`, `Avatar`/`OnlineDot`, `Btn`, `Card`, `Checkbox`, `Field`, `Skeleton`, `GeoBackground`, `Divider`, `SectionLabel`, plus `cx` helper, the tap guards from `guards.js` (`useGuardedCallback`, `useDebouncedValue`), the Android back registry from `backButton.js` (`useBackHandler`, `runBackHandler` — see Navigation model) and `useWide` from `useBreakpoint.js` (see Responsive layout) |
 | `src/components/index.js` | Composite widgets: `Screen`, `Header`, `Banner`, `Toast`, `BottomSheet`, `TabBar`/`SideNav`, `SplitView`/`NoSelection`, `StreakRing`/`BadgeMedallion`, `EmptyState`, `Mark`/`Wordmark`/`Logo`, `GoogleButton`, `PersonRow`, `RoleBadge` (the Official/Admin mark beside a name, from the API's `role` — see Domain rules), `SegTabs`, `UpdateSheet` (the self-update offer, see Deployment), `ConfirmSheet` + `CONFIRM_COPY` (see Confirmations), `EmojiPicker`/`EmojiButton`/`insertAtCursor` (see Emoji), plus format helpers from `utils.js` (`hashHue`, `fmtTime`, `fmtLongDate`, `fmtRelDate`, `fmtShortDay`, `textLength`, `clampText`, `bigEmojiCount`) |
 | `src/connectors/` | Transport layer (see diagram above) |
 | `src/services/api/` | `admin`, `auth`, `badge`, `chat`, `consent`, `device`, `friendship`, `message`, `moderation`, `notice`, `post`, `report`, `streak`, `user` |
@@ -121,6 +121,7 @@ services/ import from connectors/
 | `src/services/push.js` | Capacitor FCM wrapper (`push.register/onForeground/onTap`) |
 | `src/services/suggestions.js` | The suggestion box: builds a `mailto:` to `suggestions@noharm.site` (an ImprovMX alias) with the text, capped at `SUGGESTION_MAX` (600). Nothing goes through the API or is stored. `public/suggest.js` does the same on the landing page — a static page cannot import the module, so address and limit are written twice; keep them in step |
 | `src/services/download.js` | `downloadJson` / `copyText` / `isNativeApp`. The web build saves a file; the native shell has no download manager and no Filesystem plugin, so it reports `{ok:false}` and `DataAndPrivacy` shows the JSON to copy instead of failing silently |
+| `src/services/nativeApp.js` | `@capacitor/app` on Android: `onHardwareBack`, `onAppResume`, `minimizeApp`. No-ops everywhere else — see Navigation model and Deployment, Releases |
 | `src/services/appUpdate.js` | Self-update from GitHub Releases: `checkForUpdate`, `pickUpdate`, `versionCodeFromTag`, and the `AppUpdater` native plugin (`plugins/app-updater/`). Shown by `UpdateSheet` — see Deployment, Releases |
 | `src/services/checkinReminder.js` | Capacitor LocalNotifications — schedules daily 9 PM reminder (id 1001) |
 | `src/store/cache.js` | localStorage cache helpers (`cacheRead/cacheWrite/cacheClear/cacheValid`), prefix `nh_cache_` |
@@ -277,7 +278,11 @@ downloads into `cacheDir/updates/`, sends the user to "install unknown apps"
 when `canRequestPackageInstalls()` is false, and hands the file to the system
 installer through its own `FileProvider` (`${applicationId}.appupdater.fileprovider`).
 Its manifest adds `REQUEST_INSTALL_PACKAGES`. Debug builds skip the check — a
-different signing key, so the installer would refuse the release.
+different signing key, so the installer would refuse the release. It checks
+again when the app returns to the foreground (`onAppResume`, at most every 6 h):
+back minimises instead of closing, so a fresh launch can be days apart. "Not
+now" silences that version until the next launch, not a newer one. The
+plugin's Gradle output (`plugins/*/android/build/`) is gitignored.
 
 **App icon and splash** come from `assets/` (committed PNGs, rasterised by
 `node scripts/build-app-icons.mjs` through Chromium — never ImageMagick, which
@@ -388,6 +393,26 @@ invites exactly the half-open state that lock exists to prevent.
 `Escape` is the desktop's back gesture — it closes the relapse/start-streak
 sheet, else pops the stack. It never dismisses the check-in modal or a
 moderation notice: those are answered, not escaped.
+
+**Android's back button** would otherwise close the app: Capacitor finishes
+the Activity when `@capacitor/app` has no `backButton` listener, and there is
+no browser history to step through. `src/ui/backButton.js` is a registry that
+`app.jsx` runs on every press (`onHardwareBack`, `services/nativeApp.js`), top
+first:
+
+1. **overlays** — every `BottomSheet` while open, the emoji pickers, the theme
+   dropdown. A sheet without `onClose` (check-in, moderation notice, the update
+   mid-download) registers with nothing to run, so back is swallowed, as Escape is;
+2. **pages** — `Header`'s back arrow (and `ChatThread`'s), so the button goes
+   exactly where the arrow goes: `ReportReview` releasing its claim, the
+   legal document inside Register/ConsentGate, login/register back to the splash;
+3. with nothing registered: pop the stack, else the Home tab, else
+   `minimizeApp()` — to the background, never killed. `ConsentGate` and
+   `ForcedRename` are instead of the app, so the stack under them is not walked.
+
+Something new with its own back — a popover, a step — calls
+`useBackHandler(open, close)` (`layer: "page"` for a screen-level back).
+Within a layer the latest registration wins.
 
 The Playwright suite has two projects. `chromium` runs everything at Pixel 7
 size; `desktop` re-runs the navigation, chat, friends and profile specs at

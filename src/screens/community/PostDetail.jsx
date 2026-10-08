@@ -5,7 +5,14 @@ import {
   Header,
   insertAtCursor,
 } from "@components";
-import { Btn, GeoBackground, Icon, Skeleton, useGuardedCallback } from "@ui";
+import {
+  Btn,
+  GeoBackground,
+  Icon,
+  Skeleton,
+  useBackHandler,
+  useGuardedCallback,
+} from "@ui";
 import { useEffect, useRef, useState } from "react";
 import { errorMessage } from "../../connectors/api.js";
 import { COMMENT_MAX, getPost } from "../../services/api/post.js";
@@ -53,6 +60,8 @@ export function PostDetail({
   const [input, setInput] = useState("");
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [menu, setMenu] = useState(null);
+  // Android's back folds the picker away before it leaves the post.
+  useBackHandler(emojiOpen, () => setEmojiOpen(false));
   const seen = useRef(false);
   const field = useRef(null);
   const scrollRef = useRef(null);

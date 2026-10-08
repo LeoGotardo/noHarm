@@ -1,4 +1,5 @@
 import { createPortal } from "react-dom";
+import { useBackHandler } from "@ui/backButton.js";
 import { useWide } from "@ui/useBreakpoint.js";
 
 /**
@@ -18,6 +19,9 @@ import { useWide } from "@ui/useBreakpoint.js";
  */
 export function BottomSheet({ open, onClose, children, portal }) {
   const wide = useWide();
+  // Android's back closes the sheet before it leaves the screen. Without
+  // `onClose` (a sheet that has to be answered) it is swallowed instead.
+  useBackHandler(open, onClose);
   if (!open) return null;
   const host = portal ? document.getElementById("nh-screen") : null;
   const sheet = (

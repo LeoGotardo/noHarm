@@ -1,4 +1,4 @@
-import { Icon } from "@ui";
+import { Icon, useBackHandler } from "@ui";
 import { useEffect, useId, useRef, useState } from "react";
 
 const THEMES = [
@@ -26,6 +26,8 @@ export function ThemePicker({ value, mode, onChange }) {
   const buttonRef = useRef(null);
   const listId = useId();
   const current = THEMES[indexOf(value)];
+  // Android's back closes the list, like Escape, without changing anything.
+  useBackHandler(open, () => setOpen(false));
 
   // Close on a click or tap anywhere else.
   useEffect(() => {

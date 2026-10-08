@@ -349,6 +349,7 @@ edited alongside it.
 - [x] 🤖 **TabBar** — home / friends / chat / community / profile; counter badges (friends, chat)
 - [x] 🤖 **Stack** — push / pop / resetTo; tabs hide when there is an overlay on the stack
 - [x] 🤖 **Transition animation** — `nhScreenIn` on screen change
+- [ ] **Android back button** (installed app) — closes an open sheet / emoji picker / theme list first; then does what the screen's back arrow does (pop, report review releases its claim, register/login → splash); on a tab root goes to Home; on Home (or the splash) sends the app to the background instead of closing it. With the check-in modal or a moderation notice up, back does nothing
 
 ## Theming (Settings → Appearance)
 
