@@ -6,7 +6,7 @@ import {
   insertAtCursor,
   textLength,
 } from "@components";
-import { Btn, Icon } from "@ui";
+import { Btn, Icon, useBackHandler } from "@ui";
 import { useEffect, useRef, useState } from "react";
 import { errorMessage } from "../../connectors/api.js";
 import { POST_MAX, VISIBILITY } from "../../services/api/post.js";
@@ -30,6 +30,8 @@ export function ComposeSheet({ open, onClose, onSubmit, onOpenCrisis }) {
   const [error, setError] = useState(null);
   const [emojiOpen, setEmojiOpen] = useState(false);
   const field = useRef(null);
+  // Android's back folds the picker away before it closes the sheet.
+  useBackHandler(open && emojiOpen, () => setEmojiOpen(false));
 
   useEffect(() => {
     if (!open) return;

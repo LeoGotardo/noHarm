@@ -401,10 +401,11 @@ Release named after the tag, with the notes and `noharm-vX.Y.Z.apk`.
   reads `dev`, or the commit when deployed with `--no-release`.
 - A failed build: Actions → release → *Run workflow* with the tag rebuilds it
   and replaces the APK on the existing Release.
-- **The app updates itself.** On every open, an Android release build asks
-  GitHub for the latest release; if its tag is newer than the installed
-  version it offers to download and install it (Android asks once to allow
-  installs from NoHarm, then shows its own confirmation). Streak, friends and
+- **The app updates itself.** On every open (and on coming back to the
+  foreground, at most every 6 h), an Android release build asks GitHub for the
+  latest release; if its tag is newer than the installed version it offers to
+  download and install it (Android asks once to allow installs from NoHarm,
+  then shows its own confirmation). Streak, friends and
   chats are untouched — it is the same app, same signing key. Debug builds
   never ask. The native half is the local Capacitor plugin in
   `plugins/app-updater/`; installs older than the first release that ships it

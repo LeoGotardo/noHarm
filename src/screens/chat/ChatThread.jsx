@@ -7,7 +7,14 @@ import {
   insertAtCursor,
   RoleBadge,
 } from "@components";
-import { Avatar, Btn, GeoBackground, Icon, useGuardedCallback } from "@ui";
+import {
+  Avatar,
+  Btn,
+  GeoBackground,
+  Icon,
+  useBackHandler,
+  useGuardedCallback,
+} from "@ui";
 import { useEffect, useRef, useState } from "react";
 import { acceptChat, rejectChat } from "../../services/api/chat.js";
 import {
@@ -58,6 +65,9 @@ export function ChatThread({
   const typingTimerRef = useRef(null);
 
   const goBack = useGuardedCallback(onBack);
+  // Android's back: the picker first, then the same place as the arrow.
+  useBackHandler(true, goBack, "page");
+  useBackHandler(emojiOpen, () => setEmojiOpen(false));
   const otherId = chat.sender === meId ? chat.reciver : chat.sender;
   const { messages: msgData, loading, refetch } = useChatThread(chat.id, meId);
   const msgList = msgData?.messages ?? [];

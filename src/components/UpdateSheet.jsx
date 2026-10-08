@@ -1,12 +1,16 @@
 import { BottomSheet } from "./BottomSheet.jsx";
 import { Btn, Icon } from "@ui";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AppUpdater, checkForUpdate } from "../services/appUpdate.js";
+import { onAppResume } from "../services/nativeApp.js";
+
+const RECHECK_MS = 6 * 60 * 60 * 1000;
 
 /**
- * Offers the new APK when the app opens. Only on Android, online, and when the
- * latest GitHub release is newer than what is installed — see
- * services/appUpdate.js. Everywhere else it renders nothing, ever.
+ * Offers the new APK when the app opens or comes back to the foreground. Only
+ * on Android, online, and when the latest GitHub release is newer than what is
+ * installed — see services/appUpdate.js. Everywhere else it renders nothing,
+ * ever.
  *
  * Stages: offer → downloading → (permission) → installing, or error. Android
  * shows its own confirmation once the APK is handed over; the app cannot
@@ -16,14 +20,30 @@ import { AppUpdater, checkForUpdate } from "../services/appUpdate.js";
 export function UpdateSheet() {
   const [update, setUpdate] = useState(null);
   const [stage, setStage] = useState({ kind: "offer" });
+  // "Not now" holds for that version until the next launch; a newer one is
+  // offered again.
+  const dismissed = useRef(null);
 
+  // On launch, and again on coming back to the foreground: back minimises the
+  // app instead of closing it, so a launch can be days away. At most once per
+  // RECHECK_MS, and never over an offer already on screen.
   useEffect(() => {
     let cancelled = false;
-    checkForUpdate().then((found) => {
-      if (!cancelled) setUpdate(found);
+    let lastCheck = 0;
+    const check = () => {
+      lastCheck = Date.now();
+      checkForUpdate().then((found) => {
+        if (cancelled || !found || found.version === dismissed.current) return;
+        setUpdate((current) => current ?? found);
+      });
+    };
+    check();
+    const off = onAppResume(() => {
+      if (Date.now() - lastCheck >= RECHECK_MS) check();
     });
     return () => {
       cancelled = true;
+      off();
     };
   }, []);
 
@@ -31,7 +51,10 @@ export function UpdateSheet() {
 
   const busy = stage.kind === "downloading";
   const close = () => {
-    if (!busy) setUpdate(null);
+    if (busy) return;
+    dismissed.current = update.version;
+    setUpdate(null);
+    setStage({ kind: "offer" });
   };
 
   const install = async (path) => {

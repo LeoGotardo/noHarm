@@ -58,3 +58,7 @@ yarn-error.*
 *.apk
 *.apk.aligned
 *.idsig
+
+# Gradle output of the local Capacitor plugins (built as modules of android/)
+/plugins/*/android/build/
+/plugins/*/android/.gradle/

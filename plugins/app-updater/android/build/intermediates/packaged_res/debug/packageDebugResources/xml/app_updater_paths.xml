@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Only the folder AppUpdaterPlugin downloads into is shared with the installer. -->
-<paths>
-    <cache-path name="updates" path="updates/" />
-</paths>
