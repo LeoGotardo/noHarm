@@ -392,9 +392,13 @@ tags. The tag on this repo starts `.github/workflows/release.yml`, which builds
 the signed APK (`scripts/build-android-release.sh`) and publishes a GitHub
 Release named after the tag, with the notes and `noharm-vX.Y.Z.apk`.
 
-- Both repos must be committed and pushed, or the script stops before
-  building — the tag has to name the code that was deployed. A hotfix that
-  should not be a release: `deploy-host.sh --no-release`.
+- Both repos must be clean, on their release branch (this one on `master`,
+  noHarmBack on `main`) and level with origin, or the script stops before
+  building — the tag has to name the code that was deployed, and a feature
+  branch or a stale `main` is pushed too. With `gh` signed in it also checks
+  the six secrets below exist, since a missing one fails the APK only after
+  the deploy. A hotfix that should not be a release:
+  `deploy-host.sh --no-release`.
 - `versionName` is the tag; `versionCode` is derived from it
   (`v1.2.3` → `10203`), so Android accepts each release as an upgrade.
 - Settings shows the version (`VITE_APP_VERSION`); a build outside a release
