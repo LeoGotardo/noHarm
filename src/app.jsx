@@ -11,7 +11,7 @@ import {
   Toast,
   UpdateSheet,
 } from "@components";
-import { Btn, Icon, useWide } from "@ui";
+import { Btn, Icon, runBackHandler, useWide } from "@ui";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { errorMessage } from "./connectors/api.js";
 import {
@@ -63,6 +63,7 @@ import { DataAndPrivacy } from "./screens/profile/DataAndPrivacy.jsx";
 import { ForcedRename } from "./screens/profile/ForcedRename.jsx";
 import { MyProfile } from "./screens/profile/MyProfile.jsx";
 import { Settings } from "./screens/profile/Settings.jsx";
+import { minimizeApp, onHardwareBack } from "./services/nativeApp.js";
 import { checkinReminder } from "./services/checkinReminder.js";
 import { cacheClearAll } from "./store/cache.js";
 import { useBadges } from "./store/useBadges.js";
@@ -769,6 +770,37 @@ export default function App() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [phase, startOpen, relapseOpen]);
+
+  // Android's back button. Sheets, pickers and the screen's own back arrow
+  // answer first (useBackHandler, see ui/backButton.js); what is left is the
+  // navigation itself: pop the stack, then back to the Home tab, then to the
+  // background — never closing the app, which is what Capacitor does unasked.
+  // The consent and rename screens are instead of the app, so the stack under
+  // them is not walked.
+  const backNav = useRef(null);
+  useEffect(() => {
+    backNav.current = {
+      phase,
+      tab,
+      depth: stack.length,
+      gated:
+        (me?.pending_consents?.length ?? 0) > 0 || !!me?.must_change_username,
+    };
+  });
+  useEffect(
+    () =>
+      onHardwareBack(() => {
+        if (runBackHandler()) return;
+        const { phase, tab, depth, gated } = backNav.current;
+        if (phase === "app" && !gated) {
+          if (depth > 0) return pop();
+          if (tab !== "home") return resetTo("home");
+        }
+        if (phase === "register" || phase === "login") return toFront();
+        minimizeApp();
+      }),
+    [toFront],
+  );
 
   const showToast = (text, icon = "check") => {
     setToast({ text, icon });

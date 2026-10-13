@@ -1,9 +1,12 @@
 import { Icon } from "@ui/Icon.jsx";
+import { useBackHandler } from "@ui/backButton.js";
 import { useGuardedCallback } from "@ui/guards.js";
 
 export function Header({ title, onBack, right, sub, large }) {
   // pop() twice takes the user one screen further back than they asked.
   const back = useGuardedCallback(onBack);
+  // Android's back button goes where this arrow goes — see ui/backButton.js.
+  useBackHandler(!!onBack, back, "page");
   return (
     <div
       style={{
