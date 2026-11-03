@@ -23,8 +23,9 @@ It is not treatment or therapy and nobody in it is a clinician. In a crisis in B
 
 ## Source code
 
-- [noHarm](https://github.com/LeoGotardo/noHarm): the web and mobile front end (React + Capacitor), MIT licence
-- [noHarmBack](https://github.com/LeoGotardo/noHarmBack): the server (FastAPI + PostgreSQL + Socket.IO), Apache 2.0
+- [noHarm](https://github.com/LeoGotardo/noHarm): one repository for both halves
+  - the web and mobile front end (React + Capacitor), at the root, MIT licence
+  - [backend/](https://github.com/LeoGotardo/noHarm/tree/master/backend): the server (FastAPI + PostgreSQL + Socket.IO), Apache 2.0
 
 ## Contact
 

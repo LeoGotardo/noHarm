@@ -1,4 +1,4 @@
-# noHarmBack
+# NoHarm — backend
 
 Backend of the **NoHarm** application — a mobile app for addiction recovery support.
 
@@ -43,17 +43,19 @@ consumes the REST API (`VITE_API_URL`) and the Socket.IO server
 (`VITE_SOCKET_URL`) documented below, authenticating with the JWT access/refresh
 pair issued by `authRoutes.py`.
 
-The two repos **must sit side by side on disk** (`noHarm/` and `noHarmBack/` in
-the same parent directory): stage 1 of `docker/Dockerfile` compiles the frontend
-bundle, so the build context is that parent, and nginx in the same image serves
-the bundle alongside uvicorn. A frontend change therefore ships on a *backend*
-deploy — there is no separate frontend pipeline.
+This directory is `backend/` of the NoHarm repository; the frontend is at its
+root. It used to be the separate `noHarmBack` repository and was merged in with
+its history (its tags from then are `backend-vX.Y.Z`). Stage 1 of
+`docker/Dockerfile` compiles the frontend bundle, so the build context is the
+repository root, and nginx in the same image serves the bundle alongside
+uvicorn. A frontend change ships on the same deploy as a backend one — there is
+no separate frontend pipeline.
 
 | Where to look | What it covers |
 |---------------|----------------|
-| [`../../noHarm/README.md`](../../noHarm/README.md) | Frontend stack, project layout, env vars, and the Android APK build tutorial |
-| [`../../noHarm/CLAUDE.md`](../../noHarm/CLAUDE.md) | Frontend architecture, navigation model, theming, notification IDs, domain rules |
-| [`../../noHarm/TESTING.md`](../../noHarm/TESTING.md) | Manual QA checklist for every user-facing flow |
+| [`../../README.md`](../../README.md) | Frontend stack, project layout, env vars, and the Android APK build tutorial |
+| [`../../CLAUDE.md`](../../CLAUDE.md) | Frontend architecture, navigation model, theming, notification IDs, domain rules |
+| [`../../TESTING.md`](../../TESTING.md) | Manual QA checklist for every user-facing flow |
 | [`FRONTEND_DESIGN_BRIEF.md`](FRONTEND_DESIGN_BRIEF.md) | API shapes as the frontend consumes them |
 
 Two things this backend owes the frontend:
@@ -73,7 +75,7 @@ Two things this backend owes the frontend:
 ## Project Structure
 
 ```
-noHarmBack/
+backend/
 ├── scripts/                    # gen_api_reference.py, gen_config_reference.py
 ├── alembic/                    # Database migrations
 │   ├── versions/
@@ -625,9 +627,8 @@ gets used — is in `infra/README.md`.
 
 Things that commonly bite:
 
-- The build context is the **parent directory of both repos** — `noHarm/` and
-  `noHarmBack/` must sit side by side, because stage 1 compiles the bundle. The
-  deploy workflow does two checkouts for that reason.
+- The build context is the **repository root**, not `backend/`, because stage
+  1 compiles the bundle: `docker build -f backend/docker/Dockerfile .`
 - The entrypoint refuses to start with `FIREBASE_AUTH_EMULATOR_HOST` set,
   without the certificates in `container` mode, and without
   `TRUSTED_PROXY_CIDRS` in `alb` mode.
@@ -693,4 +694,4 @@ See `docs/security.md` for the complete security guide covering:
 | `docs/security.md` | Security guide, audit checklist, RLS, pagination, and business rules |
 | `docs/operations.md` | Runbook of the live EC2 instance — access, cron jobs, deploy, migrations, backup/restore, accepted risks |
 | `infra/README.md` | Terraform stack (ECS/RDS/ElastiCache) — **not provisioned** |
-| [`../../noHarm/README.md`](../../noHarm/README.md) | Frontend repo — stack, layout, and the Android APK build tutorial |
+| [`../../README.md`](../../README.md) | Frontend — stack, layout, and the Android APK build tutorial |

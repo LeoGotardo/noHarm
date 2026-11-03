@@ -30,7 +30,7 @@ database stays empty and every test fails at registration.
 
 The browser no longer talks to the backend directly: the app uses relative URLs
 (`/api`, `/ws`) and the dev server proxy (`vite.config.js`) mirrors the routes
-nginx serves in production (`noHarmBack/docker/app_locations.conf`). The Node
+nginx serves in production (`backend/docker/app_locations.conf`). The Node
 helpers still hit `E2E_API_URL` directly, bypassing the proxy.
 
 `tests/reports.spec.js` covers the report system on its own: the sheet, the

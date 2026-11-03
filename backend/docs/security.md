@@ -617,7 +617,7 @@ the deploy workflow, so it keeps running while that one is manual.
 
 **Pending countermeasures:**
 
-- [x] Dependabot (`.github/dependabot.yml` in both repos): weekly pip/npm, monthly actions and base images
+- [x] Dependabot (the root `.github/dependabot.yml`): weekly pip/npm, monthly actions and base images
 - [ ] Review and update pinned versions at least monthly; prioritise security releases immediately
 - [x] Test tooling moved to `requirements-dev.txt`; the image installs `requirements.txt` only
 - [x] The front end runs `npm audit` in its own `security.yml` — production dependencies fail the build. Both audits are clean as of 2026-10-01
@@ -1085,7 +1085,7 @@ the table, so without them each read is a sequential scan.
 | Degraded rate limiter reported on the board and to admins | §8.2 | `limiter.py`, `main.py` |
 | WebSocket cap evicts the oldest socket; self-healing | §6.1 | `websocket/rateLimiter.py` |
 | `AuditType` enum; block/unblock audited | §7.5 | `core/auditTypes.py` |
-| `requirements-dev.txt`, Dependabot, gitleaks (hook + CI); npm audit clean | §9 | both repos |
+| `requirements-dev.txt`, Dependabot, gitleaks (hook + CI); npm audit clean | §9 | whole repository |
 
 ### Pending ⬜
 

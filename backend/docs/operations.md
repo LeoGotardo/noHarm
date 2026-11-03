@@ -329,20 +329,24 @@ policy that line is promising:
 
 ## Deploying
 
-From the directory holding **both** repos, on a developer machine:
+From the repository, on a developer machine (the script moves to the root
+itself):
 
 ```bash
-./noHarmBack/docker/deploy-host.sh                # asks for the version and notes
-./noHarmBack/docker/deploy-host.sh --no-release   # a hotfix, no version
+./backend/docker/deploy-host.sh                # asks for the version and notes
+./backend/docker/deploy-host.sh --no-release   # a hotfix, no version
 ```
 
 Before building it asks for the release tag and opens your git editor for the
-notes; both repos must be clean, on their release branch (`noHarm` on
-`master`, `noHarmBack` on `main`) and level with origin, and noHarm must hold
-the six APK secrets. Only after a healthy deploy
-does it tag both repos `vX.Y.Z` and push the tags, which makes the front end's
-`release` workflow publish the GitHub Release with the Android APK. A deploy
-that fails tags nothing. Details in `noHarm/README.md`, "Releases".
+notes; the repository must be clean, on `master` and level with origin, and
+must hold the six APK secrets. Only after a healthy deploy does it tag the
+repository `vX.Y.Z` and push the tag, which makes the `release` workflow
+publish the GitHub Release with the Android APK. A deploy that fails tags
+nothing. Details in the root `README.md`, "Releases".
+
+The stack on the host still lives in `~/noHarmBack/docker`, a name from before
+the backend joined the app's repository. Nothing there is a git checkout, so
+the name is only a path; `deploy-host.sh` and every command below use it.
 
 It builds the image locally, ships it over SSH (`docker save | ssh docker load`,
 ~600 MB on the wire — minutes, not seconds), restarts the stack and waits for
@@ -375,11 +379,10 @@ There is no "previous image" kept on the box: `deploy-host.sh` ships
 rollback is therefore a deploy of the previous release, built from its tag:
 
 ```bash
-cd ~/Documentos/noharm                 # the directory with both repos
-git -C noHarm checkout v1.2.2          # the last good release, in BOTH repos
-git -C noHarmBack checkout v1.2.2
-./noHarmBack/docker/deploy-host.sh --no-release
-git -C noHarm checkout master && git -C noHarmBack checkout main
+cd ~/Documentos/noharm/noHarm
+git checkout v1.2.2                    # the last good release
+./backend/docker/deploy-host.sh --no-release
+git checkout master
 ```
 
 `--no-release` because a rollback is not a new version. The tag commits are

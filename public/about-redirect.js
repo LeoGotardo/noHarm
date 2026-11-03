@@ -4,7 +4,7 @@
 // 'app'); the key is src/connectors/tokens.js's — keep them in step.
 //
 // A separate file and not an inline <script> because the CSP in
-// noHarmBack/docker/security_headers.conf allows scripts from 'self' only.
+// backend/docker/security_headers.conf allows scripts from 'self' only.
 (function () {
   try {
     if (localStorage.getItem("nh_access")) {

@@ -36,7 +36,7 @@ services:
       # Dockerfile.dev, not Dockerfile: the production image is multi-stage,
       # builds the Vite bundle and fronts everything with nginx over TLS. None
       # of that belongs in a hot-reload loop, and its build context is the
-      # parent of both repos rather than this one.
+      # repository root rather than backend/.
       dockerfile: docker/Dockerfile.dev
     container_name: noharm-backend
     environment:

@@ -123,8 +123,8 @@ the workflow's single checkout carries both halves.
 
 ### 5. Deploy
 
-Run the `deploy` workflow by hand (Actions → deploy → Run workflow). Its `push` trigger is commented out in `.github/workflows/deploy.yml` while this stack is not the deployment; restore it to deploy on every push to `main`. It builds the image from
-both repos, pushes it under the commit SHA, runs the migration task and waits
+Run the `deploy` workflow by hand (Actions → deploy → Run workflow). Its `push` trigger is commented out in `.github/workflows/deploy.yml` while this stack is not the deployment; restore it to deploy on every push to `master`. It builds the image from
+the repository root, pushes it under the commit SHA, runs the migration task and waits
 for it, then rolls the service.
 
 To migrate without a deploy:

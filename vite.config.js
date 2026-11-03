@@ -10,7 +10,7 @@ export default defineConfig(({ mode }) => {
   // the same role — the app code stays on relative URLs either way, instead of
   // carrying a different base per environment.
   //
-  // Keep these two rules in step with noHarmBack/docker/nginx.conf. They are
+  // Keep these two rules in step with backend/docker/nginx.conf. They are
   // the same contract written twice, and a drift shows up as an app that works
   // in dev and 404s in the container.
   const backend = env.VITE_DEV_BACKEND_ORIGIN || 'http://localhost:8080'

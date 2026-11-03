@@ -13,7 +13,7 @@
   behind a sign-in does not qualify. Vite copies everything in `public/` to the
   root of the bundle, and nginx serves `$uri` before falling back to the SPA,
   so this file answers at /privacy.html — and at /privacy through the rewrite in
-  noHarmBack/docker/app_locations.conf.
+  backend/docker/app_locations.conf.
 
   KEEP IN STEP with src/screens/legal/legalContent.js. Two copies of a legal
   document that disagree is worse than one, and nothing in the build checks

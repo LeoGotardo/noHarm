@@ -1,6 +1,6 @@
 import { api } from "../../connectors/api.js";
 
-// The contract is `noHarmBack/docs/POSTS_PLAN.md`, section 3. Lengths mirror
+// The contract is `backend/docs/POSTS_PLAN.md`, section 3. Lengths mirror
 // the backend's validation, which is the authority: these only stop the field
 // before the server has to say no.
 export const POST_MAX = 1000;

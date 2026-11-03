@@ -6,12 +6,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 NoHarm — addiction recovery tracker. Core loop: register → start streak → daily check-in → earn milestone badges → connect with friends for accountability → 1-on-1 chat. Tone must be warm and compassionate, never clinical.
 
-This repo is the **front end only**. The API it talks to is
-[`../noHarmBack`](../noHarmBack/) — FastAPI + PostgreSQL + Socket.IO, a sibling
-repository that must sit next to this one on disk (the production image builds
-both). Its `docs/README.md` is the architecture and auth reference, its
-`CLAUDE.md` the domain rules (RLS, moderation, account lifecycle, rate limits),
-and `docs/FRONTEND_DESIGN_BRIEF.md` the API shapes this app consumes.
+The front end is at the root of this repository; the API it talks to is in
+[`backend/`](backend/) — FastAPI + PostgreSQL + Socket.IO. It used to be the
+separate `noHarmBack` repository and was merged in with its history; its tags
+from then are `backend-vX.Y.Z`. Its `docs/README.md` is the architecture and
+auth reference, its `CLAUDE.md` (local, gitignored there) the domain rules
+(RLS, moderation, account lifecycle, rate limits), and
+`docs/FRONTEND_DESIGN_BRIEF.md` the API shapes this app consumes.
 
 ## Commands
 
@@ -29,8 +30,8 @@ cd android && ./gradlew assembleDebug   # → android/app/build/outputs/apk/debu
 No lint script. Open `http://localhost:5173` after `npm run dev`.
 
 `.github/workflows/security.yml` runs `npm audit` (production dependencies fail
-the build) and gitleaks over the whole history on every push, pull request and
-Monday; `.github/dependabot.yml` opens weekly update PRs (the Capacitor CLI is
+the build), `pip-audit` for `backend/` and gitleaks over the whole history on
+every push, pull request and Monday; `.github/dependabot.yml` opens weekly update PRs (the Capacitor CLI is
 held below v8, which needs Node 22). `pre-commit install` enables the same
 gitleaks check before each commit (`.pre-commit-config.yaml`).
 
@@ -222,15 +223,15 @@ chat that existed before the block**, in both directions.
 ## Deployment
 
 The app is served by nginx from inside a single container that also runs the
-FastAPI backend — config in `noHarmBack/docker/`. nginx serves the bundle,
+FastAPI backend — config in `backend/docker/`. nginx serves the bundle,
 proxies `/api/*` to the backend with the prefix stripped, and passes `/ws/*`
 through for the Socket.IO upgrade. The bundle is therefore **same-origin with
 the API**, which is why `VITE_API_URL` is `/api` and `VITE_SOCKET_URL` is empty.
 
 **Live at `https://noharm.site`**: a single EC2 t3.micro running
-`noHarmBack/docker/compose.host.yaml`, where nginx itself holds a Let's Encrypt
+`backend/docker/compose.host.yaml`, where nginx itself holds a Let's Encrypt
 certificate (`TLS_MODE=container`). The runbook is
-`noHarmBack/docs/operations.md`. The ECS/ALB stack in `noHarmBack/infra/` is
+`backend/docs/operations.md`. The ECS/ALB stack in `backend/infra/` is
 written but **not provisioned**; `TLS_MODE=alb` is its shape, where TLS ends at
 the load balancer and the container serves plain `:80`. Neither changes anything
 the bundle sees — the browser's leg is https either way, and the routes are the
@@ -244,22 +245,21 @@ Two consequences worth knowing before debugging:
   builds used `http://localhost`) and the one that needs `ALLOWED_ORIGINS` on the
   backend to include it. A restrictive value breaks mobile REST and leaves the
   socket working — an asymmetric failure that is confusing without this note.
-- **CSP lives in nginx**, not in the app: `noHarmBack/docker/security_headers.conf`.
+- **CSP lives in nginx**, not in the app: `backend/docker/security_headers.conf`.
   Anything the app loads cross-origin (Google Fonts, Firebase sign-in) has to be
   listed there or it is blocked with no symptom but a console error.
 
-The image builds the bundle itself (stage 1 of `noHarmBack/docker/Dockerfile`),
-so `VITE_*` values arrive as `--build-arg`. Its build context is the **parent of
-both repos** — `noHarm/` and `noHarmBack/` must sit side by side. The deploy
-workflow (`noHarmBack/.github/workflows/deploy.yml`) therefore checks out this
-repo alongside the backend and passes every `VITE_*` as a build arg; a value
+The image builds the bundle itself (stage 1 of `backend/docker/Dockerfile`),
+so `VITE_*` values arrive as `--build-arg`. Its build context is the
+**repository root**, which holds both halves. The deploy workflow
+(`.github/workflows/deploy.yml`) passes every `VITE_*` as a build arg; a value
 added here has to be added there too, or it compiles to `undefined` and shows up
 as a feature that quietly does nothing.
 
 **Releases.** `deploy-host.sh` asks for a tag (`vX.Y.Z`) and release notes
-before building, refuses to run with uncommitted or unpushed work in either
-repo, and after a healthy deploy tags **both** repos and pushes the tags. The
-tag here starts `.github/workflows/release.yml`, which builds the signed APK
+before building, refuses to run with uncommitted or unpushed work, and after a
+healthy deploy tags the repository and pushes the tag. The tag starts
+`.github/workflows/release.yml`, which builds the signed APK
 with `scripts/build-android-release.sh` (`versionCode` derived from the tag)
 and publishes the GitHub Release. `--no-release` deploys without a version.
 One-time setup: `scripts/setup-release-secrets.sh`. Full walkthrough in
@@ -290,11 +290,11 @@ closes the ring). The release script runs `capacitor-assets generate` on them
 after creating `android/`; without that step the APK ships Capacitor's default
 icon. The app's launcher name is `appName` in `capacitor.config.json`.
 
-**A change here only ships on a backend deploy.** There is no separate
-front-end pipeline: pushing to this repo builds nothing, and nothing deploys on
-push at all today. Shipping a change to this repo means running
-`./noHarmBack/docker/deploy-host.sh` from the directory holding both repos: it
-builds the image on your machine — `vite build` needs more RAM than the
+**A change only ships on a deploy.** There is no separate front-end
+pipeline: pushing builds nothing, and nothing deploys on push at all today.
+Shipping a change means running `./backend/docker/deploy-host.sh` (from
+anywhere in the repository; it moves to the root itself): it builds the image
+on your machine — `vite build` needs more RAM than the
 instance has — and ships it over SSH.
 
 ## Navigation model
@@ -575,7 +575,7 @@ Notification IDs must not collide: checkinReminder uses 1001; message notifs use
 
 ## Domain rules
 
-See `noHarmBack/docs/FRONTEND_DESIGN_BRIEF.md` for full API shapes. Key invariants:
+See `backend/docs/FRONTEND_DESIGN_BRIEF.md` for full API shapes. Key invariants:
 
 - **Streak**: one active at a time; **it never expires** — a missed check-in changes nothing on the server, and only a relapse (`POST /streaks/end`) ends a streak, immediately starting a new one. The check-in modal is the app asking about the days since the last check-in, by **local** calendar day.
 - **Check-ins are not counted.** Duration comes from `start_at`/`end_at`, and
@@ -635,8 +635,8 @@ See `noHarmBack/docs/FRONTEND_DESIGN_BRIEF.md` for full API shapes. Key invarian
   — its "Your data" summary repeats claims from the Privacy Policy, so a change
   to one is a change to both. Tests enter the app at `/?start=login` for the
   same reason a visitor does not stay on `/`. It also says NoHarm is **open source**, which
-  rests on both GitHub repositories being public (this one MIT, the backend
-  Apache 2.0) — making either private makes the page false.
+  rests on this repository being public on GitHub (the app MIT, `backend/`
+  Apache 2.0) — making it private makes the page false.
 - **Crawlers get three files in `public/`**: `robots.txt` (keeps `/api/`,
   `/ws/` and the `?start=` links out), `sitemap.xml` (the three public pages
   only — bump `<lastmod>` when one changes) and `llms.txt` (a plain summary
@@ -792,7 +792,7 @@ See `noHarmBack/docs/FRONTEND_DESIGN_BRIEF.md` for full API shapes. Key invarian
   `useFriends` refetch over REST there. Connecting is the one instant the
   client knows it has a gap. Cost: one extra fetch per connect, including the
   silent token refresh every 15 minutes.
-- **Posts (Community)** — contract in `noHarmBack/docs/POSTS_PLAN.md`, where
+- **Posts (Community)** — contract in `backend/docs/POSTS_PLAN.md`, where
   decisions D1–D8 are argued. Text only (post 1000, comment 500). The author
   picks the audience per post, `friends` or `community`, and the composer
   starts on `friends` every time. No editing. Like and unlike are `PUT` /

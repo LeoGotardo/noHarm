@@ -74,11 +74,11 @@ scripts/
   setup-release-secrets.sh     # one-time: release keystore + repository secrets
 ```
 
-See `CLAUDE.md` for the full architecture breakdown and domain rules (streaks, friendship states, chat lifecycle, notification IDs), and `../noHarmBack/docs/FRONTEND_DESIGN_BRIEF.md` for API shapes.
+See `CLAUDE.md` for the full architecture breakdown and domain rules (streaks, friendship states, chat lifecycle, notification IDs), and `backend/docs/FRONTEND_DESIGN_BRIEF.md` for API shapes.
 
 ## Backend
 
-This app talks to [`noHarmBack`](https://github.com/LeoGotardo/noHarmBack/), a separate sibling repository — a FastAPI + PostgreSQL service exposing the REST API (`VITE_API_URL`) and Socket.IO server (`VITE_SOCKET_URL`) this frontend consumes. See its `docs/README.md` for architecture, auth flow, and API details.
+This app talks to the server in [`backend/`](backend/) — a FastAPI + PostgreSQL service exposing the REST API (`VITE_API_URL`) and Socket.IO server (`VITE_SOCKET_URL`) this frontend consumes. See `backend/docs/README.md` for architecture, auth flow, and API details. It was the separate `noHarmBack` repository until it was merged in here, history included; its tags from before are `backend-vX.Y.Z`.
 
 ## Mobile
 
@@ -378,7 +378,7 @@ Codemagic and Ionic Appflow package the same steps behind a UI.
 
 ### Releases (versions, notes and the APK)
 
-A release is a deploy with a version. `noHarmBack/docker/deploy-host.sh` asks
+A release is a deploy with a version. `backend/docker/deploy-host.sh` asks
 for both before building:
 
 ```
@@ -387,15 +387,14 @@ release tag [v1.2.4] (last: v1.2.3):        ← Enter accepts the suggestion
 ```
 
 Then it deploys as always, and **only if the server comes up healthy** it
-tags both repos with an annotated `vX.Y.Z` carrying the notes and pushes the
-tags. The tag on this repo starts `.github/workflows/release.yml`, which builds
+tags the repository with an annotated `vX.Y.Z` carrying the notes and pushes
+the tag. The tag starts `.github/workflows/release.yml`, which builds
 the signed APK (`scripts/build-android-release.sh`) and publishes a GitHub
 Release named after the tag, with the notes and `noharm-vX.Y.Z.apk`.
 
-- Both repos must be clean, on their release branch (this one on `master`,
-  noHarmBack on `main`) and level with origin, or the script stops before
-  building — the tag has to name the code that was deployed, and a feature
-  branch or a stale `main` is pushed too. With `gh` signed in it also checks
+- The repository must be clean, on `master` and level with origin, or the
+  script stops before building — the tag has to name the code that was
+  deployed, and a feature branch or a stale `master` is pushed too. With `gh` signed in it also checks
   the six secrets below exist, since a missing one fails the APK only after
   the deploy. A hotfix that should not be a release:
   `deploy-host.sh --no-release`.

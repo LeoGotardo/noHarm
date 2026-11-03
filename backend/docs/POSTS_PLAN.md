@@ -10,7 +10,7 @@
 > `blocked_by` porque o bloqueado podia se desbloquear, `CONSENT_REQUIRED` no
 > servidor, `chatId` combinável com `postId`, D8 (evidência anexada em vez de
 > 409), push `community` precisa de migration, export inclui removidos.
-> Divisão: backend (`noHarmBack`) implementa as seções 2–7; frontend (`noHarm`)
+> Divisão: backend (`backend/`) implementa as seções 2–7; frontend (a raiz do repositório)
 > implementa a seção 8. A seção 3 é o **contrato** — os dois lados constroem
 > contra ela, então qualquer mudança nela é combinada antes.
 >

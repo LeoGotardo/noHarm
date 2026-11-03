@@ -1,7 +1,7 @@
 import { Icon } from "@ui";
 
 // The mark beside a name. `role` comes from the backend on every user object
-// (UserResponse.role, derived from its allowlists — see noHarmBack
+// (UserResponse.role, derived from its allowlists — see backend/src/
 // core/roles.py): "official" for NoHarm's own accounts, "admin" for
 // moderators, null for everyone else, who get nothing drawn.
 //
