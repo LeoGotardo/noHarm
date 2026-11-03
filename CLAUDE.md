@@ -261,7 +261,12 @@ before building, refuses to run with uncommitted or unpushed work, and after a
 healthy deploy tags the repository and pushes the tag. The tag starts
 `.github/workflows/release.yml`, which builds the signed APK
 with `scripts/build-android-release.sh` (`versionCode` derived from the tag)
-and publishes the GitHub Release. `--no-release` deploys without a version.
+and publishes the GitHub Release, and `.github/workflows/release-tests.yml`,
+which runs the backend suite (unit, then integration against Postgres, Redis,
+the Firebase Auth emulator and a role without RLS bypass) and the e2e suite
+against the stack in `backend/docker/compose.yaml`. It runs beside the APK
+build, not in front of it: the deploy has already happened by then.
+`--no-release` deploys without a version.
 One-time setup: `scripts/setup-release-secrets.sh`. Full walkthrough in
 `README.md`, "Releases".
 
