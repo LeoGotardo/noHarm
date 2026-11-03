@@ -1,26 +1,24 @@
-# INACTIVE. This workflow deploys the ECS stack in infra/, and that stack is
+# INACTIVE. This workflow deploys the ECS stack in backend/infra/, and that stack is
 # not provisioned — nothing has run `terraform apply`.
 #
-# The live deployment is a single EC2 instance running docker/compose.host.yaml,
-# and it is deployed by docker/deploy-host.sh from a developer machine. There is
+# The live deployment is a single EC2 instance running backend/docker/compose.host.yaml,
+# and it is deployed by backend/docker/deploy-host.sh from a developer machine. There is
 # no CI in that path: the front-end bundle needs more RAM than the instance has,
 # so the image is built elsewhere and shipped over SSH.
 #
 # The trigger is workflow_dispatch only, deliberately. On `push` this ran on
-# every commit to main and failed at the first ECR call, because the registry it
+# every commit to the backend's main and failed at the first ECR call, because the registry it
 # names does not exist — a red X on every commit, for a deploy nobody asked for.
 #
-# To make this the deployment again: `terraform apply` in infra/, set the
-# repository variables listed in infra/README.md, and restore the `push`
-# trigger below.
+# To make this the deployment again: `terraform apply` in backend/infra/, set
+# the repository variables listed in backend/infra/README.md, and restore the
+# `push` trigger below.
 #
 # ── original description ────────────────────────────────────────────────────
 # Build the single image, push it, migrate, then roll the service.
 #
-# The image contains the front-end bundle, so this workflow checks out BOTH
-# repos as siblings — the Dockerfile's build context is the directory that holds
-# them, and stage 1 compiles noHarm/ into the image. A build from this repo
-# alone fails at the first COPY.
+# The image contains the front-end bundle: the Dockerfile's build context is
+# the repository root, and stage 1 compiles the app there into the image.
 #
 # Migrations run as their own ECS task and must finish before the new revision
 # rolls out: a task that boots against a schema it is newer than fails in ways
@@ -28,7 +26,7 @@
 name: deploy (ECS — inactive)
 
 on:
-  # push: { branches: [main] }   ← restore when infra/ is the deployment again
+  # push: { branches: [master] }   ← restore when backend/infra/ is the deployment again
   workflow_dispatch:
     inputs:
       skip_migrations:
@@ -58,24 +56,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout backend
-        uses: actions/checkout@v7
-        with:
-          path: noHarmBack
-
-      # Same parent directory, because that is the build context.
-      - name: Checkout frontend
-        uses: actions/checkout@v7
-        with:
-          repository: LeoGotardo/noHarm
-          # This repo's default branch is `master`, not `main` — the two repos
-          # do not agree, and a wrong ref here fails the build at stage 1 with a
-          # missing package.json rather than anything that names the branch.
-          ref: master
-          path: noHarm
-          # A PAT with read access to the other repo. GITHUB_TOKEN is scoped to
-          # this one and cannot read it, even with both under the same owner.
-          token: ${{ secrets.FRONTEND_REPO_TOKEN }}
+      - uses: actions/checkout@v7
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6
@@ -99,7 +80,7 @@ jobs:
         run: |
           set -euo pipefail
           docker build \
-            -f noHarmBack/docker/Dockerfile \
+            -f backend/docker/Dockerfile \
             -t "$REGISTRY/$REPOSITORY:$TAG" \
             --build-arg VITE_API_URL=/api \
             --build-arg VITE_SOCKET_URL= \

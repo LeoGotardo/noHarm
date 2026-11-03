@@ -1,0 +1,4 @@
+# The fake keys backend/tests/conftest.py pins so the suite never reads real
+# ones. The commit is the rewritten one: noHarmBack's history was moved under
+# backend/ when it merged into this repository, which changed every SHA.
+e079e34ad3daec6a68fcc2ce1964099cb539fbbd:backend/tests/conftest.py:generic-api-key:27

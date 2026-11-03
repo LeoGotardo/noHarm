@@ -117,11 +117,9 @@ From the outputs, into the backend repo's Actions settings:
 | Variable | `TASK_SUBNET_IDS` | `terraform output -json task_subnet_ids \| jq -r 'join(",")'` |
 | Variable | `APP_SECURITY_GROUP_ID` | `terraform output -raw app_security_group_id` |
 | Variable | `VITE_FIREBASE_*` | the six web-config values, baked into the bundle at build time |
-| Secret | `FRONTEND_REPO_TOKEN` | PAT with read access to `LeoGotardo/noHarm` |
 
-The frontend token is not optional: the image's first build stage compiles
-`noHarm/`, and `GITHUB_TOKEN` is scoped to the repo running the workflow and
-cannot check out the other one.
+No token for the front end: it lives in the same repository, at its root, and
+the workflow's single checkout carries both halves.
 
 ### 5. Deploy
 

@@ -1,6 +1,7 @@
-# Weekly update PRs, alongside the Monday npm audit in security.yml.
-# Enable "Dependabot security updates" in the repository settings so a new
-# advisory opens a PR immediately rather than waiting for Monday.
+# Weekly update PRs, alongside the Monday audits in security.yml (npm audit for
+# the app, pip-audit for backend/). Enable "Dependabot security updates" in the
+# repository settings so a new advisory opens a PR immediately rather than
+# waiting for Monday.
 version: 2
 updates:
   - package-ecosystem: npm
@@ -20,6 +21,24 @@ updates:
       - dependency-name: "@capacitor/cli"
         update-types: ["version-update:semver-major"]
 
+  - package-ecosystem: pip
+    directory: "/backend"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      # One PR for the test tooling; it never reaches the image.
+      test-tooling:
+        patterns: ["pytest*", "fakeredis*", "httpx", "httpcore", "pluggy", "iniconfig", "Pygments"]
+
+  # Both Dockerfiles and the compose files' images.
+  - package-ecosystem: docker
+    directory: "/backend/docker"
+    schedule:
+      interval: monthly
+
+  # One entry covers every workflow: they all live in the root .github/.
   - package-ecosystem: github-actions
     directory: "/"
     schedule:

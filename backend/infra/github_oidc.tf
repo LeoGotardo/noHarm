@@ -6,9 +6,9 @@
 # expires with the job.
 
 variable "github_repository" {
-  description = "owner/name of the backend repo whose workflow deploys. Only this repo can assume the role."
+  description = "owner/name of the repo whose workflow deploys. Only this repo can assume the role."
   type        = string
-  default     = "LeoGotardo/noHarmBack"
+  default     = "LeoGotardo/noHarm"
 }
 
 variable "create_github_oidc_provider" {
