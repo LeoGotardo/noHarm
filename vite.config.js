@@ -53,6 +53,9 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
+      // The server's half of the repository is none of Vite's business, and
+      // backend/venv alone is thousands of files for the watcher to track.
+      watch: { ignored: ['**/backend/**'] },
       proxy: {
         // Mirrors `location /api/` in nginx.conf, whose trailing slash on
         // proxy_pass does the same thing: strip the prefix, forward the rest.

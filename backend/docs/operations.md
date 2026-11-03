@@ -388,6 +388,20 @@ git checkout master
 `--no-release` because a rollback is not a new version. The tag commits are
 already on origin, so the script's "pushed" check passes on the detached HEAD.
 
+**Releases up to v1.0.2 predate the single repository.** At those tags this
+repository holds the app alone, with no `backend/` and no script to run, and
+the server's code for each is tagged `backend-v1.0.x` here and `v1.0.x` in the
+archived `noHarmBack`. Rolling back to one of them is the old two-checkout
+procedure, from a directory holding a checkout of each repository side by
+side (a fresh clone of the archived `noHarmBack` will do):
+
+```bash
+git -C noHarm checkout v1.0.2
+git -C noHarmBack checkout v1.0.2
+./noHarmBack/docker/deploy-host.sh --no-release
+git -C noHarm checkout master
+```
+
 **Migrations are forward-only.** If the bad release ran one, the old code now
 runs against the new schema. Most migrations only add (tables, columns,
 policies), which old code ignores; four also changed data or column types on
