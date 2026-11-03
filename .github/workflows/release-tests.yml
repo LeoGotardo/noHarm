@@ -1,0 +1,301 @@
+# Release tests: the backend suite and the e2e suite, run against the commit a
+# release names.
+#
+# Started by the same tag as release.yml — the annotated `vX.Y.Z` that
+# `backend/docker/deploy-host.sh` pushes after a healthy deploy. Run it by hand
+# from the Actions tab for any branch or tag (workflow_dispatch). Tags up to
+# v1.0.2 predate backend/ in this repository and cannot be tested here.
+#
+# Not `on: release`. release.yml creates the GitHub Release with GITHUB_TOKEN,
+# and GitHub starts no workflow from an event that token caused, so that trigger
+# would never fire for a real release.
+#
+# Runs beside release.yml, not in front of it. By the time the tag exists the
+# deploy has already happened, so a red run here says the release shipped
+# broken; it does not hold back the APK.
+
+name: release tests
+
+on:
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch or tag to test, e.g. master or v1.2.3"
+        required: true
+        default: master
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-tests-${{ github.event.inputs.ref || github.ref_name }}
+  cancel-in-progress: true
+
+env:
+  VERSION: ${{ github.event.inputs.ref || github.ref_name }}
+
+jobs:
+  backend:
+    name: backend — unit and integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: noharm
+          POSTGRES_PASSWORD: noharm
+          POSTGRES_DB: noharm_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U noharm -d noharm_test"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+      # Not optional for the unit suite either: the route tests go through the
+      # real rate limiter, which talks to Redis on localhost:6379. Without it
+      # they fail with 500s that look like a bug in the change under test.
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+
+    # One block for alembic and pytest alike, so the schema is built with the
+    # same keys the tests encrypt with. The values are backend/tests/conftest.py's
+    # defaults; there is no .secrets.toml here, and APP_ENV names a section it
+    # would not have anyway.
+    env:
+      APP_ENV: test
+      EXEC_MODE: test
+      DEBUG: "false"
+      PORT: "8000"
+      ENCRYPTION_KEY: test-encryption-key-for-noharm-32b  # gitleaks:allow (fake, from backend/tests/conftest.py)
+      DATABASE_ENCRYPTION_KEY: test-database-encryption-key-32by
+      BLIND_INDEX_KEY: test-blind-index-key-for-unit-tests
+      DATABASE_HOST: localhost
+      DATABASE_NAME: noharm_test
+      DATABASE_USER: noharm
+      DATABASE_PASSWORD: noharm
+      DATABASE_URL: postgresql://noharm:noharm@localhost:5432/noharm_test
+      DATABASE_URL_UNPOOLED: postgresql://noharm:noharm@localhost:5432/noharm_test
+      TEST_DATABASE_URL: postgresql://noharm:noharm@localhost:5432/noharm_test
+      # POSTGRES_USER is a superuser and ignores every policy, so test_rls.py
+      # would skip itself. This role is created below, after the migrations.
+      RLS_TEST_DATABASE_URL: postgresql://noharm_rls:noharm_rls@localhost:5432/noharm_test
+      REDIS_URL: redis://localhost:6379/15
+      TEST_REDIS_URL: redis://localhost:6379/1
+      STATUS_CODES: '{"disabled":0,"enabled":1,"deleted":2,"blocked":3,"pending":4,"accepted":5,"ignored":6,"unread":7,"read":8,"banned":9}'
+      JWT_SECRET_KEY: test-jwt-secret-key-for-unit-testing
+      JWT_REFRESH_SECRET_KEY: test-jwt-refresh-secret-key-testing
+      JWT_ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: "15"
+      REFRESH_TOKEN_EXPIRE_DAYS: "7"
+      ALLOWED_ORIGINS: '["http://localhost:3000"]'
+      TRUSTED_PROXIES: "[]"
+      FIREBASE_PROJECT_ID: demo-noharm
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.VERSION }}
+
+      # TestPurge deletes the Firebase user behind an account, and with
+      # FIREBASE_AUTH_EMULATOR_HOST set (backend/tests/integration/conftest.py)
+      # that call goes to localhost:9099, so an emulator has to be listening
+      # there (backend/docs/TESTING.md). The Auth emulator is Node only, no Java. A `demo-`
+      # project needs no login. Started now, waited for before the integration
+      # tests, so it boots while pip installs.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      - name: start the Firebase Auth emulator
+        run: |
+          dir="$RUNNER_TEMP/firebase-emulator"
+          mkdir -p "$dir"
+          echo '{"emulators":{"auth":{"host":"127.0.0.1","port":9099},"ui":{"enabled":false},"singleProjectMode":true}}' \
+            > "$dir/firebase.json"
+          cd "$dir"
+          nohup npx -y firebase-tools@15.34.0 emulators:start --only auth --project demo-noharm \
+            > "$dir/emulator.log" 2>&1 &
+
+      # 3.12, like docker/Dockerfile.dev and the image.
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+
+      - name: install
+        run: pip install -r requirements-dev.txt
+
+      # Alembic is the only thing that builds a schema, RLS policies included.
+      - name: migrate
+        id: migrate
+        run: alembic upgrade head
+
+      # The same shape as backend/docker/postgres-init/10-app-role.sh: no superuser, no
+      # BYPASSRLS, DML only. Granted after the migrations, since the tables
+      # have to exist first.
+      - name: role without RLS bypass
+        run: |
+          docker exec -i "${{ job.services.postgres.id }}" \
+            psql -v ON_ERROR_STOP=1 -U noharm -d noharm_test <<'SQL'
+          CREATE ROLE noharm_rls LOGIN PASSWORD 'noharm_rls'
+              NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE;
+          GRANT USAGE ON SCHEMA public TO noharm_rls;
+          GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO noharm_rls;
+          GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO noharm_rls;
+          SQL
+
+      - name: unit tests
+        run: pytest tests/unit -q
+
+      # Run whenever there is a schema to test against, even after a red unit
+      # step: the two suites fail for different reasons, and stopping at the
+      # first hides the second.
+      - name: wait for the Firebase Auth emulator
+        if: ${{ !cancelled() && steps.migrate.outcome == 'success' }}
+        run: |
+          for _ in $(seq 1 90); do
+            curl -fs http://127.0.0.1:9099/ >/dev/null && exit 0
+            sleep 2
+          done
+          cat "$RUNNER_TEMP/firebase-emulator/emulator.log"
+          echo "::error::the Firebase Auth emulator did not start within three minutes"
+          exit 1
+
+      # -rfEs: the default summary (failures, errors) plus why anything was
+      # skipped, so a module that quietly skips (no role, no TEST_DATABASE_URL)
+      # shows up in the log rather than as green. A bare -rs would replace the
+      # default and drop the failures from the summary.
+      - name: integration tests
+        if: ${{ !cancelled() && steps.migrate.outcome == 'success' }}
+        run: pytest tests/integration -q -rfEs
+
+  e2e:
+    name: frontend — e2e against the backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.VERSION }}
+
+      # backend/docker/compose.yaml is the stack tests/README.md asks for, and it
+      # brings what the suite relies on: the container names it `docker exec`s
+      # into (postgres_db, redis_cache), Firebase emulator mode and the
+      # e2e-moderator admin uids. What it does not bring is the app's
+      # configuration, which comes from the gitignored backend/.secrets.toml
+      # [dev] section on a developer machine; without it Config() stops at the
+      # first missing variable.
+      #
+      # DEBUG=false keeps the reloader off, and with it off run.py binds
+      # 127.0.0.1, unreachable through the published port, hence BIND_HOST.
+      - name: backend configuration
+        run: |
+          cat > "$RUNNER_TEMP/compose.ci.yaml" <<'YAML'
+          services:
+            app:
+              environment:
+                EXEC_MODE: dev
+                DEBUG: "false"
+                BIND_HOST: 0.0.0.0
+                PORT: "8080"
+                DATABASE_HOST: postgres
+                DATABASE_NAME: noharm-db
+                DATABASE_USER: root
+                DATABASE_PASSWORD: root
+                DATABASE_URL: postgresql://root:root@postgres:5432/noharm-db?sslmode=disable
+                DATABASE_URL_UNPOOLED: postgresql://root:root@postgres:5432/noharm-db?sslmode=disable
+                REDIS_URL: redis://redis:6379/0
+                ENCRYPTION_KEY: ci-encryption-key-for-noharm-e2e-run  # gitleaks:allow (fake, CI only)
+                DATABASE_ENCRYPTION_KEY: ci-database-encryption-key-for-e2e
+                BLIND_INDEX_KEY: ci-blind-index-key-for-the-e2e-run
+                JWT_SECRET_KEY: ci-jwt-secret-key-for-the-e2e-run  # gitleaks:allow (fake, CI only)
+                JWT_REFRESH_SECRET_KEY: ci-jwt-refresh-secret-key-for-e2e
+                JWT_ALGORITHM: HS256
+                ACCESS_TOKEN_EXPIRE_MINUTES: "15"
+                REFRESH_TOKEN_EXPIRE_DAYS: "7"
+                STATUS_CODES: '{"disabled":0,"enabled":1,"deleted":2,"blocked":3,"pending":4,"accepted":5,"ignored":6,"unread":7,"read":8,"banned":9}'
+                ALLOWED_ORIGINS: '["http://localhost:5173"]'
+          YAML
+
+      - name: start the backend
+        run: |
+          docker compose -p noharm-e2e \
+            -f backend/docker/compose.yaml -f "$RUNNER_TEMP/compose.ci.yaml" \
+            up -d --build
+
+      - name: wait for the backend
+        run: |
+          for _ in $(seq 1 60); do
+            curl -fs http://localhost:8080/health && exit 0
+            sleep 2
+          done
+          echo "::error::the backend did not answer /health within two minutes"
+          docker compose -p noharm-e2e \
+            -f backend/docker/compose.yaml -f "$RUNNER_TEMP/compose.ci.yaml" \
+            logs app || true
+          exit 1
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: install
+        run: npm ci
+
+      - name: install the browser
+        run: npx playwright install --with-deps chromium
+
+      # What `npm run dev` reads. VITE_SOCKET_URL stays defined and empty, as
+      # in .env.example. The Firebase values are placeholders: getAuth() throws
+      # on a missing apiKey and the app would render nothing, but the suite
+      # never opens the Google popup, so nothing ever checks them.
+      - name: front-end configuration
+        run: |
+          cat > .env.local <<'ENV'
+          VITE_API_URL=/api
+          VITE_SOCKET_URL=
+          VITE_DEV_BACKEND_ORIGIN=http://localhost:8080
+          VITE_FIREBASE_API_KEY=ci-placeholder
+          VITE_FIREBASE_AUTH_DOMAIN=demo-noharm.firebaseapp.com
+          VITE_FIREBASE_PROJECT_ID=demo-noharm
+          VITE_FIREBASE_STORAGE_BUCKET=demo-noharm.appspot.com
+          VITE_FIREBASE_MESSAGING_SENDER_ID=000000000000
+          VITE_FIREBASE_APP_ID=1:000000000000:web:0000000000000000
+          VITE_STATUS_CONSTANTS={"disabled":0,"enabled":1,"deleted":2,"blocked":3,"pending":4,"accepted":5,"ignored":6,"unread":7,"read":8,"banned":9}
+          VITE_SUPPORT_EMAIL=support@noharm.site
+          VITE_DELETION_GRACE_DAYS=30
+          VITE_MINIMUM_AGE=18
+          ENV
+
+      # Playwright starts `npm run dev` itself (playwright.config.js).
+      - name: e2e tests
+        run: npm run test:e2e
+
+      - name: backend log
+        if: failure()
+        run: |
+          mkdir -p playwright-report
+          docker compose -p noharm-e2e \
+            -f backend/docker/compose.yaml -f "$RUNNER_TEMP/compose.ci.yaml" \
+            logs app > playwright-report/backend.log 2>&1 || true
+
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: e2e-report-${{ env.VERSION }}
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14

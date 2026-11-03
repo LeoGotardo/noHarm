@@ -1,0 +1,52 @@
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+from core.roles import RoleField, publicRole
+from typing import Optional
+from uuid import UUID
+from datetime import datetime
+
+
+class FriendshipBase(BaseModel):
+    sender: str = Field(..., description="User ID")
+    reciver: str = Field(..., description="User ID")
+    status: int = Field(default=1, description="Friendship status (ex: 1 active, 0 disabled)")
+
+
+class FriendshipCreate(FriendshipBase):
+    pass
+
+
+class FriendshipUpdate(BaseModel):
+    status: Optional[int] = Field(None, description="Friendship status (ex: 1 active, 0 disabled)")
+
+
+class FriendUserInfo(BaseModel):
+    id: str = Field(..., description="User ID")
+    username: str = Field(..., description="User display name")
+    profile_picture: Optional[str] = Field(None, description="Profile picture URL")
+    role: RoleField = Field(None, description="`official`, `admin` or null — see UserResponse.role")
+
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
+
+    @model_validator(mode="after")
+    def _deriveRole(self):
+        self.role = publicRole(self.id)
+        return self
+
+
+class FriendshipResponse(FriendshipBase):
+    id: UUID
+    created_at: datetime = Field(..., description="Created at")
+    updated_at: datetime = Field(..., description="Updated at")
+    sender_user: Optional[FriendUserInfo] = Field(None, description="Sender's public profile")
+    reciver_user: Optional[FriendUserInfo] = Field(None, description="Receiver's public profile")
+    blocked_by: Optional[str] = Field(
+        None,
+        description="Who placed the block, when status is blocked — only they can lift it. Null on older rows"
+    )
+
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
+
+
+class FriendshipListResponse(BaseModel):
+    friendships: list[FriendshipResponse]
+    total: int

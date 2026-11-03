@@ -1,0 +1,125 @@
+from core.database import Database
+from domain.entities.notification import Notification
+from infrastructure.database.models.notificationModel import NotificationModel
+from exceptions.baseExceptions import NoHarmException
+from core.errorUtils import excLocation
+from core.config import config
+from security.encryption import Encryption
+
+
+class NotificationRepository:
+    def __init__(self, db: Database):
+        self.database = db
+        self.session = db.session
+
+    def _toEntity(self, model: NotificationModel) -> Notification:
+        return Notification(
+            id=model.id,
+            user_id=model.user_id,
+            status=model.status,
+            device_fcm=model.device_fcm,
+            messages=model.messages,
+            friends=model.friends,
+            community=model.community,
+            created_at=model.created_at,
+            updated_at=model.updated_at
+        )
+
+    def _findByFcm(self, user_id: str, fcm_token: str) -> NotificationModel:
+        fcm_hash = Encryption.hash(fcm_token)
+        device = (
+            self.session.query(NotificationModel)
+            .filter(
+                NotificationModel.user_id == user_id,
+                NotificationModel.device_fcm_hash == fcm_hash
+            )
+            .first()
+        )
+        if not device:
+            raise NoHarmException(statusCode=404, message="Device not found")
+        return device
+
+    def add(self, user_id: str, device_fcm: str, messages: bool = True, friends: bool = True, community: bool = True) -> Notification:
+        """Register a token, or refresh the row that already holds it.
+
+        An upsert because the app registers on every start: inserting each time
+        left one row per launch, and every row was a copy of every push. A row
+        unregistered earlier (status deleted) is enabled again rather than
+        duplicated.
+        """
+        try:
+            fcm_hash = Encryption.hash(device_fcm)
+            device = (
+                self.session.query(NotificationModel)
+                .filter(
+                    NotificationModel.user_id == user_id,
+                    NotificationModel.device_fcm_hash == fcm_hash,
+                )
+                .first()
+            )
+            if device is None:
+                device = NotificationModel(user_id=user_id, device_fcm=device_fcm)
+                self.session.add(device)
+            device.status = config.STATUS_CODES["enabled"]
+            device.messages = messages
+            device.friends = friends
+            device.community = community
+            self.session.commit()
+            return self._toEntity(device)
+        except Exception as e:
+            self.session.rollback()
+            if isinstance(e, NoHarmException):
+                raise e
+            raise NoHarmException(statusCode=500, message=f'{type(e).__name__}: {e} in {excLocation()}')
+
+    def update(self, user_id: str, old_fcm: str, new_fcm: str) -> Notification:
+        try:
+            device = self._findByFcm(user_id, old_fcm)
+            device.device_fcm = new_fcm
+            self.session.commit()
+            return self._toEntity(device)
+        except Exception as e:
+            self.session.rollback()
+            if isinstance(e, NoHarmException):
+                raise e
+            raise NoHarmException(statusCode=500, message=f'{type(e).__name__}: {e} in {excLocation()}')
+
+    def findActiveByUserId(self, user_id: str) -> list[str]:
+        devices = (
+            self.session.query(NotificationModel)
+            .filter(
+                NotificationModel.user_id == user_id,
+                NotificationModel.status == config.STATUS_CODES["enabled"],
+            )
+            .all()
+        )
+        return [d.device_fcm for d in devices]
+
+    def disableAllForUser(self, user_id: str) -> int:
+        """Stop every device of this account receiving pushes. Returns how many."""
+        try:
+            count = (
+                self.session.query(NotificationModel)
+                .filter(
+                    NotificationModel.user_id == user_id,
+                    NotificationModel.status == config.STATUS_CODES["enabled"],
+                )
+                .update({NotificationModel.status: config.STATUS_CODES["deleted"]}, synchronize_session=False)
+            )
+            self.session.commit()
+            return count
+        except Exception as e:
+            self.session.rollback()
+            raise NoHarmException(statusCode=500, message=f'{type(e).__name__}: {e} in {excLocation()}')
+
+    def softDelete(self, user_id: str, fcm_token: str) -> bool:
+        try:
+            device = self._findByFcm(user_id, fcm_token)
+            device.status = config.STATUS_CODES["deleted"]
+            self.session.commit()
+            return True
+        except Exception as e:
+            self.session.rollback()
+            if isinstance(e, NoHarmException):
+                raise e
+            raise NoHarmException(statusCode=500, message=f'{type(e).__name__}: {e} in {excLocation()}')

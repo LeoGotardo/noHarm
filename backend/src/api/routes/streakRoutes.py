@@ -1,0 +1,172 @@
+from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy.orm import Session
+
+from api.dependencies.auth import getCurrentUser
+from api.dependencies.database import getDbWithRLS
+from domain.services.streakService import StreakService
+from schemas.streakSchemas import StreakResponse, StreakListResponse, StreakStartRequest, StreakEndRequest
+from schemas.paginationSchemas import PaginationParams, PaginatedResponse
+from exceptions.baseExceptions import NoHarmException
+from security.limiter import limiter
+from typing import Optional, Union
+
+
+router = APIRouter(prefix="/streaks", tags=["Streaks"])
+
+
+@router.get(
+    "/current",
+    response_model=StreakResponse,
+    summary="Get my current streak",
+    description=(
+        "Returns the authenticated user's active streak."
+    )
+)
+@limiter.limit("60/minute")
+def getCurrentStreak(
+    request: Request,
+    db: Session = Depends(getDbWithRLS),
+    currentUserId: str = Depends(getCurrentUser)
+):
+    try:
+        service = StreakService(db)
+        streak = service.getCurrentByUserId(currentUserId)
+        return StreakResponse.model_validate(streak)
+    except NoHarmException as e:
+        raise HTTPException(status_code=e.statusCode, detail=e.message)
+
+
+@router.get(
+    "/record",
+    response_model=StreakResponse,
+    summary="Get my record streak",
+    description="Returns the authenticated user's longest streak (isRecord = True)."
+)
+@limiter.limit("60/minute")
+def getRecordStreak(
+    request: Request,
+    db: Session = Depends(getDbWithRLS),
+    currentUserId: str = Depends(getCurrentUser)
+):
+    try:
+        service = StreakService(db)
+        streak = service.getRecordByUserId(currentUserId)
+        return StreakResponse.model_validate(streak)
+    except NoHarmException as e:
+        raise HTTPException(status_code=e.statusCode, detail=e.message)
+
+
+@router.get(
+    "/history",
+    response_model=Union[PaginatedResponse[StreakResponse], StreakListResponse],
+    summary="Get my streak history",
+    description="Returns all past and current streaks for the authenticated user."
+)
+@limiter.limit("30/minute")
+def getStreakHistory(
+    request: Request,
+    paginated: bool = False,
+    paginatedParams: PaginationParams = Depends(),
+    db: Session = Depends(getDbWithRLS),
+    currentUserId: str = Depends(getCurrentUser)
+):
+    try:
+        service = StreakService(db)
+        if paginated:
+            # Through StreakResponse, like the list form: it is what marks the
+            # stored (naive UTC) instants as UTC for the client.
+            page = service.getAllByUserId(currentUserId, paginatedParams)
+            return PaginatedResponse[StreakResponse](
+                items=[StreakResponse.model_validate(s) for s in page.items],
+                total=page.total,
+                page=page.page,
+                pageSize=page.pageSize,
+                totalPages=page.totalPages,
+                hasNext=page.hasNext,
+                hasPrevious=page.hasPrevious,
+            )
+        streaks = service.getAllByUserId(currentUserId)
+        return StreakListResponse(
+            streaks=[StreakResponse.model_validate(s) for s in streaks],
+            total=len(streaks)
+        )
+    except NoHarmException as e:
+        raise HTTPException(status_code=e.statusCode, detail=e.message)
+
+
+@router.post(
+    "/start",
+    response_model=StreakResponse,
+    status_code=201,
+    summary="Start a new streak",
+    description=(
+        "Creates a new active streak. "
+        "Fails with 409 if an active streak already exists. "
+        "`start_at` defaults to now if omitted."
+    )
+)
+@limiter.limit("5/minute")
+def startStreak(
+    request: Request,
+    body: Optional[StreakStartRequest] = None,
+    db: Session = Depends(getDbWithRLS),
+    currentUserId: str = Depends(getCurrentUser)
+):
+    service = StreakService(db)
+    # NoHarmException reaches the handler in main.py instead of being converted,
+    # like /auth/register and /reports/{userId}: this route is the one that
+    # answers 403 HEALTH_CONSENT_REQUIRED, and the conversion flattens that to a
+    # bare FORBIDDEN. A client cannot tell "you withdrew the consent this needs,
+    # give it again in Settings" from any other refusal without the code.
+    streak = service.startStreak(currentUserId, startAt=body.start_at if body else None)
+    return StreakResponse.model_validate(streak)
+
+
+@router.post(
+    "/end",
+    response_model=StreakResponse,
+    status_code=200,
+    summary="End (reset) my streak",
+    description=(
+        "Marks relapse: sets end_at on the active streak, checks personal record, "
+        "and starts a fresh streak. `end_at` defaults to now if omitted. "
+        "Creates an audit log entry of type 7."
+    )
+)
+@limiter.limit("5/minute")
+def endStreak(
+    request: Request,
+    body: Optional[StreakEndRequest] = None,
+    db: Session = Depends(getDbWithRLS),
+    currentUserId: str = Depends(getCurrentUser)
+):
+    try:
+        service = StreakService(db)
+        newStreak = service.endStreak(currentUserId, endAt=body.end_at if body else None)
+        return StreakResponse.model_validate(newStreak)
+    except NoHarmException as e:
+        raise HTTPException(status_code=e.statusCode, detail=e.message)
+
+
+@router.post(
+    "/checkin",
+    response_model=StreakResponse,
+    status_code=200,
+    summary="Daily check-in",
+    description=(
+        "Confirms the user's sobriety, refreshing the streak's activity timestamp. "
+        "Streaks only reset via manual relapse (POST /streaks/end)."
+    )
+)
+@limiter.limit("10/minute")
+def checkin(
+    request: Request,
+    db: Session = Depends(getDbWithRLS),
+    currentUserId: str = Depends(getCurrentUser)
+):
+    try:
+        service = StreakService(db)
+        streak = service.checkin(currentUserId)
+        return StreakResponse.model_validate(streak)
+    except NoHarmException as e:
+        raise HTTPException(status_code=e.statusCode, detail=e.message)

@@ -93,8 +93,8 @@ List of app features to test manually. Organized by domain, in usage-flow order.
 
 ## Community (posts)
 
-Front end built against `noHarmBack/docs/POSTS_PLAN.md`, and the backend routes
-are live (`noHarmBack/tests/integration/test_posts.py` covers them). None of this
+Front end built against `backend/docs/POSTS_PLAN.md`, and the backend routes
+are live (`backend/tests/integration/test_posts.py` covers them). None of this
 is 🤖 yet: `tests/posts.spec.js` has not been written.
 
 - [ ] **Feed** — Everyone / Friends tabs; the scope you left is the one you
@@ -396,7 +396,7 @@ Handlers previously stubbed, now calling the backend:
 ## Proxy (private backend)
 
 Implemented. The details are in `CLAUDE.md` (Deployment section) and in
-`noHarmBack/docker/app_locations.conf`, which is the real routing file;
+`backend/docker/app_locations.conf`, which is the real routing file;
 the old `PROXY.md` described a serverless proxy that no longer exists.
 The app now talks to its own origin: `VITE_API_URL=/api`, empty
 `VITE_SOCKET_URL`, and the container's nginx forwards `/api` (without the

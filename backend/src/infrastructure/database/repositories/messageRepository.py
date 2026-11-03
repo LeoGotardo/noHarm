@@ -1,0 +1,370 @@
+from core.errorUtils import excLocation
+from infrastructure.database.models.messageModel import MessageModel
+from exceptions.baseExceptions import NoHarmException
+from domain.entities.message import Message
+from schemas.paginationSchemas import PaginationParams, PaginatedResponse, createPaginatedResponse
+
+from core.database import Database
+from core.config import config
+
+from typing import Optional
+from uuid import UUID
+
+class MessageRepository:
+    def __init__(self, db: Database):
+        self.db = db
+        self.session = self.db.session
+        self.engine = self.db.engine
+        
+        
+    def _toEntity(self, model: MessageModel) -> Message:
+        return Message(
+            id=model.id,
+            chat=model.chat,
+            sender=model.sender,
+            status=model.status,
+            send_at=model.send_at,
+            message=model.message,
+            recived_at=model.recived_at,
+            created_at=model.created_at,
+            updated_at=model.updated_at
+        )
+        
+    
+    def findById(self, id: UUID, returnModel: bool = False) -> Message | MessageModel:
+        """Find a message by ID
+        
+        Args:
+            id (UUID): Message ID
+            
+        Returns:
+            Message: Message with his full data
+        """
+        try:
+            message = self.session.query(MessageModel).filter(MessageModel.id == id).first()
+            if message:
+                return message if returnModel else self._toEntity(message)
+            else:
+                raise NoHarmException(statusCode=404, message="Message not found")
+        except Exception as e:
+            if isinstance(e, NoHarmException):
+                raise e
+            raise NoHarmException(statusCode=500, message=f'{type(e).__name__}: {e} in {excLocation()}')
+        
+    
+    def findByChatId(self, chat_id: UUID, params: Optional[PaginationParams] = None) -> list[Message] | PaginatedResponse[Message]:
+        """Find all messages by chat ID, optionally paginated
+
+        Args:
+            chat_id (str): Chat ID
+            params: Optional pagination parameters
+
+        Returns:
+            list[Message] | PaginatedResponse[Message]
+        """
+        try:
+            # Oldest first, always. Without an ORDER BY the rows come back in
+            # whatever order the heap holds them, and marking a message read
+            # rewrites its row — which moved just-read messages to the end and
+            # put newer ones above older ones in the thread. `created_at`
+            # rather than `send_at`: the latter is encrypted and unsortable in
+            # the database. `id` breaks ties so pagination cannot repeat or
+            # skip a row.
+            query = (
+                self.session.query(MessageModel)
+                .filter(MessageModel.chat == chat_id)
+                .order_by(MessageModel.created_at.asc(), MessageModel.id.asc())
+            )
+            if params:
+                total = query.count()
+                offset = (params.page - 1) * params.pageSize
+                
+                items = query.offset(offset).limit(params.pageSize).all()
+                items = [self._toEntity(item) for item in items]
+                
+                return createPaginatedResponse(items, total, params.page, params.pageSize)  
+            
+            return [self._toEntity(item) for item in query.all()]  
+        except Exception as e:
+            if isinstance(e, NoHarmException):
+                raise e
+            raise NoHarmException(statusCode=500, message=f'{type(e).__name__}: {e} in {excLocation()}')
+
+
+    def findUnreadByChatId(self, chat_id: UUID, params: Optional[PaginationParams] = None) -> list[Message] | PaginatedResponse[Message]:
+        """Find all unread messages by chat ID, optionally paginated
+
+        Args:
+            chat_id (str): Chat ID
+            params: Optional pagination parameters
+
+        Returns:
+            list[Message] | PaginatedResponse[Message]
+        """
+        try:
+            query = self.session.query(MessageModel).filter(
+                MessageModel.chat == chat_id,
+                MessageModel.status == config.STATUS_CODES["unread"]
+            ).order_by(MessageModel.created_at.asc(), MessageModel.id.asc())
+            if params:
+                total = query.count()
+                offset = (params.page - 1) * params.pageSize
+                
+                items = query.offset(offset).limit(params.pageSize).all()
+                items = [self._toEntity(item) for item in items]
+                
+                return createPaginatedResponse(items, total, params.page, params.pageSize)  
+            
+            return [self._toEntity(item) for item in query.all()]
+        except Exception as e:
+            if isinstance(e, NoHarmException):
+                raise e
+            raise NoHarmException(statusCode=500, message=f'{type(e).__name__}: {e} in {excLocation()}')
+        
+    
+    def findLastByChatId(self, chat_id: UUID) -> Optional[Message]:
+        """Return the most recent message in a chat, or None if the chat has none."""
+        try:
+            model = (
+                self.session.query(MessageModel)
+                .filter(MessageModel.chat == chat_id)
+                .order_by(MessageModel.created_at.desc())
+                .first()
+            )
+            return self._toEntity(model) if model else None
+        except Exception as e:
+            if isinstance(e, NoHarmException):
+                raise e
+            raise NoHarmException(statusCode=500, message=f'{type(e).__name__}: {e} in {excLocation()}')
+
+
+    def findRecentByChatId(self, chat_id: UUID, limit: int) -> list[Message]:
+        """The last `limit` messages of a chat, oldest first.
+
+        Ordered on `created_at` rather than `send_at`: the latter is encrypted,
+        so the database cannot sort on it, and a LIMIT applied after sorting in
+        Python would have to read the whole conversation to find its tail.
+
+        Written for evidence capture, which needs a bounded read of a chat that
+        may hold thousands of rows.
+        """
+        try:
+            models = (
+                self.session.query(MessageModel)
+                .filter(MessageModel.chat == chat_id)
+                .order_by(MessageModel.created_at.desc())
+                .limit(limit)
+                .all()
+            )
+            return [self._toEntity(model) for model in reversed(models)]
+        except Exception as e:
+            if isinstance(e, NoHarmException):
+                raise e
+            raise NoHarmException(statusCode=500, message=f'{type(e).__name__}: {e} in {excLocation()}')
+
+
+    def countUnreadByChatId(self, chat_id: UUID, recipient_id: str) -> int:
+        """Count unread messages in a chat addressed to recipient_id.
+
+        Only messages sent by the *other* participant count — the user's own
+        messages are never "unread" for themselves.
+        """
+        try:
+            return (
+                self.session.query(MessageModel)
+                .filter(
+                    MessageModel.chat == chat_id,
+                    MessageModel.status == config.STATUS_CODES["unread"],
+                    MessageModel.sender != recipient_id,
+                )
+                .count()
+            )
+        except Exception as e:
+            if isinstance(e, NoHarmException):
+                raise e
+            raise NoHarmException(statusCode=500, message=f'{type(e).__name__}: {e} in {excLocation()}')
+
+
+    def create(self, Message: Message) -> Message:
+        """Create a message
+        
+        Args:
+            Message (Message): Message to create
+            
+        Returns:
+            Message: Message with his full data
+        """
+        try:
+            messageModel = MessageModel(
+                chat=Message.chat,
+                sender=Message.sender,
+                status=Message.status,
+                send_at=Message.send_at,
+                message=Message.message,
+                recived_at=Message.recived_at,
+                created_at=Message.created_at,
+                updated_at=Message.updated_at
+            )
+            
+            self.session.add(messageModel)
+            self.session.commit()
+            
+            return self._toEntity(messageModel)
+        except Exception as e:
+            self.session.rollback()
+            if isinstance(e, NoHarmException):
+                raise e
+            raise NoHarmException(statusCode=500, message=f'{type(e).__name__}: {e} in {excLocation()}')
+        
+        
+    def markAsRead(self, id: UUID) -> Message:
+        """Mark a message as read
+        
+        Args:
+            id (UUID): Message ID
+            
+        Returns:
+            Message: Message with his full data
+        """
+        try:
+            messageModel = self.findById(id, returnModel=True)
+            
+            messageModel.status = config.STATUS_CODES["read"]
+            
+            self.session.commit()
+            
+            return self._toEntity(messageModel)
+        except Exception as e:
+            self.session.rollback()
+            if isinstance(e, NoHarmException):
+                raise e
+            raise NoHarmException(statusCode=500, message=f'{type(e).__name__}: {e} in {excLocation()}')
+        
+    
+    def markAllAsRead(self, chat_id: UUID, reader_id: str) -> bool:
+        """Mark the messages `reader_id` received in this chat as read.
+
+        Only the *other* participant's messages count. Marking every unread row
+        in the chat also flipped the reader's own outgoing messages to `read`,
+        so opening a conversation put a read receipt on messages the peer had
+        never seen — `countUnreadByChatId` has always drawn the same line.
+
+        Args:
+            chat_id (UUID): Chat ID
+            reader_id (str): The user doing the reading
+
+        Returns:
+            bool: True if messages were marked as read, False if not
+        """
+        try:
+            messages = self.session.query(MessageModel).filter(
+                MessageModel.chat == chat_id,
+                MessageModel.status == config.STATUS_CODES["unread"],
+                MessageModel.sender != reader_id,
+            ).all()
+            for message in messages:
+                message.status = config.STATUS_CODES["read"]
+            self.session.commit()
+            return True
+        except Exception as e:
+            self.session.rollback()
+            if isinstance(e, NoHarmException):
+                raise e
+            raise NoHarmException(statusCode=500, message=f'{type(e).__name__}: {e} in {excLocation()}')
+        
+        
+    def updateStatus(self, id: UUID, status: int) -> Message:
+        """Update a message status
+        
+        Args:
+            id (UUID): Message ID
+            status (int): New status
+            
+        Returns:
+            Message: Message with his full data
+        """
+        try:
+            messageModel = self.findById(id, returnModel=True)
+            messageModel.status = status
+            
+            self.session.commit()
+            
+            return self._toEntity(messageModel)
+        except Exception as e:
+            self.session.rollback()
+            if isinstance(e, NoHarmException):
+                raise e
+            raise NoHarmException(statusCode=500, message=f'{type(e).__name__}: {e} in {excLocation()}')
+    
+    
+    def update(self, id: UUID, updatedMessage: Message) -> Message:
+        """Update a message
+
+        Args:
+            id (UUID): Message ID
+            updatedMessage (Message): Message with updated data
+
+        Returns:
+            Message: Message with his full data
+        """
+        try:
+            messageModel = self.findById(id, returnModel=True)
+            messageModel.sender = updatedMessage.sender if updatedMessage.sender else messageModel.sender
+            messageModel.status = updatedMessage.status if updatedMessage.status else messageModel.status
+            
+            self.session.commit()
+            
+            return self._toEntity(messageModel)
+        except Exception as e:
+            self.session.rollback()
+            if isinstance(e, NoHarmException):
+                raise e
+            raise NoHarmException(statusCode=500, message=f'{type(e).__name__}: {e} in {excLocation()}')
+    
+        
+    def delete(self, id: UUID) -> bool:
+        """Delete a message
+        
+        Args:
+            id (UUID): Message ID
+            
+        Returns:
+            bool: True if message was deleted, False if not
+        """
+        try:
+            messageModel = self.findById(id, returnModel=True)
+            
+            self.session.delete(messageModel)
+            self.session.commit()
+            
+            return True
+        except Exception as e:
+            self.session.rollback()
+            if isinstance(e, NoHarmException):
+                raise e
+            raise NoHarmException(statusCode=500, message=f'{type(e).__name__}: {e} in {excLocation()}')
+        
+        
+    def softDelete(self, id: UUID) -> bool:
+        """Soft delete a message
+
+        Args:
+            id (UUID): Message ID
+
+        Returns:
+            bool: True if message was soft deleted, False if not
+        """
+        try:
+            messageModel = self.findById(id, returnModel=True)
+            
+            messageModel.status = config.STATUS_CODES["deleted"]
+            
+            self.session.commit()
+            
+            return True
+        except Exception as e:
+            self.session.rollback()
+            if isinstance(e, NoHarmException):
+                raise e
+            raise NoHarmException(statusCode=500, message=f'{type(e).__name__}: {e} in {excLocation()}')
+

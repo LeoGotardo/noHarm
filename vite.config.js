@@ -10,7 +10,7 @@ export default defineConfig(({ mode }) => {
   // the same role — the app code stays on relative URLs either way, instead of
   // carrying a different base per environment.
   //
-  // Keep these two rules in step with noHarmBack/docker/nginx.conf. They are
+  // Keep these two rules in step with backend/docker/nginx.conf. They are
   // the same contract written twice, and a drift shows up as an app that works
   // in dev and 404s in the container.
   const backend = env.VITE_DEV_BACKEND_ORIGIN || 'http://localhost:8080'
@@ -53,6 +53,9 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
+      // The server's half of the repository is none of Vite's business, and
+      // backend/venv alone is thousands of files for the watcher to track.
+      watch: { ignored: ['**/backend/**'] },
       proxy: {
         // Mirrors `location /api/` in nginx.conf, whose trailing slash on
         // proxy_pass does the same thing: strip the prefix, forward the rest.

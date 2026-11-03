@@ -19,11 +19,11 @@
  * ## Every statement here is a claim about the backend
  *
  * The numbers (30 days, 180 days, 90 days, 7 days, 200 characters, 20
- * messages) are read from `noHarmBack` — `core/config.py`,
+ * messages) are read from `backend/` — `core/config.py`,
  * `messageService.py`, `docker/backup-db.sh`, `docker/compose.host.yaml`. When
  * one of those changes, the sentence here that states it is now false.
  *
- * The posts and comments passages describe `noHarmBack/docs/POSTS_PLAN.md`
+ * The posts and comments passages describe `backend/docs/POSTS_PLAN.md`
  * (visibility, blocking anyone, friend or not, author may delete comments, no
  * editing, 30-day hold on removed content, report evidence). They are only
  * true once that ships — this revision must not be released ahead of it.

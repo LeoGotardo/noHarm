@@ -4,7 +4,7 @@
  * Auth shortcut: POST /auth/login and /auth/register verify a Firebase ID
  * token, and nothing here can produce one signed by Google. The dev backend
  * therefore runs with FIREBASE_AUTH_EMULATOR_HOST set (see
- * ../../../noHarmBack/docker/compose.yaml), which skips the signature check
+ * ../../backend/docker/compose.yaml), which skips the signature check
  * while still enforcing the project, issuer and subject claims. `fakeIdToken`
  * below is shaped to satisfy exactly that — which is what lets a test mint an
  * identity without driving the Google popup, which Playwright cannot automate.

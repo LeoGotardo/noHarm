@@ -7,7 +7,14 @@
 #
 # The schedule is the part that matters: a dependency does not have to change to
 # become vulnerable, so a check that only runs on push goes quiet exactly when
-# the tree stops moving.
+# the tree stops moving. Every advisory the backend's first run found (24 of
+# them, across 7 packages, including six in PyJWT, the library that validates
+# every access token) landed in code nobody had touched for months.
+#
+# Separate from deploy.yml on purpose: that workflow is workflow_dispatch-only
+# because the ECS stack it targets is not provisioned, so anything hung off it
+# never runs, and this is the one check that must keep running whether or not
+# a deploy ever happens.
 
 name: security
 
@@ -16,8 +23,8 @@ on:
     branches: [master]
   pull_request:
   schedule:
-    # Mondays, 05:00 UTC — same slot as the backend's scan, so one Monday
-    # morning covers both halves of the app.
+    # Mondays, 05:00 UTC: after the cert-renewal cron on the live host, so a
+    # Monday morning has one thing to look at, not two.
     - cron: "0 5 * * 1"
   workflow_dispatch:
 
@@ -53,6 +60,38 @@ jobs:
         run: npm audit --audit-level=low
         continue-on-error: true
 
+  pip-audit:
+    name: audit python dependencies
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: install pip-audit
+        run: pip install pip-audit
+
+      # `pip-audit` resolves the requirements against the PyPI advisory
+      # database and exits non-zero on any finding, so a vulnerable pin fails
+      # the check rather than being reported into a log nobody reads.
+      #
+      # requirements-dev.txt pulls in requirements.txt (`-r`), so this covers
+      # both: the dev set never reaches the image, but it runs on every
+      # developer machine and in CI, which is reason enough to audit it.
+      #
+      # --require-hashes is deliberately not used: the files pin versions but
+      # carry no hashes, and the flag would fail on every line rather than
+      # report a vulnerability.
+      - name: audit
+        run: pip-audit --requirement requirements-dev.txt --progress-spinner off --strict
+
+  # One scan for the whole tree, backend history included: it was a repository
+  # of its own, and everything it ever committed is in this one now.
   secrets:
     name: scan for committed secrets
     runs-on: ubuntu-latest
