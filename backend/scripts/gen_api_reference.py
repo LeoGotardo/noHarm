@@ -27,6 +27,15 @@ sys.path.insert(0, str(ROOT / "src"))
 os.chdir(ROOT)
 import conftest  # noqa: E402,F401
 from fastapi.routing import APIRoute  # noqa: E402
+try:
+    # Newer FastAPI (0.143.2 does, 0.135.3 did not) no longer flattens
+    # included routers into app.routes: each include is one entry there,
+    # resolved lazily. This is the public way to walk the routes it serves,
+    # with the prefix and the router-level dependencies already applied.
+    from fastapi.routing import iter_route_contexts  # noqa: E402
+except ImportError:  # older FastAPI: included routes are flattened already
+    def iter_route_contexts(routes):
+        return iter(routes)
 from main import app  # noqa: E402
 from security.limiter import limiter  # noqa: E402
 
@@ -71,8 +80,8 @@ def _summary(route: APIRoute) -> str:
 
 def build() -> str:
     groups = defaultdict(list)
-    for route in app.routes:
-        if not isinstance(route, APIRoute):
+    for route in iter_route_contexts(app.routes):
+        if not isinstance(getattr(route, "original_route", route), APIRoute):
             continue
         tag = (route.tags or ["Other"])[0]
         for method in sorted(route.methods - {"HEAD", "OPTIONS"}):

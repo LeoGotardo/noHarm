@@ -281,8 +281,13 @@ class TestPurge:
         assert run_purge() == 0
 
         assert not account_exists(user_a["uid"])
-        # And the UID stops resolving at all, rather than resolving to a ghost.
-        assert client.post("/auth/login", json={"idToken": user_a["idToken"]}).status_code == 401
+        # And the UID stops resolving at all, rather than resolving to a ghost:
+        # the same identity now reads as one that never registered. That is
+        # 404 ACCOUNT_NOT_FOUND, never 401, which the app would take for an
+        # expired session (authService.login, and test_auth.py's own case).
+        resp = client.post("/auth/login", json={"idToken": user_a["idToken"]})
+        assert resp.status_code == 404
+        assert resp.json()["errorCode"] == "ACCOUNT_NOT_FOUND"
 
     def test_purge_leaves_accounts_inside_the_window(self, client, user_a, run_purge):
         _delete(client, user_a)

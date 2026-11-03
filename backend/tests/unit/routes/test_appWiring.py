@@ -36,6 +36,22 @@ def client(app):
 
 # ── authentication is actually required ───────────────────────────────────────
 
+def _servedRoutes(app):
+    """Every route the app serves, with its full path.
+
+    Newer FastAPI (0.143.2 does, 0.135.3 did not) keeps each included router
+    as one entry in app.routes and resolves its routes lazily. Walking
+    app.routes found two routes, none of them protected, so every check below
+    ran on nothing. iter_route_contexts is the public walk, with the prefix and
+    router-level dependencies applied.
+    """
+    try:
+        from fastapi.routing import iter_route_contexts
+    except ImportError:  # older FastAPI flattened included routes already
+        return list(app.routes)
+    return list(iter_route_contexts(app.routes))
+
+
 def _protectedRoutes(app):
     """Every route that declares the getCurrentUser dependency.
 
@@ -44,8 +60,10 @@ def _protectedRoutes(app):
     """
     from api.dependencies.auth import getCurrentUser
 
+    routes = _servedRoutes(app)
+
     found = []
-    for route in app.routes:
+    for route in routes:
         dependant = getattr(route, "dependant", None)
         if dependant is None:
             continue
@@ -81,7 +99,7 @@ def test_the_app_has_protected_routes(app):
 @pytest.mark.parametrize("method, path", _MUST_BE_PROTECTED)
 def test_named_route_still_declares_authentication(app, method, path):
     known = {(m, p) for m, p in _protectedRoutes(app)}
-    registered = {(m, getattr(r, "path", "")) for r in app.routes
+    registered = {(m, getattr(r, "path", "")) for r in _servedRoutes(app)
                   for m in (getattr(r, "methods", None) or set())}
     assert (method, path) in registered, f"{method} {path} is no longer registered"
     assert (method, path) in known, f"{method} {path} no longer requires a token"
