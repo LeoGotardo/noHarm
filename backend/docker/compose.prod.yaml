@@ -4,16 +4,17 @@
 # pointing this file at local ones would hide the fact that the real URLs are
 # what the container is configured with. Set them in the env file.
 #
-# Build context is the parent of both repos (see docker/Dockerfile):
-#     docker compose -f noHarmBack/docker/compose.prod.yaml build
+# Build context is the repository root (see docker/Dockerfile):
+#     docker compose -f backend/docker/compose.prod.yaml build
 #
-# Run from that parent directory, not from docker/.
+# Run from the root, not from backend/docker/.
 
 services:
   app:
     build:
+      # The repository root, two levels up from this file.
       context: ../../
-      dockerfile: noHarmBack/docker/Dockerfile
+      dockerfile: backend/docker/Dockerfile
       args:
         # Baked into the bundle at build time — a change here needs a rebuild,
         # not a restart. Relative URLs: the app and the API share an origin now.

@@ -96,7 +96,7 @@ jobs:
             git tag -l --format='%(contents)' "$VERSION" | sed '/^-----BEGIN PGP SIGNATURE-----/,$d'
             echo
             echo "---"
-            echo "Deployed together with [noHarmBack $VERSION](https://github.com/LeoGotardo/noHarmBack/tree/$VERSION)."
+            echo "App and server deployed together, from [this commit](https://github.com/LeoGotardo/noHarm/tree/$VERSION)."
             echo "Android: download \`${{ steps.build.outputs.apk }}\` and open it on the phone (allow installs from this source once)."
           } > "$RUNNER_TEMP/notes.md"
           cat "$RUNNER_TEMP/notes.md"

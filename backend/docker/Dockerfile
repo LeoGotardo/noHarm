@@ -2,14 +2,11 @@
 #
 # One image: the Vite bundle, the FastAPI app, and the nginx that fronts both.
 #
-# BUILD CONTEXT IS THE PARENT OF BOTH REPOS. noHarm and noHarmBack are separate
-# git repos that live side by side, and a Dockerfile cannot reach outside its
-# context, so the context has to be the directory holding them:
+# BUILD CONTEXT IS THE REPOSITORY ROOT, not backend/: the app sits at the root
+# and the server under backend/, and a Dockerfile cannot reach outside its
+# context, so the context has to be the directory holding both:
 #
-#     cd /path/that/contains/noHarm/ /path/that/contains/noHarmBack/
-#     docker build -f noHarmBack/docker/Dockerfile -t noharm .
-#
-# CI therefore needs both repos checked out as siblings.
+#     docker build -f backend/docker/Dockerfile -t noharm .   # from the root
 
 # ── Stage 1: the front-end bundle ──────────────────────────────────────────
 FROM node:26-alpine AS frontend
@@ -55,9 +52,11 @@ ENV VITE_API_URL=$VITE_API_URL \
 WORKDIR /build
 # Manifests first: this layer only rebuilds when a dependency actually changes,
 # not on every source edit.
-COPY noHarm/package.json noHarm/package-lock.json ./
+COPY package.json package-lock.json ./
 RUN npm ci
-COPY noHarm/ ./
+# Everything but the server. Without --exclude a change under backend/ would
+# invalidate this layer and rerun `vite build` on a backend-only deploy.
+COPY --exclude=backend . ./
 RUN npm run build
 
 # ── Stage 2: python deps ───────────────────────────────────────────────────
@@ -68,7 +67,7 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends build-essential libpq-dev \
  && rm -rf /var/lib/apt/lists/*
 
-COPY noHarmBack/requirements.txt /tmp/requirements.txt
+COPY backend/requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir --prefix=/install -r /tmp/requirements.txt
 
 # ── Stage 3: runtime ───────────────────────────────────────────────────────
@@ -82,24 +81,24 @@ RUN apt-get update \
 COPY --from=pydeps /install /usr/local
 
 WORKDIR /app
-COPY noHarmBack/src/       ./src/
-COPY noHarmBack/alembic/   ./alembic/
-COPY noHarmBack/alembic.ini ./
+COPY backend/src/       ./src/
+COPY backend/alembic/   ./alembic/
+COPY backend/alembic.ini ./
 
 # The SPA. Everything under here is world-readable static output.
 COPY --from=frontend /build/dist/ /usr/share/nginx/html/
 
-COPY noHarmBack/docker/nginx.conf            /etc/nginx/nginx.conf
-COPY noHarmBack/docker/app_locations.conf    /etc/nginx/app_locations.conf
+COPY backend/docker/nginx.conf            /etc/nginx/nginx.conf
+COPY backend/docker/app_locations.conf    /etc/nginx/app_locations.conf
 # One of these becomes /etc/nginx/server.conf at boot, per TLS_MODE. The
 # entrypoint also writes /etc/nginx/forwarded.conf, which both include paths in
 # nginx.conf expect to exist — so nginx is only ever started through it.
-COPY noHarmBack/docker/server.alb.conf       /etc/nginx/server.alb.conf
-COPY noHarmBack/docker/server.tls.conf       /etc/nginx/server.tls.conf
-COPY noHarmBack/docker/proxy_headers.conf    /etc/nginx/proxy_headers.conf
-COPY noHarmBack/docker/security_headers.conf /etc/nginx/security_headers.conf
-COPY noHarmBack/docker/supervisord.conf      /etc/supervisor/supervisord.conf
-COPY noHarmBack/docker/entrypoint.sh         /usr/local/bin/entrypoint.sh
+COPY backend/docker/server.alb.conf       /etc/nginx/server.alb.conf
+COPY backend/docker/server.tls.conf       /etc/nginx/server.tls.conf
+COPY backend/docker/proxy_headers.conf    /etc/nginx/proxy_headers.conf
+COPY backend/docker/security_headers.conf /etc/nginx/security_headers.conf
+COPY backend/docker/supervisord.conf      /etc/supervisor/supervisord.conf
+COPY backend/docker/entrypoint.sh         /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh \
  && mkdir -p /var/www/certbot /etc/nginx/certs \
  && chown -R appuser:appuser /app

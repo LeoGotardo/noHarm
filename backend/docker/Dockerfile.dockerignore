@@ -1,8 +1,10 @@
-# Paths are relative to the build context (the parent of both repos).
+# Paths are relative to the build context (the repository root).
 #
-# The name is load-bearing. Docker reads `.dockerignore` only from the root of
-# the context, which here is a directory no repo owns; BuildKit also reads
-# `<Dockerfile>.dockerignore` beside the Dockerfile, and that is what this is.
+# The name is load-bearing. BuildKit reads `<Dockerfile>.dockerignore` beside
+# the Dockerfile before it looks for a `.dockerignore` at the root of the
+# context, and only this build should be bound by these rules: a root
+# `.dockerignore` would apply to anything else built from the root too.
+#
 # It used to be `docker/.dockerignore`, which no build ever read: the host's
 # node_modules was copied over the one `npm ci` had just built for Alpine, and
 # once the lockfile moved to Vite 8 the bundle step ran the host's stale Vite 6
@@ -18,11 +20,11 @@
 **/.coverage
 
 # Built in stage 1 — a stale local copy must never win over it.
-noHarm/dist
-noHarm/test-results
-noHarm/playwright-report
-noHarm/android
-noHarm/ios
+dist
+test-results
+playwright-report
+android
+ios
 
 # Secrets stay out of the image. Config arrives as environment variables; a
 # .secrets.toml baked into a layer is readable by anyone who pulls the image.
@@ -30,8 +32,8 @@ noHarm/ios
 **/.env
 **/.env.*
 
-# Service-account keys. Stage 1 does `COPY noHarm/ ./`, so a key left in that
-# repo lands in the front-end build layer. The final stage only takes
+# Service-account keys. Stage 1 copies the whole tree but backend/, so a key
+# left anywhere in the app lands in the front-end build layer. The final stage only takes
 # /build/dist, so it never reaches the pushed image — but a build layer is not
 # the place to find out.
 **/*firebase-adminsdk*.json

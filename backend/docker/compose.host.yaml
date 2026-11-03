@@ -13,7 +13,7 @@
 # The image is NOT built here. A t3.micro has 913 MB of RAM and `vite build`
 # needs more than that, so the image is built elsewhere and loaded:
 #
-#     docker build -f noHarmBack/docker/Dockerfile -t noharm:latest .   # dev machine
+#     docker build -f backend/docker/Dockerfile -t noharm:latest .   # dev machine, repo root
 #     docker save noharm:latest | gzip | ssh <host> 'gunzip | docker load'
 #
 # Live at https://noharm.site — one t3.micro behind the Elastic IP

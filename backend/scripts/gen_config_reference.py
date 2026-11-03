@@ -162,9 +162,9 @@ def build():
         "## Front-end build variables",
         "",
         "The `VITE_*` values are the front end's, inlined into the bundle at build",
-        "time; they are listed in `noHarm/README.md`, \"Environment variables\", and",
+        "time; they are listed in the root `README.md`, \"Environment variables\", and",
         "passed as build args by `docker/Dockerfile`, `docker/deploy-host.sh` and",
-        "`.github/workflows/deploy.yml`.",
+        "the root `.github/workflows/deploy.yml`.",
         "",
     ]
     return "\n".join(out)
