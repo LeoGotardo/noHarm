@@ -1,0 +1,81 @@
+import pytest
+
+
+class TestMyProfile:
+    def test_get_my_profile_returns_200(self, client, user_a):
+        resp = client.get("/users/me", headers=user_a["headers"])
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["email"] == user_a["identity"]["email"]
+        assert body["username"] == user_a["identity"]["username"]
+
+    def test_no_auth_returns_401(self, client):
+        resp = client.get("/users/me")
+        assert resp.status_code == 401
+
+    def test_update_username_persists(self, client, user_a):
+        resp = client.put(
+            "/users/me",
+            json={"username": "newusername99"},
+            headers=user_a["headers"],
+        )
+        assert resp.status_code == 200
+        assert resp.json()["username"] == "newusername99"
+
+        # Verify persistence
+        get_resp = client.get("/users/me", headers=user_a["headers"])
+        assert get_resp.json()["username"] == "newusername99"
+
+    def test_delete_account_then_login_returns_403(self, client, user_a):
+        resp = client.delete("/users/me", headers=user_a["headers"])
+        assert resp.status_code == 200
+
+        login_resp = client.post("/auth/login", json={"idToken": user_a["idToken"]})
+        assert login_resp.status_code == 403
+        # Restorable, not gone — see test_accountLifecycle.py for the window.
+        assert login_resp.json()["errorCode"] == "ACCOUNT_PENDING_DELETION"
+
+
+class TestPublicProfile:
+    def test_get_other_user_public_profile(self, client, user_a, user_b):
+        resp = client.get(f"/users/{user_b['uid']}", headers=user_a["headers"])
+        assert resp.status_code == 200
+        assert resp.json()["username"] == user_b["identity"]["username"]
+
+    def test_get_nonexistent_user_returns_404(self, client, user_a):
+        import uuid
+        resp = client.get(f"/users/{uuid.uuid4()}", headers=user_a["headers"])
+        assert resp.status_code == 404
+
+
+class TestRLS:
+    def test_get_all_users_shows_only_enabled(self, client, user_a, user_b):
+        resp = client.get("/users", headers=user_a["headers"])
+        assert resp.status_code == 200
+        # Both users created with emailVerified=True → status=enabled
+        ids = [u["id"] for u in resp.json()["users"]]
+        assert user_a["uid"] in ids
+        assert user_b["uid"] in ids
+
+
+class TestNoPrivateFieldsOnOtherUsers:
+    """Every signed-in account can read another's profile and page the whole
+    directory, so neither may carry an e-mail, a birth date or a status."""
+
+    PRIVATE = {"email", "status", "birth_date", "banned_until", "deleted_at",
+               "must_change_username", "picture_blocked"}
+
+    def test_public_profile(self, client, user_a, user_b):
+        body = client.get(f"/users/{user_b['uid']}", headers=user_a["headers"]).json()
+        assert body["id"] == user_b["uid"]
+        assert not self.PRIVATE & set(body)
+
+    def test_directory_both_forms(self, client, user_a, user_b):
+        paged = client.get("/users", params={"paginated": True}, headers=user_a["headers"]).json()
+        listed = client.get("/users", headers=user_a["headers"]).json()
+        for row in paged["items"] + listed["users"]:
+            assert not self.PRIVATE & set(row)
+
+    def test_me_still_has_them(self, client, user_a):
+        body = client.get("/users/me", headers=user_a["headers"]).json()
+        assert "email" in body and "status" in body

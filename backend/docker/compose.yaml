@@ -1,0 +1,110 @@
+services:
+  # O Banco de Dados Postgres
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres_db
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: noharm-db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U root -d noharm-db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # O Banco de Dados Redis
+  redis:
+    image: redis:7-alpine
+    container_name: redis_cache
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # The Python application
+  app:
+    build:
+      context: ../
+      # Dockerfile.dev, not Dockerfile: the production image is multi-stage,
+      # builds the Vite bundle and fronts everything with nginx over TLS. None
+      # of that belongs in a hot-reload loop, and its build context is the
+      # parent of both repos rather than this one.
+      dockerfile: docker/Dockerfile.dev
+    container_name: noharm-backend
+    environment:
+      - APP_ENV=dev
+      # Requests reach the container from the compose bridge gateway, so without
+      # this every client shares one rate-limit bucket and a single user can lock
+      # the whole API out. Trusting the bridge lets X-Forwarded-For identify the
+      # real client again.
+      #
+      # Scoped to Docker's private pool on purpose. Published ports keep the
+      # original source address for hosts outside this machine, so widening this
+      # to 192.168.0.0/16 or 10.0.0.0/8 would mark every machine on the LAN as a
+      # proxy and let them forge X-Forwarded-For.
+      - TRUSTED_PROXIES=["172.16.0.0/12","127.0.0.1/32"]
+      # /auth/* verifies a Firebase ID token, and neither the E2E suite nor a
+      # browser under Playwright can produce one signed by Google — the Google
+      # popup is blocked in automation.
+      #
+      # This makes firebase_admin skip the signature check. The `aud`, `iss` and
+      # `sub` claims are still enforced, so a token minted for another project is
+      # still refused, but expiry is not checked and anyone can authenticate as
+      # anyone. Nothing is contacted at the address below; the variable's
+      # presence is the switch.
+      #
+      # DEV AND TEST ONLY. Setting this in a deployed environment removes
+      # authentication entirely.
+      - FIREBASE_AUTH_EMULATOR_HOST=localhost:9099
+      # What tokens are matched against, real or minted. Real Google tokens for
+      # this project keep working, so interactive login still works locally.
+      - FIREBASE_PROJECT_ID=noharm-6cc9d
+      # Moderation is an allowlist of Firebase UIDs and nothing else, so a dev
+      # environment with an empty one cannot exercise the queue, the evidence
+      # endpoint or a resolution — every admin route answers 404 to everybody.
+      # This names one fixed uid the E2E suite registers as (helpers/api.js,
+      # `createAdmin`). Deployed, the value comes from prod.env and is a real
+      # person; here it is a throwaway account anyone with the compose file can
+      # become, which is exactly why it must never leave dev.
+      # Two of them: the report lock only means anything with more than one
+      # moderator, and a collision cannot be tested with a single uid.
+      - ADMIN_USER_IDS=["e2e-moderator","e2e-moderator-2", "XyeS5lvpHaRzod77qswzMYDIBlv2"]
+      # NoHarm's own account, so the Official mark shows in dev too.
+      - OFFICIAL_USER_IDS=["q6cLsGAozqcKddbWPLEsFZzrjy03"]
+    ports:
+      - "8080:8080"
+    # run.py passes reload=DEBUG to uvicorn, and DEBUG is true in dev. Without
+    # this mount the reloader watches the frozen copy inside the image, so
+    # nothing reloads: every change needed a rebuild. .secrets.toml lives in
+    # /app, outside the mount.
+    #
+    # alembic/ is mounted for the same reason: the command runs `alembic
+    # upgrade head` on start, and against the image's frozen copy that is the
+    # head of whenever the image was built. New code in src/ then queried
+    # tables the database never got.
+    volumes:
+      - ../src:/app/src
+      - ../alembic:/app/alembic
+    # 'depends_on' guarantees the app only starts after the database and redis
+    # are up. It only applies to a fresh container: if the app is already Running
+    # from a previous attempt, compose leaves it as is and the condition is not
+    # re-evaluated. Use `docker compose down` (or `up --force-recreate`) after a
+    # failed startup, otherwise the app runs without postgres ever having existed
+    # on the network.
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:
