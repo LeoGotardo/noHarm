@@ -11,9 +11,9 @@
 # before building, deploys, and only once the server is healthy tags the
 # repository `vX.Y.Z` (an annotated tag carrying the notes) and pushes the tag.
 # The tag push is what starts the `release` workflow, which builds the signed
-# Android APK and publishes the GitHub Release with it, and `release tests`,
-# which runs both test suites against it — see .github/workflows/. A deploy
-# that fails tags nothing.
+# Android APK and publishes the GitHub Release with it, and `tests`, which
+# runs both test suites against it — see .github/workflows/. A deploy that
+# fails tags nothing.
 #
 # Why the build does not happen on the server: the instance is a t3.micro with
 # 913 MB of RAM, and `vite build` needs more than that. Node gets OOM-killed

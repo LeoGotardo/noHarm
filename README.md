@@ -391,8 +391,10 @@ tags the repository with an annotated `vX.Y.Z` carrying the notes and pushes
 the tag. The tag starts `.github/workflows/release.yml`, which builds
 the signed APK (`scripts/build-android-release.sh`) and publishes a GitHub
 Release named after the tag, with the notes and `noharm-vX.Y.Z.apk`. The same tag
-starts `.github/workflows/release-tests.yml`, which runs the backend suite and
-the e2e suite against that commit; it reports, it does not hold back the APK.
+starts `.github/workflows/tests.yml`, which runs the backend suite, the e2e
+suite and the production image build against that commit; it reports, it does
+not hold back the APK. The same workflow runs on every pull request into
+`master`, Dependabot's update PRs included.
 
 - The repository must be clean, on `master` and level with origin, or the
   script stops before building — the tag has to name the code that was

@@ -35,6 +35,13 @@ every push, pull request and Monday; `.github/dependabot.yml` opens weekly updat
 held below v8, which needs Node 22). `pre-commit install` enables the same
 gitleaks check before each commit (`.pre-commit-config.yaml`).
 
+`.github/workflows/tests.yml` runs the backend suite, the e2e suite and a build
+of the production image on **every pull request into `master`** — Dependabot's
+update PRs included, which is where a new version is tested before it is
+merged — and on every release tag. It uses no secrets (a Dependabot PR gets
+none), so it does not build the APK, and nothing requires it to be green before
+a merge: a red check is a report, not a gate.
+
 The full APK walkthrough — prerequisites, signing a release build, and the
 failure modes — is in [`README.md`](README.md), "Building the Android APK".
 Two things to know before touching it: `android/` and `ios/` are **gitignored
@@ -261,11 +268,12 @@ before building, refuses to run with uncommitted or unpushed work, and after a
 healthy deploy tags the repository and pushes the tag. The tag starts
 `.github/workflows/release.yml`, which builds the signed APK
 with `scripts/build-android-release.sh` (`versionCode` derived from the tag)
-and publishes the GitHub Release, and `.github/workflows/release-tests.yml`,
+and publishes the GitHub Release, and `.github/workflows/tests.yml`,
 which runs the backend suite (unit, then integration against Postgres, Redis,
-the Firebase Auth emulator and a role without RLS bypass) and the e2e suite
-against the stack in `backend/docker/compose.yaml`. It runs beside the APK
-build, not in front of it: the deploy has already happened by then.
+the Firebase Auth emulator and a role without RLS bypass), the e2e suite
+against the stack in `backend/docker/compose.yaml` and the production image
+build. On a tag it runs beside the APK build, not in front of it: the deploy
+has already happened by then.
 `--no-release` deploys without a version.
 One-time setup: `scripts/setup-release-secrets.sh`. Full walkthrough in
 `README.md`, "Releases".
