@@ -439,12 +439,15 @@ token verifies.
 
 ### Dependabot pull requests
 
-`.github/dependabot.yml` in each repo opens update PRs every Monday; the
-`security` workflow runs on each one. Merge a PR when its check is green and
-the change is a patch or minor bump; read the changelog first for a major one.
-After merging backend updates, run the unit suite locally and redeploy — the
-image is only rebuilt by `deploy-host.sh`, so a merged update reaches
-production at the next deploy, not at merge time. The Capacitor CLI is held
+The root `.github/dependabot.yml` opens update PRs every Monday (base images
+and actions monthly). Two workflows run on each one: `security` (the audits
+and gitleaks) and `tests` — the backend unit and integration suites on the
+Python the production image ships, the e2e suite against the dev stack, and a
+build of the production image. Merge a PR when both are green and the change
+is a patch or minor bump; read the changelog first for a major one. Nothing
+enforces the green: `master` requires no check. The image is only rebuilt by
+`deploy-host.sh`, so a merged update reaches production at the next deploy,
+not at merge time. The Capacitor CLI is held
 below v8 on purpose (it needs Node 22; the documented APK build is on Node 20).
 
 ## Host header
