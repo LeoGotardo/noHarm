@@ -122,13 +122,16 @@ jobs:
 
       # The Python the image ships, read from the production Dockerfile, so a
       # base-image bump (Dependabot's docker updates) runs both suites on the
-      # new interpreter, not only the e2e stack.
+      # new interpreter, not only the e2e stack. Major.minor only: setup-python
+      # builds each patch release per runner OS, and an old pin such as 3.12.3
+      # has no build for the current ubuntu-latest. Compatibility breaks
+      # between minors; the patch is the image's business.
       - name: Python version of the image
         id: python
         run: |
-          version="$(sed -n 's/^FROM python:\([0-9][0-9.]*\)-.*/\1/p' docker/Dockerfile | sed -n 1p)"
+          version="$(sed -n 's/^FROM python:\([0-9][0-9]*\.[0-9][0-9]*\).*/\1/p' docker/Dockerfile | sed -n 1p)"
           if [[ -z "$version" ]]; then
-            echo "::error file=backend/docker/Dockerfile::no 'FROM python:X.Y.Z-…' line to take the version from"
+            echo "::error file=backend/docker/Dockerfile::no 'FROM python:X.Y…' line to take the version from"
             exit 1
           fi
           echo "Python $version, as in backend/docker/Dockerfile"
