@@ -20,6 +20,11 @@ updates:
       # Move both together, deliberately.
       - dependency-name: "@capacitor/cli"
         update-types: ["version-update:semver-major"]
+      # @capacitor-firebase/authentication declares a peer of firebase ^12, so
+      # firebase 13 cannot install until that plugin accepts it. Lift this when
+      # it does, and move both in one PR.
+      - dependency-name: "firebase"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: pip
     directory: "/backend"
@@ -31,12 +36,22 @@ updates:
       # One PR for the test tooling; it never reaches the image.
       test-tooling:
         patterns: ["pytest*", "fakeredis*", "httpx", "httpcore", "pluggy", "iniconfig", "Pygments"]
+      # python-socketio pins a minimum python-engineio; bumped alone, the
+      # pinned engineio makes the install unresolvable.
+      socketio:
+        patterns: ["python-socketio", "python-engineio"]
 
   # Both Dockerfiles and the compose files' images.
   - package-ecosystem: docker
     directory: "/backend/docker"
     schedule:
       interval: monthly
+    ignore:
+      # Patch releases of the pinned Python only. A new minor is a deliberate
+      # move: wheels (cffi first) lag a release, and tests.yml takes its
+      # Python version from this Dockerfile.
+      - dependency-name: "python"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
 
   # One entry covers every workflow: they all live in the root .github/.
   - package-ecosystem: github-actions
